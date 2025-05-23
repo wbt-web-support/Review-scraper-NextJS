@@ -99,7 +99,7 @@ const WidgetCodeModal = ({ isOpen, onClose, widget }: WidgetCodeModalProps) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-xl w-full p-0">
+      <DialogContent className="w-full max-w-lg min-w-[320px] rounded-lg p-0">
         <DialogHeader className="px-6 pt-6 pb-2">
           <DialogTitle>Embed Widget on Your Website</DialogTitle>
           <DialogDescription>
@@ -131,7 +131,7 @@ const WidgetCodeModal = ({ isOpen, onClose, widget }: WidgetCodeModalProps) => {
                     Copy
                   </Button>
                 </div>
-                <pre className="p-4 text-sm text-slate-100 overflow-x-auto max-h-60 min-h-[120px] bg-slate-900">
+                <pre className="p-4 text-sm text-slate-100 overflow-auto max-h-48 min-h-[100px] bg-slate-900 rounded-b-md">
                   <code>{currentCodeToShow}</code> 
                 </pre>
               </div>
