@@ -99,59 +99,61 @@ const WidgetCodeModal = ({ isOpen, onClose, widget }: WidgetCodeModalProps) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl sm:max-w-3xl md:max-w-4xl">
-        <DialogHeader>
+      <DialogContent className="max-w-xl w-full p-0">
+        <DialogHeader className="px-6 pt-6 pb-2">
           <DialogTitle>Embed Widget on Your Website</DialogTitle>
           <DialogDescription>
             Copy the code below and paste it into your website where you want the widget to appear.
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue="javascript" value={activeTab} onValueChange={(value: string) => setActiveTab(value as "javascript" | "iframe")}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="javascript">JavaScript (Recommended)</TabsTrigger>
-            <TabsTrigger value="iframe">iFrame</TabsTrigger>
-          </TabsList>
+        <div className="px-6">
+          <Tabs defaultValue="javascript" value={activeTab} onValueChange={(value: string) => setActiveTab(value as "javascript" | "iframe")}>
+            <TabsList className="grid w-full grid-cols-2 mb-2">
+              <TabsTrigger value="javascript">JavaScript (Recommended)</TabsTrigger>
+              <TabsTrigger value="iframe">iFrame</TabsTrigger>
+            </TabsList>
 
-          <TabsContent value={activeTab} className="py-4">
-            <div className="bg-slate-800 dark:bg-gray-900 rounded-md overflow-hidden shadow-inner">
-              <div className="flex items-center justify-between px-4 py-2 bg-slate-700 dark:bg-gray-800 border-b border-slate-600 dark:border-gray-700">
-                <span className="text-sm font-medium text-slate-200 dark:text-gray-300">
-                  {activeTab === 'javascript' ? 'JavaScript Embed Code' : 'iFrame Embed Code'}
-                </span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm" 
-                  className="text-slate-300 hover:text-white hover:bg-slate-600 dark:hover:bg-gray-700"
-                  onClick={handleCopyCode}
-                >
-                  <i className="fas fa-copy mr-2 h-4 w-4"></i>
-                  Copy
-                </Button>
-              </div>
-              <pre className="p-4 text-sm text-slate-100 dark:text-gray-200 overflow-x-auto max-h-[300px]">
-                <code>{currentCodeToShow}</code> 
-              </pre>
-            </div>
-            <p className="mt-3 text-xs text-slate-500 dark:text-gray-400">
-              {activeTab === 'javascript'
-                ? "Dynamically loads the widget. Recommended for most integrations."
-                : "Simpler to embed, but offers less flexibility and might affect SEO or page speed."}
-            </p>
-          </TabsContent>
-        </Tabs>
-          <DialogFooter className="pt-6 sm:justify-between"> 
-              <p className="text-xs text-slate-500 dark:text-gray-400 hidden sm:block">
-                  Widget ID: <code className="bg-slate-100 dark:bg-slate-700 p-1 rounded text-xs">{widget._id}</code>
-              </p>
-              <div>
-                  <Button type="button" variant="outline" onClick={onClose} className="mr-2">Close</Button>
-                  <Button type="button" onClick={handleCopyCode}>
-                      <i className="fas fa-copy mr-2 h-4 w-4"></i>Copy Active Code
+            <TabsContent value={activeTab} className="py-2">
+              <div className="bg-slate-800 rounded-md overflow-hidden shadow-inner">
+                <div className="flex items-center justify-between px-4 py-2 bg-slate-700 border-b border-slate-600">
+                  <span className="text-sm font-medium text-slate-200">
+                    {activeTab === 'javascript' ? 'JavaScript Embed Code' : 'iFrame Embed Code'}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm" 
+                    className="text-slate-300 hover:text-white hover:bg-slate-600"
+                    onClick={handleCopyCode}
+                  >
+                    <i className="fas fa-copy mr-2 h-4 w-4"></i>
+                    Copy
                   </Button>
+                </div>
+                <pre className="p-4 text-sm text-slate-100 overflow-x-auto max-h-60 min-h-[120px] bg-slate-900">
+                  <code>{currentCodeToShow}</code> 
+                </pre>
               </div>
-          </DialogFooter>
+              <p className="mt-3 text-xs text-slate-500">
+                {activeTab === 'javascript'
+                  ? "Dynamically loads the widget. Recommended for most integrations."
+                  : "Simpler to embed, but offers less flexibility and might affect SEO or page speed."}
+              </p>
+            </TabsContent>
+          </Tabs>
+        </div>
+        <div className="px-6 pt-4 pb-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="bg-slate-100 rounded px-3 py-2 text-xs text-slate-700 w-full sm:w-auto text-center sm:text-left">
+            Widget ID: <code className="font-mono">{widget._id}</code>
+          </div>
+          <div className="flex justify-end gap-2 w-full sm:w-auto">
+            <Button type="button" variant="outline" onClick={onClose}>Close</Button>
+            <Button type="button" onClick={handleCopyCode}>
+              <i className="fas fa-copy mr-2 h-4 w-4"></i>Copy Active Code
+            </Button>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
