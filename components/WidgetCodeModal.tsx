@@ -4,8 +4,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
-  DialogFooter,
+  DialogDescription
 } from "../components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Button } from "../components/ui/button";
@@ -99,7 +98,7 @@ const WidgetCodeModal = ({ isOpen, onClose, widget }: WidgetCodeModalProps) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-full max-w-lg min-w-[320px] rounded-lg p-0">
+      <DialogContent className="w-full max-w-lg min-w-[50vw] rounded-lg p-0">
         <DialogHeader className="px-6 pt-6 pb-2">
           <DialogTitle>Embed Widget on Your Website</DialogTitle>
           <DialogDescription>
@@ -109,12 +108,12 @@ const WidgetCodeModal = ({ isOpen, onClose, widget }: WidgetCodeModalProps) => {
 
         <div className="px-6">
           <Tabs defaultValue="javascript" value={activeTab} onValueChange={(value: string) => setActiveTab(value as "javascript" | "iframe")}>
-            <TabsList className="grid w-full grid-cols-2 mb-2">
+            <TabsList className="grid w-[47vw] grid-cols-2 mb-2">
               <TabsTrigger value="javascript">JavaScript (Recommended)</TabsTrigger>
               <TabsTrigger value="iframe">iFrame</TabsTrigger>
             </TabsList>
 
-            <TabsContent value={activeTab} className="py-2">
+            <TabsContent value={activeTab} className="py-2 w-[47vw]">
               <div className="bg-slate-800 rounded-md overflow-hidden shadow-inner">
                 <div className="flex items-center justify-between px-4 py-2 bg-slate-700 border-b border-slate-600">
                   <span className="text-sm font-medium text-slate-200">
