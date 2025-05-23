@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { Button } from './ui/button';
 
 export interface IUserSessionData {
   id?: string;
@@ -17,10 +16,9 @@ interface SidebarProps {
   onLogout: () => void;
   user?: IUserSessionData | null;
   currentPath: string;
-  resolvedTheme: "light" | "dark";
 }
 
-const Sidebar = ({ isMobile, isOpen, onClose, onLogout, user, currentPath, resolvedTheme }: SidebarProps) => {
+const Sidebar = ({ isMobile, isOpen, onClose, onLogout, user, currentPath }: SidebarProps) => {
   const navItems = [
     { label: "Dashboard", icon: "tachometer-alt", href: "/dashboard" },
     { label: "My Widgets", icon: "th-large", href: "/widgets" },
@@ -74,26 +72,26 @@ const Sidebar = ({ isMobile, isOpen, onClose, onLogout, user, currentPath, resol
       <aside className={sidebarClasses}>
         <div className="flex flex-col h-full">
           <div className="flex items-center px-4 py-3 border-b border-slate-200">
-            <a href="/dashboard" className="flex items-center group">
+            <Link href="/dashboard" className="flex items-center group">
               <span className={`text-2xl mr-2 ${logoIconColor}`}>
                 <i className="fas fa-comment-dots"></i>
               </span>
               <span className={`font-bold text-lg ${logoTextColor}`}>ReviewHub</span>
-            </a>
+            </Link>
           </div>
 
           <nav className="flex-1 px-2 py-4 space-y-1">
             {navItems.map((item) => {
               const isActive = currentPath === item.href;
               return (
-                <a
+                <Link
                   key={item.href}
                   href={item.href}
                   className={`${navItemBase} ${isActive ? navItemActiveClasses : `${navItemInactiveText} ${navItemInactiveBgHover}`}`}
                 >
                   <i className={`fas fa-${item.icon} w-5 ${isActive ? navIconActiveText : navIconText}`}></i>
                   <span>{item.label}</span>
-                </a>
+                </Link>
               );
             })}
           </nav>
