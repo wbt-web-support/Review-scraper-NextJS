@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { 
   Table, 
   TableBody, 
@@ -5,8 +6,14 @@ import {
   TableHead, 
   TableHeader, 
   TableRow 
-} from "../components/ui/table";
-import { Rating } from "../components/ui/Rating";
+} from "./ui/table";
+import { Rating } from "./ui/Rating";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
 
 export interface IReviewItem {
   _id?: string;       
@@ -31,6 +38,26 @@ interface ReviewTableProps {
 }
 
 const ReviewTable = ({  reviews, isLoading = false, emptyState, error }: ReviewTableProps) => {
+  const [selectedReview, setSelectedReview] = useState<IReviewItem | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const openReviewModal = (review: IReviewItem) => {
+    setSelectedReview(review);
+    setIsModalOpen(true);
+  };
+
+  const closeReviewModal = () => {
+    setSelectedReview(null);
+    setIsModalOpen(false);
+  };
+
+  // Function to truncate text and determine if "Read more" is needed
+  const getTruncatedContent = (content: string | null | undefined, maxLength: number = 100) => {
+    if (!content) return { text: "", needsReadMore: false };
+    if (content.length <= maxLength) return { text: content, needsReadMore: false };
+    return { text: content.substring(0, maxLength) + "...", needsReadMore: true };
+  };
+
   // Default empty state if none provided
   const defaultEmptyState = (
     <div className="text-center py-10"> {/* Increased padding */}
@@ -117,23 +144,28 @@ const ReviewTable = ({  reviews, isLoading = false, emptyState, error }: ReviewT
           <TableBody className="divide-y divide-slate-200 ">
             {reviews.map((review: IReviewItem, index: number) => {
               const source = getReviewSource(review);
-              const sourceIcon = source === 'google' ? 'google' : source === 'facebook' ? 'facebook-f' : 'store-alt';
-              const sourceColorClasses = source === 'google'
-                ? 'bg-red-100 text-red-600'
-                : source === 'facebook'
-                ? 'bg-blue-100 text-blue-600'
-                : 'bg-slate-100  text-slate-600';
 
               return (
                 <TableRow key={review._id || review.reviewId || `review-${index}`} className="hover:bg-slate-50/50  transition-colors">
                   <TableCell className="px-4 py-3 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className={`w-7 h-7 rounded-md flex items-center justify-center text-sm ${sourceColorClasses}`}>
-                        <i className={`fab fa-${sourceIcon}`}></i>
-                      </div>
-                      <span className="ml-2.5 text-sm font-medium text-slate-700 capitalize">
-                        {source}
-                      </span>
+                    <div className="flex items-center justify-center">
+                      {source === 'google' ? (
+                        <img 
+                          src="/google_logo.png" 
+                          alt="Google" 
+                          className="w-6 h-6 object-contain"
+                        />
+                      ) : source === 'facebook' ? (
+                        <img 
+                          src="/facebook-logo.png" 
+                          alt="Facebook" 
+                          className="w-6 h-6 object-contain"
+                        />
+                      ) : (
+                        <div className="w-6 h-6 rounded-md flex items-center justify-center text-sm bg-slate-100 text-slate-600">
+                          <i className="fas fa-store-alt"></i>
+                        </div>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell className="px-4 py-3 whitespace-nowrap">
@@ -151,9 +183,28 @@ const ReviewTable = ({  reviews, isLoading = false, emptyState, error }: ReviewT
                     )}
                   </TableCell>
                   <TableCell className="px-4 py-3">
-                    <div className="text-sm text-slate-700 max-w-sm Lg:max-w-md xl:max-w-lg truncate" title={review.content || undefined}>
-                      {review.content || <span className="italic text-slate-400">No content provided.</span>}
-                    </div>
+                    {(() => {
+                      const { text, needsReadMore } = getTruncatedContent(review.content);
+                      return (
+                        <div className="text-sm text-slate-700 max-w-sm lg:max-w-md xl:max-w-lg">
+                          {review.content ? (
+                            <div>
+                              <span>{text}</span>
+                              {needsReadMore && (
+                                <button
+                                  onClick={() => openReviewModal(review)}
+                                  className="ml-1 text-blue-600 hover:text-blue-800 font-medium cursor-pointer underline"
+                                >
+                                  Read more
+                                </button>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="italic text-slate-400">No content provided.</span>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell className="px-4 py-3 whitespace-nowrap text-sm text-slate-500 text-right">
                     {getDisplayDate(review)}
@@ -164,6 +215,94 @@ const ReviewTable = ({  reviews, isLoading = false, emptyState, error }: ReviewT
           </TableBody>
         </Table>
       </div>
+
+      {/* Review Modal */}
+      <Dialog open={isModalOpen} onOpenChange={closeReviewModal}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                {selectedReview && (() => {
+                  const source = getReviewSource(selectedReview);
+                  return (
+                    <div className="flex items-center gap-2">
+                      {source === 'google' ? (
+                        <img 
+                          src="/google_logo.png" 
+                          alt="Google" 
+                          className="w-5 h-5 object-contain"
+                        />
+                      ) : source === 'facebook' ? (
+                        <img 
+                          src="/facebook-logo.png" 
+                          alt="Facebook" 
+                          className="w-5 h-5 object-contain"
+                        />
+                      ) : (
+                        <div className="w-5 h-5 rounded-md flex items-center justify-center text-xs bg-slate-100 text-slate-600">
+                          <i className="fas fa-store-alt"></i>
+                        </div>
+                      )}
+                      <span className="font-medium text-slate-900">
+                        {selectedReview.author || "Anonymous"}
+                      </span>
+                      <span className="text-blue-500">
+                        <i className="fas fa-check-circle text-sm"></i>
+                      </span>
+                    </div>
+                  );
+                })()}
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedReview && (
+            <div className="space-y-4">
+              {/* Rating */}
+              {typeof selectedReview.rating === 'number' ? (
+                <div className="flex items-center gap-2">
+                  <Rating value={selectedReview.rating} size="sm"/>
+                  <span className="text-sm text-slate-600">
+                    {getDisplayDate(selectedReview)}
+                  </span>
+                </div>
+              ) : selectedReview.recommendationStatus === 'recommended' ? (
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-1 inline-flex text-sm leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                    Recommended
+                  </span>
+                  <span className="text-sm text-slate-600">
+                    {getDisplayDate(selectedReview)}
+                  </span>
+                </div>
+              ) : selectedReview.recommendationStatus === 'not_recommended' ? (
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-1 inline-flex text-sm leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                    Not Recommended
+                  </span>
+                  <span className="text-sm text-slate-600">
+                    {getDisplayDate(selectedReview)}
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-400 text-sm italic">No Rating</span>
+                  <span className="text-sm text-slate-600">
+                    {getDisplayDate(selectedReview)}
+                  </span>
+                </div>
+              )}
+
+              {/* Review Content */}
+              <div className="text-slate-700 leading-relaxed">
+                {selectedReview.content || (
+                  <span className="italic text-slate-400">No content provided.</span>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

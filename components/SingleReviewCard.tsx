@@ -2,6 +2,12 @@ import Image from 'next/image';
 import { useState } from 'react';
 import { Rating } from './ui/Rating'; 
 import { IReviewItemFromAPI } from './WidgetPreview';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
 
 interface SingleReviewCardProps {
   review: IReviewItemFromAPI;
@@ -13,78 +19,174 @@ interface SingleReviewCardProps {
   };
   sourcePlatform: 'google' | 'facebook'; 
 }
+
 const SingleReviewCard = ({ review, displaySettings, sourcePlatform }: SingleReviewCardProps) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const content = review.content || "";
-  const canReadMore = content.length > 120; 
+  const canReadMore = content.length > 180; 
   const platformIcon = sourcePlatform === 'google' ? 'fab fa-google' : 'fab fa-facebook-f';
   const platformIconColor = sourcePlatform === 'google' ? 'text-red-500' : 'text-blue-600'; 
+  
+  // Get author initials for fallback avatar
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(word => word.charAt(0))
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
   return (
-    <div className="bg-card text-card-foreground rounded-xl shadow-lg p-4 sm:p-5 flex flex-col space-y-3 border border-border hover:shadow-xl transition-shadow duration-300 h-full">
-      <div className="flex items-start space-x-3">
-        {displaySettings.showProfilePictures && (
-          <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-border bg-muted flex-shrink-0">
-            {review.profilePicture ? (
-              <Image
-                src={review.profilePicture}
-                alt={review.author || 'Reviewer'}
-                fill
-                style={{ objectFit: 'cover' }}
-                sizes="40px"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                <i className="fas fa-user text-xl"></i>
+    <>
+      <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 flex flex-col space-y-4 border border-gray-100 h-full group">
+        {/* Header Section */}
+        <div className="flex items-start space-x-4">
+          {displaySettings.showProfilePictures && (
+            <div className="relative w-12 h-12 rounded-full overflow-hidden border-3 border-gray-100 bg-gradient-to-br from-blue-500 to-purple-600 flex-shrink-0">
+              {review.profilePicture ? (
+                <Image
+                  src={review.profilePicture}
+                  alt={review.author || 'Reviewer'}
+                  fill
+                  style={{ objectFit: 'cover' }}
+                  sizes="48px"
+                  className="transition-transform duration-300 group-hover:scale-105"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-white font-bold text-lg">
+                  {getInitials(review.author || 'A')}
+                </div>
+              )}
+            </div>
+          )}
+          
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between mb-2">
+              <h5 className="font-bold text-gray-900 text-lg truncate" title={review.author}>
+                {review.author || "Anonymous"}
+              </h5>
+              <div className={`w-7 h-7 rounded-full bg-gray-50 flex items-center justify-center ${platformIconColor} border border-gray-200`}>
+                <i className={`${platformIcon} text-sm`}></i>
+              </div>
+            </div>
+            
+            {displaySettings.showRatings && (
+              <div className="flex items-center mb-2">
+                {typeof review.rating === 'number' ? (
+                  <>
+                    <Rating value={review.rating} size="sm"/>
+                    <span className="ml-2 text-sm font-bold text-amber-600">
+                      {review.rating.toFixed(1)}
+                    </span>
+                  </>
+                ) : review.recommendationStatus === 'recommended' ? (
+                  <span className="text-sm font-bold text-green-600 flex items-center">
+                    <i className="fas fa-thumbs-up mr-2"></i> Recommended
+                  </span>
+                ) : (
+                  <span className="text-sm text-gray-400 italic">No Star Rating</span>
+                )}
               </div>
             )}
+            
+            {displaySettings.showDates && (
+              <p className="text-sm text-gray-500 font-medium" title={review.postedAt}>
+                {review.postedAt || "Recently"}
+              </p>
+            )}
           </div>
-        )}
-        <div className="flex-1 min-w-0">
-          <h5 className="font-semibold text-sm text-foreground truncate" title={review.author}>
-            {review.author || "Anonymous"}
-          </h5>
-          {displaySettings.showDates && (
-            <p className="text-xs text-muted-foreground truncate" title={review.postedAt}>
-              {review.postedAt || "Recently"}
-            </p>
-          )}
         </div>
-        <div className={`text-lg ${platformIconColor}`}>
-          <i className={platformIcon}></i>
+
+        {/* Review Content */}
+        <div className="flex-grow">
+          <p className="text-gray-700 leading-relaxed text-base">
+            {canReadMore ? `${content.substring(0, 180)}...` : content}
+            {canReadMore && (
+              <span
+                onClick={() => setIsModalOpen(true)}
+                className="text-blue-600 hover:text-blue-800 text-sm font-medium ml-1 hover:underline cursor-pointer transition-colors duration-200"
+              >
+                Read more
+              </span>
+            )}
+            {(content === "" || !content) && (
+              <span className="italic text-gray-400">No content provided.</span>
+            )}
+          </p>
         </div>
       </div>
-      {displaySettings.showRatings && (
-        <div className="flex items-center">
-          {typeof review.rating === 'number' ? (
-            <>
-              <Rating value={review.rating} size="sm"/>
-              <span className="ml-2 text-xs font-medium text-amber-600 dark:text-amber-400">
-                {review.rating.toFixed(1)}
-              </span>
-            </>
-          ) : review.recommendationStatus === 'recommended' ? (
-            <span className="text-xs font-medium text-green-600 dark:text-green-400 flex items-center">
-              <i className="fas fa-thumbs-up mr-1.5"></i> Recommended
-            </span>
-          ) : (
-            <span className="text-xs text-muted-foreground italic">No Star Rating</span>
-          )}
-        </div>
-      )}
-      <p className="text-sm text-foreground/80 dark:text-foreground/70 leading-relaxed flex-grow">
-        {isExpanded ? content : `${content.substring(0, 120)}${canReadMore ? "..." : ""}`}
-        {canReadMore && (
-          <button
-            type="button"
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="text-primary text-xs hover:underline ml-1 font-medium"
-          >
-            {isExpanded ? "Read Less" : "Read More"}
-          </button>
-        )}
-        {(content === "" || !content) && <span className="italic text-muted-foreground">No content provided.</span>}
-      </p>
-    </div>
+
+      {/* Modal for full review */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <div className="flex items-start space-x-4 mb-4">
+              {displaySettings.showProfilePictures && (
+                <div className="relative w-12 h-12 rounded-full overflow-hidden border-3 border-gray-100 bg-gradient-to-br from-blue-500 to-purple-600 flex-shrink-0">
+                  {review.profilePicture ? (
+                    <Image
+                      src={review.profilePicture}
+                      alt={review.author || 'Reviewer'}
+                      fill
+                      style={{ objectFit: 'cover' }}
+                      sizes="48px"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-white font-bold text-lg">
+                      {getInitials(review.author || 'A')}
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between mb-2">
+                  <DialogTitle className="font-bold text-gray-900 text-lg truncate" title={review.author}>
+                    {review.author || "Anonymous"}
+                  </DialogTitle>
+                  <div className={`w-7 h-7 rounded-full bg-gray-50 flex items-center justify-center ${platformIconColor} border border-gray-200`}>
+                    <i className={`${platformIcon} text-sm`}></i>
+                  </div>
+                </div>
+                
+                {displaySettings.showRatings && (
+                  <div className="flex items-center mb-2">
+                    {typeof review.rating === 'number' ? (
+                      <>
+                        <Rating value={review.rating} size="sm"/>
+                        <span className="ml-2 text-sm font-bold text-amber-600">
+                          {review.rating.toFixed(1)}
+                        </span>
+                      </>
+                    ) : review.recommendationStatus === 'recommended' ? (
+                      <span className="text-sm font-bold text-green-600 flex items-center">
+                        <i className="fas fa-thumbs-up mr-2"></i> Recommended
+                      </span>
+                    ) : (
+                      <span className="text-sm text-gray-400 italic">No Star Rating</span>
+                    )}
+                  </div>
+                )}
+                
+                {displaySettings.showDates && (
+                  <p className="text-sm text-gray-500 font-medium" title={review.postedAt}>
+                    {review.postedAt || "Recently"}
+                  </p>
+                )}
+              </div>
+            </div>
+          </DialogHeader>
+          
+          <div className="mt-4">
+            <p className="text-gray-700 leading-relaxed text-base whitespace-pre-wrap">
+              {content || "No content provided."}
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
+
 export default SingleReviewCard;

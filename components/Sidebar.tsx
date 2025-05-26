@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Button } from './ui/button';
 
 export interface IUserSessionData {
   id?: string;
@@ -16,9 +17,10 @@ interface SidebarProps {
   onLogout: () => void;
   user?: IUserSessionData | null;
   currentPath: string;
+  resolvedTheme: "light" | "dark";
 }
 
-const Sidebar = ({ isMobile, isOpen, onClose, onLogout, user, currentPath }: SidebarProps) => {
+const Sidebar = ({ isMobile, isOpen, onClose, onLogout, user, currentPath, resolvedTheme }: SidebarProps) => {
   const navItems = [
     { label: "Dashboard", icon: "tachometer-alt", href: "/dashboard" },
     { label: "My Widgets", icon: "th-large", href: "/widgets" },
@@ -29,7 +31,6 @@ const Sidebar = ({ isMobile, isOpen, onClose, onLogout, user, currentPath }: Sid
   if (isMobile && !isOpen) {
     return null;
   }
-
   const sidebarBg = 'bg-slate-50';
   const sidebarText = 'text-slate-700';
   const sidebarBorder = 'border-slate-200';
@@ -50,75 +51,67 @@ const Sidebar = ({ isMobile, isOpen, onClose, onLogout, user, currentPath }: Sid
   const userNameTextClass = 'text-gray-900';
   const userEmailTextClass = 'text-slate-500';
 
-  const logoutButtonClasses = `w-full flex items-center justify-start px-3 py-2.5 text-slate-600 hover:text-red-600 hover:bg-red-500/10`;
-  const sidebarContainerClasses = `flex flex-col transition-all duration-300 ease-in-out shadow-lg border-r ${sidebarBg} ${sidebarText} ${sidebarBorder}`;
-
-  const sidebarClasses = isMobile
-    ? `fixed inset-0 z-50 w-64 ${sidebarContainerClasses} ${isOpen ? 'translate-x-0' : '-translate-x-full'}`
-    : `w-64 fixed inset-y-0 z-30 hidden md:flex ${sidebarContainerClasses}`;
-
-  const userDisplayName = user?.fullName || user?.name || user?.username || "User";
-  const userInitials = userDisplayName.split(' ').map(name => name[0]).slice(0, 2).join('').toUpperCase() || 'U';
-
   return (
-    <>
-      {isMobile && isOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-40 backdrop-blur-sm md:hidden"
-          onClick={onClose}
-          aria-hidden="true"
-        ></div>
-      )}
-      <aside className={sidebarClasses}>
-        <div className="flex flex-col h-full">
-          <div className="flex items-center px-4 py-3 border-b border-slate-200">
-            <Link href="/dashboard" className="flex items-center group">
-              <span className={`text-2xl mr-2 ${logoIconColor}`}>
-                <i className="fas fa-comment-dots"></i>
-              </span>
-              <span className={`font-bold text-lg ${logoTextColor}`}>ReviewHub</span>
-            </Link>
+    <aside className={`fixed inset-y-0 left-0 z-50 w-64 transform ${isMobile ? 'translate-x-0' : 'translate-x-0'} ${sidebarBg} ${sidebarText} border-r ${sidebarBorder} transition-transform duration-200 ease-in-out md:translate-x-0`}>
+      <div className="flex h-full flex-col">
+        <div className="flex h-16 items-center justify-between px-4">
+          <div className="flex items-center space-x-2">
+            <span className={`${logoIconColor} text-2xl`}>
+              <i className="fas fa-comment-dots"></i>
+            </span>
+            <span className={`${logoTextColor} text-xl font-bold`}>ReviewHub</span>
           </div>
-
-          <nav className="flex-1 px-2 py-4 space-y-1">
-            {navItems.map((item) => {
-              const isActive = currentPath === item.href;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`${navItemBase} ${isActive ? navItemActiveClasses : `${navItemInactiveText} ${navItemInactiveBgHover}`}`}
-                >
-                  <i className={`fas fa-${item.icon} w-5 ${isActive ? navIconActiveText : navIconText}`}></i>
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
-
-          {user && (
-            <div className="p-4 border-t border-slate-200">
-              <div className="flex items-center mb-3">
-                <div className={`h-8 w-8 rounded-full flex items-center justify-center ${userAvatarBg} ${userAvatarText}`}>
-                  {userInitials}
-                </div>
-                <div className="ml-3">
-                  <p className={`text-sm font-medium ${userNameTextClass}`}>{userDisplayName}</p>
-                  <p className={`text-xs ${userEmailTextClass}`}>{user.email}</p>
-                </div>
+          {isMobile && (
+            <button
+              onClick={onClose}
+              className="rounded-md p-2 text-slate-500 hover:bg-slate-200 hover:text-slate-700"
+            >
+              <i className="fas fa-times"></i>
+            </button>
+          )}
+        </div>
+        <nav className="flex-1 space-y-1 px-2 py-4">
+          {navItems.map((item) => {
+            const isActive = currentPath === item.href;
+            return (
+              <a
+                key={item.href}
+                href={item.href}
+                className={`${navItemBase} ${isActive ? navItemActiveClasses : `${navItemInactiveText} ${navItemInactiveBgHover}`}`}
+              >
+                <i className={`fas fa-${item.icon} ${isActive ? navIconActiveText : navIconText} mr-3`}></i>
+                {item.label}
+              </a>
+            );
+          })}
+        </nav>
+        {user && (
+          <div className="border-t border-slate-200 p-4">
+            <div className="flex items-center space-x-3">
+              <div className={`${userAvatarBg} ${userAvatarText} h-8 w-8 rounded-full flex items-center justify-center text-sm font-semibold`}>
+                {(user.fullName || user.name || user.username || 'U').charAt(0).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className={`${userNameTextClass} text-sm font-medium truncate`}>
+                  {user.fullName || user.name || user.username}
+                </p>
+                <p className={`${userEmailTextClass} text-xs truncate`}>
+                  {user.email}
+                </p>
               </div>
               <button
                 onClick={onLogout}
-                className={logoutButtonClasses}
+                className="rounded-md p-2 text-slate-500 hover:bg-slate-200 hover:text-slate-700"
+                title="Logout"
               >
-                <i className="fas fa-sign-out-alt w-5"></i>
-                <span>Logout</span>
+                <i className="fas fa-sign-out-alt"></i>
               </button>
             </div>
-          )}
-        </div>
-      </aside>
-    </>
+          </div>
+        )}
+      </div>
+    </aside>
   );
 };
+
 export default Sidebar;

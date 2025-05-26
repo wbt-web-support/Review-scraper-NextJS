@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Widget Debug Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .debug-panel {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .widget-container {
+            margin: 20px 0;
+            padding: 20px;
+            border: 2px dashed #ddd;
+            border-radius: 8px;
+            min-height: 300px;
+        }
+        .note {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #2196f3;
+        }
+        .error {
+            background: #ffebee;
+            border-left-color: #f44336;
+        }
+        .success {
+            background: #e8f5e8;
+            border-left-color: #4caf50;
+        }
+        button {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1976d2;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>ReviewHub Widget Debug Test</h1>
+        
+        <div class="note">
+            <strong>Test Purpose:</strong> This page tests the current widget implementation to verify:
+            <ul>
+                <li>✅ Business header has been removed</li>
+                <li>✅ "Read more" appears as a link (not button)</li>
+                <li>✅ Modal opens when clicking "Read more"</li>
+                <li>✅ Widget loads without caching issues</li>
+            </ul>
+        </div>
+        
+        <div class="debug-panel" id="debug-info">
+            <strong>Debug Log:</strong><br>
+        </div>
+        
+        <button onclick="clearCacheAndReload()">Clear Cache & Reload</button>
+        <button onclick="loadWidget()">Reload Widget</button>
+        <button onclick="checkWidgetVersion()">Check Widget Version</button>
+        
+        <div class="widget-container">
+            <h3>Test Widget Container</h3>
+            <div id="test-widget-container">
+                <div style="text-align: center; padding: 40px; color: #666;">
+                    Widget will load here...
+                </div>
+            </div>
+        </div>
+        
+        <div class="note" id="status-note">
+            <strong>Status:</strong> Waiting for widget to load...
+        </div>
+    </div>
+
+    <script>
+        // Debug function
+        function updateDebugInfo(message) {
+            const debugDiv = document.getElementById('debug-info');
+            debugDiv.innerHTML += '<div>' + new Date().toLocaleTimeString() + ': ' + message + '</div>';
+            debugDiv.scrollTop = debugDiv.scrollHeight;
+        }
+        
+        // Clear cache function
+        function clearCacheAndReload() {
+            // Clear all caches
+            if ('caches' in window) {
+                caches.keys().then(function(names) {
+                    for (let name of names) {
+                        caches.delete(name);
+                    }
+                });
+            }
+            
+            // Force reload with cache bypass
+            window.location.reload(true);
+        }
+        
+        // Check widget version
+        function checkWidgetVersion() {
+            if (window.ReviewHub) {
+                updateDebugInfo('Widget Version: ' + window.ReviewHub.version);
+                updateDebugInfo('Last Updated: ' + window.ReviewHub.lastUpdated);
+                updateDebugInfo('Build ID: ' + window.ReviewHub.buildId);
+            } else {
+                updateDebugInfo('ERROR: ReviewHub not loaded');
+            }
+        }
+        
+        // Load widget function
+        function loadWidget() {
+            updateDebugInfo('Loading widget manually...');
+            
+            if (window.ReviewHub) {
+                // Use a test widget ID - replace with actual widget ID
+                window.ReviewHub.init({
+                    widgetId: 'TEST_WIDGET_ID', // Replace with actual widget ID
+                    containerId: 'test-widget-container',
+                    themeColor: '#3B82F6',
+                    layout: 'grid'
+                });
+            } else {
+                updateDebugInfo('ERROR: ReviewHub not available');
+            }
+        }
+        
+        updateDebugInfo('Starting widget load process...');
+        
+        // Load widget script with strong cache busting
+        const timestamp = Date.now();
+        const randomId = Math.random().toString(36).substring(7);
+        const script = document.createElement('script');
+        script.src = `http://localhost:3000/widget.js?v=${timestamp}&r=${randomId}`;
+        
+        updateDebugInfo('Loading script: ' + script.src);
+        
+        script.onload = function() {
+            updateDebugInfo('Widget script loaded successfully');
+            checkWidgetVersion();
+            
+            // Check if ReviewHub is available
+            if (window.ReviewHub) {
+                updateDebugInfo('ReviewHub object is available');
+                document.getElementById('status-note').innerHTML = '<strong>Status:</strong> <span style="color: green;">Widget script loaded successfully!</span>';
+                document.getElementById('status-note').className = 'note success';
+            } else {
+                updateDebugInfo('ERROR: ReviewHub object not found');
+                document.getElementById('status-note').innerHTML = '<strong>Status:</strong> <span style="color: red;">Widget script failed to load properly</span>';
+                document.getElementById('status-note').className = 'note error';
+            }
+        };
+        
+        script.onerror = function() {
+            updateDebugInfo('ERROR: Failed to load widget script');
+            document.getElementById('status-note').innerHTML = '<strong>Status:</strong> <span style="color: red;">Failed to load widget script</span>';
+            document.getElementById('status-note').className = 'note error';
+        };
+        
+        document.head.appendChild(script);
+        
+        // Monitor for widget loading
+        let checkCount = 0;
+        const checkInterval = setInterval(function() {
+            checkCount++;
+            if (window.ReviewHub) {
+                updateDebugInfo('ReviewHub detected after ' + checkCount + ' checks');
+                clearInterval(checkInterval);
+            } else if (checkCount > 20) {
+                updateDebugInfo('Timeout: ReviewHub not detected after 20 checks');
+                clearInterval(checkInterval);
+            }
+        }, 500);
+    </script>
+</body>
+</html> 

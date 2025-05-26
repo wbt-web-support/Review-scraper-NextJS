@@ -40,7 +40,12 @@ const Layout = ({ children }: LayoutProps) => {
     }
   };
 
-  useEffect(() => { if (authStatus === 'loading') return; if (authStatus === 'unauthenticated') { router.push("/login"); } }, [authStatus, router]);
+  useEffect(() => { 
+    if (authStatus === 'loading') return; 
+    if (authStatus === 'unauthenticated') { 
+      router.push("/login"); 
+    } 
+  }, [authStatus, router]);
 
   const getPageTitle = () => {
     switch (router.pathname) {
@@ -91,6 +96,7 @@ const Layout = ({ children }: LayoutProps) => {
         onLogout={handleLogout}
         user={userForDisplay}
         currentPath={router.pathname}
+        resolvedTheme="light"
       />
       <Sidebar 
         isMobile={true} 
@@ -99,6 +105,7 @@ const Layout = ({ children }: LayoutProps) => {
         onLogout={handleLogout}
         user={userForDisplay} 
         currentPath={router.pathname}
+        resolvedTheme="light"
       />
       <main className="flex-1 md:ml-64 flex flex-col">
         <header className={mobileHeaderClasses}>
@@ -129,7 +136,6 @@ const Layout = ({ children }: LayoutProps) => {
           <h2 className="text-xl font-heading font-semibold text-gray-900">
             {getPageTitle()}
           </h2>
-          
           <div className="flex items-center space-x-4">
             <Button variant="ghost" size="icon" className={`${mutedTextClass} ${hoverTextClass} relative`} aria-label="Notifications">
               <i className="fas fa-bell text-lg"></i>

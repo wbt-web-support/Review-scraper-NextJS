@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Widget Test - Beautiful Elfsight Style</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+            font-size: 2.5rem;
+            font-weight: 700;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .layout-demo {
+            margin-bottom: 50px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .layout-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: white;
+            text-align: center;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+        .layout-description {
+            color: rgba(255, 255, 255, 0.9);
+            text-align: center;
+            margin-bottom: 25px;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+        .refresh-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 12px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+        .refresh-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <button class="refresh-btn" onclick="location.reload()">🔄 Refresh</button>
+    
+    <div class="container">
+        <h1>✨ Enhanced Widget Layouts Test</h1>
+        
+        <div class="layout-demo">
+            <div class="layout-title">🔲 Grid Layout</div>
+            <div class="layout-description">
+                Beautiful 2-column grid layout with hover effects and proper spacing
+            </div>
+            <div id="widget-grid"></div>
+        </div>
+        
+        <div class="layout-demo">
+            <div class="layout-title">📋 List Layout</div>
+            <div class="layout-description">
+                Clean single-column list with enhanced typography and smooth animations
+            </div>
+            <div id="widget-list"></div>
+        </div>
+        
+        <div class="layout-demo">
+            <div class="layout-title">🎠 Carousel Layout</div>
+            <div class="layout-description">
+                Horizontal scrolling carousel with snap-to-grid and custom scrollbars
+            </div>
+            <div id="widget-carousel"></div>
+        </div>
+        
+        <div class="layout-demo">
+            <div class="layout-title">🏷️ Badge Layout</div>
+            <div class="layout-description">
+                Card-style layout with elevated shadows and premium styling
+            </div>
+            <div id="widget-badge"></div>
+        </div>
+    </div>
+
+    <!-- Load the widget script with cache busting -->
+    <script>
+        // Load widget script with cache busting
+        const script = document.createElement('script');
+        script.src = `http://localhost:3000/widget.js?v=${Date.now()}`;
+        document.head.appendChild(script);
+        
+        // Wait for the script to load
+        script.onload = function() {
+            setTimeout(() => {
+                if (window.ReviewHub) {
+                    console.log('ReviewHub loaded successfully!');
+                    
+                    // Grid Layout
+                    window.ReviewHub.initWidget({
+                        widgetId: '6832c330dd506564ff9d8b8d',
+                        containerId: 'widget-grid',
+                        themeColor: '#3182CE',
+                        layout: 'grid'
+                    });
+                    
+                    // List Layout
+                    window.ReviewHub.initWidget({
+                        widgetId: '6832c330dd506564ff9d8b8d',
+                        containerId: 'widget-list',
+                        themeColor: '#10B981',
+                        layout: 'list'
+                    });
+                    
+                    // Carousel Layout
+                    window.ReviewHub.initWidget({
+                        widgetId: '6832c330dd506564ff9d8b8d',
+                        containerId: 'widget-carousel',
+                        themeColor: '#8B5CF6',
+                        layout: 'carousel'
+                    });
+                    
+                    // Badge Layout
+                    window.ReviewHub.initWidget({
+                        widgetId: '6832c330dd506564ff9d8b8d',
+                        containerId: 'widget-badge',
+                        themeColor: '#F59E0B',
+                        layout: 'badge'
+                    });
+                    
+                    console.log('All widgets initialized!');
+                } else {
+                    console.error('ReviewHub not loaded');
+                    document.body.innerHTML += '<div style="color: red; text-align: center; margin-top: 50px; font-size: 18px;">❌ ReviewHub failed to load</div>';
+                }
+            }, 200);
+        };
+        
+        script.onerror = function() {
+            console.error('Failed to load widget script');
+            document.body.innerHTML += '<div style="color: red; text-align: center; margin-top: 50px; font-size: 18px;">❌ Failed to load widget script</div>';
+        };
+    </script>
+</body>
+</html> 

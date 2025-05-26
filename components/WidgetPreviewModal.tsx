@@ -109,42 +109,41 @@ const WidgetPreviewModal = ({ isOpen, onClose, widget }: WidgetPreviewModalProps
     showRatings: customizations.showRatings,
     showDates: customizations.showDates,
     showProfilePictures: customizations.showProfilePictures,
-    maxReviews: customizations.maxReviews,
   };
   return (
     <Dialog open={isOpen} onOpenChange={(openValue: boolean) => { if (!openValue) onClose(); }}>
-      <DialogContent className="max-w-3xl sm:max-w-4xl md:max-w-5xl lg:max-w-6xl"> 
+      <DialogContent className="max-w-4xl w-[90vw] max-h-[85vh] overflow-y-auto"> 
         <DialogHeader>
-          <DialogTitle>Widget Preview: {widget.name}</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-lg">Widget Preview: {widget.name}</DialogTitle>
+          <DialogDescription className="text-sm">
             See how your widget will look and adjust settings. These changes are for preview only.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid md:grid-cols-3 gap-6 mt-4">
-          <div className="md:col-span-1 space-y-6 p-1"> 
-            <h4 className="font-semibold text-lg text-foreground dark:text-white mb-3 border-b pb-2">
+        <div className="grid lg:grid-cols-3 gap-4 mt-4">
+          <div className="lg:col-span-1 space-y-4"> 
+            <h4 className="font-medium text-base text-foreground dark:text-white mb-2 border-b pb-1">
               Customize Preview
             </h4>
             <div>
-              <Label className="block text-sm font-medium mb-1.5">Theme Color</Label>
-              <div className="flex flex-wrap gap-2">
+              <Label className="block text-xs font-medium mb-1">Theme Color</Label>
+              <div className="flex flex-wrap gap-1.5">
                 {themeColors.map((color) => (
                   <button
                     type="button"
                     key={color.value}
                     title={color.name}
                     onClick={() => setCustomizations(prev => ({ ...prev, themeColor: color.value }))}
-                    className={`w-7 h-7 rounded-full border-2 transition-all ${customizations.themeColor === color.value ? 'ring-2 ring-offset-2 dark:ring-offset-gray-800 ring-primary border-primary' : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'}`}
+                    className={`w-6 h-6 rounded-full border-2 transition-all ${customizations.themeColor === color.value ? 'ring-2 ring-offset-1 ring-primary border-primary' : 'border-gray-300 hover:border-gray-400'}`}
                     style={{ backgroundColor: color.value }}
                   />
                 ))}
               </div>
             </div>
             <div>
-              <Label className="block text-sm font-medium mb-1.5">Layout</Label>
+              <Label className="block text-xs font-medium mb-1">Layout</Label>
               <Select value={customizations.layout} onValueChange={(value) => setCustomizations(prev => ({ ...prev, layout: value as ICustomizationState['layout'] }))}>
-                <SelectTrigger><SelectValue placeholder="Select layout" /></SelectTrigger>
+                <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select layout" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="grid">Grid</SelectItem>
                   <SelectItem value="carousel">Carousel</SelectItem>
@@ -155,12 +154,12 @@ const WidgetPreviewModal = ({ isOpen, onClose, widget }: WidgetPreviewModalProps
               </Select>
             </div>
              <div>
-              <Label className="block text-sm font-medium mb-1.5">Minimum Rating</Label>
+              <Label className="block text-xs font-medium mb-1">Minimum Rating</Label>
                 <Select
                   value={customizations.minRating.toString()}
                   onValueChange={(value: string) => setCustomizations(prev => ({...prev, minRating: parseInt(value)}))}
                 >
-                  <SelectTrigger><SelectValue placeholder="Select minimum rating" /></SelectTrigger>
+                  <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select minimum rating" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="0">All Stars</SelectItem>
                     <SelectItem value="3">3+ Stars</SelectItem>
@@ -170,22 +169,26 @@ const WidgetPreviewModal = ({ isOpen, onClose, widget }: WidgetPreviewModalProps
                 </Select>
               </div>
           </div>
-          <div className="md:col-span-2 bg-slate-100 dark:bg-slate-800 p-4 rounded-lg min-h-[400px] flex items-center justify-center">
+          <div className="lg:col-span-2 p-4 rounded-lg min-h-[450px] overflow-auto">
             {isLoadingReviews ? (
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary mx-auto"></div>
-                <p className="mt-3 text-slate-600 dark:text-slate-400">Loading Reviews for Preview...</p>
+              <div className="text-center flex items-center justify-center h-full">
+                <div>
+                  <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-primary mx-auto"></div>
+                  <p className="mt-2 text-slate-600 dark:text-slate-400 text-sm">Loading Reviews...</p>
+                </div>
               </div>
             ) : (
-              <WidgetPreview
-                widget={dataForActualPreview}
-                reviews={reviewsToPreview}
-              />
+              <div className="w-full h-full">
+                <WidgetPreview
+                  widget={dataForActualPreview}
+                  reviews={reviewsToPreview}
+                />
+              </div>
             )}
           </div>
         </div>
-        <DialogFooter className="mt-6">
-          <Button type="button" variant="outline" onClick={onClose}>Close</Button>
+        <DialogFooter className="mt-4 pt-3 border-t">
+          <Button type="button" variant="outline" onClick={onClose} className="h-8 px-4 text-sm">Close</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

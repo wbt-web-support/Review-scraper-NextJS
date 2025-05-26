@@ -1,87 +1,148 @@
 // pages/embed/widget/[widgetId].tsx
-import { useRouter } from 'next/router';
-import { useQuery, QueryClientProvider, QueryClient } from '@tanstack/react-query'; 
-import WidgetPreview from '../../../components/WidgetPreview'; 
-import { apiRequest } from '../../../lib/queryClient'; 
-import Head from 'next/head';
-import { PublicWidgetDataResponse } from '../../api/public/widget-data/[widgetId]'; 
+import { GetServerSideProps } from 'next';
+import { useEffect, useState } from 'react';
+import WidgetPreview, { IWidgetSettingsFromForm, IReviewItemFromAPI } from '../../../components/WidgetPreview';
 
-const queryClient = new QueryClient(); 
+interface EmbedPageProps {
+  widgetId: string;
+  themeColor?: string;
+  layout?: string;
+}
 
-const EmbeddedWidgetPageContent = () => {
-  const router = useRouter();
-  const { widgetId, ...queryParams } = router.query; 
+interface WidgetData {
+  widgetSettings: IWidgetSettingsFromForm;
+  reviews: IReviewItemFromAPI[];
+}
 
-  const { data: publicWidgetData, isLoading, error } = useQuery<PublicWidgetDataResponse>({
-    queryKey: ['publicWidgetData', widgetId, queryParams],
-    queryFn: () => {
-      let apiUrl = `/api/public/widget-data/${widgetId}`;
-      const params = new URLSearchParams();
-      if (queryParams.themeColor) params.append('themeColor', queryParams.themeColor as string);
-      if (queryParams.layout) params.append('layout', queryParams.layout as string);
+export default function EmbedWidget({ widgetId, themeColor, layout }: EmbedPageProps) {
+  const [widgetData, setWidgetData] = useState<WidgetData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-      const queryString = params.toString();
-      if (queryString) {
-        apiUrl += `?${queryString}`;
+  useEffect(() => {
+    const fetchWidgetData = async () => {
+      try {
+        const params = new URLSearchParams();
+        if (themeColor) params.append('themeColor', themeColor);
+        if (layout) params.append('layout', layout);
+        
+        const queryString = params.toString();
+        const url = `/api/public/widget-data/${widgetId}${queryString ? '?' + queryString : ''}`;
+        
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch widget data: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        setWidgetData(data);
+      } catch (err) {
+        console.error('Error fetching widget data:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load widget');
+      } finally {
+        setLoading(false);
       }
-      return apiRequest<PublicWidgetDataResponse>('GET', apiUrl);
-    },
-    enabled: !!widgetId,
-    retry: false,
-    refetchOnWindowFocus: false,
-  });
+    };
 
-  if (!widgetId || router.isFallback) {
-    return <div style={styles.message}>Loading widget identifier...</div>;
+    fetchWidgetData();
+  }, [widgetId, themeColor, layout]);
+
+  if (loading) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        minHeight: '200px',
+        fontFamily: 'system-ui, -apple-system, sans-serif'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{
+            width: '32px',
+            height: '32px',
+            border: '3px solid #f3f3f3',
+            borderTop: '3px solid #3498db',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+            margin: '0 auto 16px'
+          }}></div>
+          <p style={{ color: '#666', margin: 0 }}>Loading reviews...</p>
+        </div>
+        <style jsx>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
   }
-  if (isLoading) {
-    return <div style={styles.message}>Loading widget...</div>;
+
+  if (error) {
+    return (
+      <div style={{ 
+        padding: '20px', 
+        textAlign: 'center',
+        fontFamily: 'system-ui, -apple-system, sans-serif'
+      }}>
+        <div style={{
+          color: '#e74c3c',
+          fontSize: '16px',
+          marginBottom: '8px'
+        }}>
+          ⚠️ Widget Error
+        </div>
+        <div style={{ color: '#666', fontSize: '14px' }}>
+          {error}
+        </div>
+      </div>
+    );
   }
-  if (error || !publicWidgetData?.widgetSettings) {
-    const errorMessage = error instanceof Error ? error.message : "Widget data unavailable.";
-    return <div style={{ ...styles.message, color: 'red' }}>Error: {errorMessage}</div>;
+
+  if (!widgetData) {
+    return (
+      <div style={{ 
+        padding: '20px', 
+        textAlign: 'center',
+        fontFamily: 'system-ui, -apple-system, sans-serif'
+      }}>
+        <div style={{ color: '#666' }}>Widget not found</div>
+      </div>
+    );
   }
+
+  // Apply customizations from URL parameters
+  const customizedSettings = {
+    ...widgetData.widgetSettings,
+    ...(themeColor && { themeColor }),
+    ...(layout && { layout: layout as any })
+  };
 
   return (
-    <>
-      <Head>
-        <title>{publicWidgetData.widgetSettings.name || 'Review Widget'}</title>
-        <meta name="robots" content="noindex, nofollow" />
-        <style>{`
-          body { margin: 0 !important; padding: 0 !important; background-color: transparent !important; overflow-x: hidden; }
-          html { background-color: transparent !important; }
-          * { box-sizing: border-box; }
-        `}</style>
-      </Head>
-      <div style={{ width: '100%', height: 'auto', minHeight: '100vh' }}>
-        <WidgetPreview
-          widget={publicWidgetData.widgetSettings}
-          reviews={publicWidgetData.reviews}
-          isLoadingReviews={false}
-        />
-      </div>
-    </>
+    <div style={{ 
+      margin: 0, 
+      padding: '16px',
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      backgroundColor: 'transparent'
+    }}>
+      <WidgetPreview
+        widget={customizedSettings}
+        reviews={widgetData.reviews}
+        isLoadingReviews={false}
+      />
+    </div>
   );
+}
+
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  const { widgetId } = context.params!;
+  const { themeColor, layout } = context.query;
+
+  return {
+    props: {
+      widgetId: widgetId as string,
+      themeColor: (themeColor as string) || null,
+      layout: (layout as string) || null,
+    },
+  };
 };
-
-const EmbeddedWidgetPage = () => (
-  <QueryClientProvider client={queryClient}>
-    <EmbeddedWidgetPageContent />
-  </QueryClientProvider>
-);
-
-const styles = {
-  message: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    height: '100vh',
-    fontFamily: 'sans-serif',
-    fontSize: '16px',
-    color: '#555',
-    textAlign: 'center',
-    padding: '20px',
-  } as React.CSSProperties,
-};
-
-export default EmbeddedWidgetPage;

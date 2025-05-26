@@ -29,6 +29,7 @@ export interface IBusinessUrlDisplay {
     _id: string;
     name: string;
     url: string;
+    urlHash: string;
     source: 'google' | 'facebook';
     userId?: string;
 }
@@ -98,7 +99,7 @@ export const getBusinessUrlById = async (id: string): Promise<IBusinessUrl | nul
   }
   console.log(`[Storage/getBusinessUrlById] Searching for ID: ${id}`);
   
-  // Try Google first
+  // Try Google first - use correct collection name
   const googleBusinessUrl = await GoogleBusinessUrlModel.findById(id).lean().exec();
   if (googleBusinessUrl) {
     console.log(`[Storage/getBusinessUrlById] Found in GoogleBusinessUrlModel:`, googleBusinessUrl.name);
@@ -108,7 +109,7 @@ export const getBusinessUrlById = async (id: string): Promise<IBusinessUrl | nul
     };
   }
 
-  // Try Facebook if not found in Google
+  // Try Facebook if not found in Google - use correct collection name
   console.log(`[Storage/getBusinessUrlById] Not in Google, trying FacebookBusinessUrlModel for ID: ${id}`);
   const facebookBusinessUrl = await FacebookBusinessUrlModel.findById(id).lean().exec();
   if (facebookBusinessUrl) {
@@ -171,6 +172,7 @@ export const getBusinessUrlsByUserId = async (userId: string): Promise<IBusiness
       _id: doc._id.toString(),
       name: doc.name,
       url: doc.url,
+      urlHash: doc.urlHash,
       source: 'google' as const,
       userId: doc.userId?.toString(),
     }));
@@ -179,6 +181,7 @@ export const getBusinessUrlsByUserId = async (userId: string): Promise<IBusiness
       _id: doc._id.toString(),
       name: doc.name,
       url: doc.url,
+      urlHash: doc.urlHash,
       source: 'facebook' as const,
       userId: doc.userId?.toString(),
     }));
@@ -220,6 +223,7 @@ export const getAllBusinessUrlsForDisplay = async (): Promise<IBusinessUrlDispla
       _id: doc._id.toString(),
       name: doc.name,
       url: doc.url,
+      urlHash: doc.urlHash,
       source: 'google' as const,
       userId: doc.userId?.toString(),
     }));
@@ -228,6 +232,7 @@ export const getAllBusinessUrlsForDisplay = async (): Promise<IBusinessUrlDispla
       _id: doc._id.toString(),
       name: doc.name,
       url: doc.url,
+      urlHash: doc.urlHash,
       source: 'facebook' as const,
       userId: doc.userId?.toString(),
     }));
@@ -270,6 +275,7 @@ export const createBusinessUrl = async (data: CreateBusinessUrlArgs): Promise<IB
     _id: result._id.toString(),
     name: result.name,
     url: result.url,
+    urlHash: result.urlHash,
     source: result.source,
     userId: result.userId?.toString(),
   };
@@ -322,8 +328,39 @@ export const getReviewBatchForBusinessUrl = async (
 ): Promise<IReviewBatch | null> => {
   await ensureDbConnected();
   const ModelToUse = source === 'google' ? GoogleReviewBatchModel : FacebookReviewBatchModel;
-  const reviewBatch = await ModelToUse.findOne({ urlHash }).lean().exec();
-  return reviewBatch ? { ...reviewBatch, source } : null;
+  
+  // First try to find by urlHash
+  let reviewBatch = await ModelToUse.findOne({ urlHash }).lean().exec();
+  
+  // If not found by urlHash, try to find the business URL and then look up by businessUrlId
+  if (!reviewBatch) {
+    console.log(`[getReviewBatchForBusinessUrl] No batch found by urlHash ${urlHash}, trying businessUrlId lookup`);
+    
+    // Find the business URL by urlHash to get the businessUrlId
+    const BusinessUrlModel = source === 'google' ? GoogleBusinessUrlModel : FacebookBusinessUrlModel;
+    const businessUrl = await BusinessUrlModel.findOne({ urlHash }).lean().exec();
+    
+    if (businessUrl) {
+      console.log(`[getReviewBatchForBusinessUrl] Found business URL with ID ${businessUrl._id}, looking for reviews`);
+      reviewBatch = await ModelToUse.findOne({ businessUrlId: businessUrl._id }).lean().exec();
+    }
+  }
+  
+  if (!reviewBatch) {
+    return null;
+  }
+  
+  // Add source to each review in the batch
+  const reviewsWithSource = reviewBatch.reviews?.map(review => ({
+    ...review,
+    source
+  })) || [];
+  
+  return { 
+    ...reviewBatch, 
+    source,
+    reviews: reviewsWithSource
+  };
 };
 export const getFilteredReviewsFromBatch = (
   reviewBatch: IReviewBatch | null,
@@ -477,33 +514,58 @@ export const getWidgetsByUserId = async (userId: string): Promise<IWidget[]> => 
   await ensureDbConnected();
   if (!Types.ObjectId.isValid(userId)) return [];
   console.log(`[Storage/getWidgetsByUserId] Fetching widgets for userId: ${userId}`);
+  
   const widgets = await WidgetModel.find({ userId: new Types.ObjectId(userId) })
     .sort({ createdAt: -1 })
-    .populate('businessUrlId')
     .lean()
     .exec();
-  return widgets.map(widget => {
-    const populatedWidget = widget as unknown as IWidget & { businessUrlId: IBusinessUrlDisplay };
-    return {
-      ...widget,
-      businessUrl: populatedWidget.businessUrlId
-        ? {
-            _id: populatedWidget.businessUrlId._id.toString(),
-            name: populatedWidget.businessUrlId.name,
-            source: populatedWidget.businessUrlId.source,
-            url: populatedWidget.businessUrlId.url,
+
+  // Manually populate business URL information
+  const populatedWidgets = await Promise.all(
+    widgets.map(async (widget) => {
+      let businessUrl = undefined;
+      
+      if (widget.businessUrlId) {
+        try {
+          // Try to get business URL from the appropriate collection
+          const businessUrlData = await getBusinessUrlById(widget.businessUrlId.toString());
+          if (businessUrlData) {
+            businessUrl = {
+              _id: businessUrlData._id.toString(),
+              name: businessUrlData.name,
+              source: businessUrlData.source as 'google' | 'facebook',
+              url: businessUrlData.url,
+            };
           }
-        : undefined,
-    } as IWidget;
-  });
+        } catch (error) {
+          console.error(`[Storage/getWidgetsByUserId] Error fetching business URL for widget ${widget._id}:`, error);
+        }
+      } else if (widget.businessUrlSource) {
+        // If no businessUrlId but we have businessUrlSource, create a minimal businessUrl object
+        businessUrl = {
+          _id: "",
+          name: widget.name, // Use widget name as fallback
+          source: (widget.businessUrlSource === 'GoogleBusinessUrl' ? 'google' : 'facebook') as 'google' | 'facebook',
+          url: undefined,
+        };
+      }
+
+      return {
+        ...widget,
+        businessUrl,
+      } as IWidget;
+    })
+  );
+
+  return populatedWidgets;
 };
 interface CreateWidgetArgs {
   userId: string;
   businessUrlId: string;
   businessUrlSource: 'GoogleBusinessUrl' | 'FacebookBusinessUrl';
+  urlHash: string;
   name: string;
   type?: "grid" | "carousel" | "list" | "masonry" | "badge";
-  maxReviews?: number;
   minRating?: number;
   themeColor?: string;
   showRatings?: boolean;
@@ -524,9 +586,9 @@ export const createWidget = async (widgetData: CreateWidgetArgs): Promise<IWidge
     userId: new Types.ObjectId(widgetData.userId),
     businessUrlId: new Types.ObjectId(widgetData.businessUrlId),
     businessUrlSource: widgetData.businessUrlSource,
+    urlHash: widgetData.urlHash,
     name: widgetData.name,
     type: widgetData.type || 'grid', 
-    maxReviews: widgetData.maxReviews ?? 10,
     minRating: widgetData.minRating ?? 0,
     themeColor: widgetData.themeColor || '#3B82F6',
     showRatings: widgetData.showRatings ?? true,

@@ -4,10 +4,11 @@ export interface IWidget extends Document {
   _id: Types.ObjectId;
   userId: Types.ObjectId;
   businessUrlId: Types.ObjectId;
-  businessUrlSource: 'GoogleBusinessUrl' | 'FacebookBusinessUrl';
+  businessUrlSource: 'google' | 'facebook';
+  urlHash?: string;
   name: string;
-  type: 'grid' | 'carousel' | 'list' | 'masonry' | 'badge';
-  maxReviews: number;
+  type: string;
+  maxReviews?: number;
   minRating: number;
   settings: Record<string, unknown>; 
   views: number;
@@ -30,9 +31,10 @@ const WidgetSchema: Schema<IWidget> = new Schema({
   userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   businessUrlSource: { type: String, enum: ['GoogleBusinessUrl', 'FacebookBusinessUrl'], required: true },
   businessUrlId: { type: Schema.Types.ObjectId, refPath: 'businessUrlSource', required: true, index: true },
+  urlHash: { type: String, required: false, index: true },
   name: { type: String, required: true },
   type: { type: String, enum: ['list', 'grid', 'carousel', 'badge', 'masonry'], default: 'list' },
-  maxReviews: { type: Number, default: 10 },
+  maxReviews: { type: Number, default: 10, required: false },
   minRating: { type: Number, default: 1 },
   settings: { type: Schema.Types.Mixed, default: {} },
   views: { type: Number, default: 0 },

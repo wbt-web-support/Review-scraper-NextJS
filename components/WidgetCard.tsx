@@ -1,12 +1,5 @@
 import { useState } from "react";
-import WidgetPreviewModal, { IWidgetForPreviewModal } from "./WidgetPreviewModal";
 import WidgetCodeModal, { IWidgetForCodeModal } from "./WidgetCodeModal";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"; 
 import { Button } from "../components/ui/button";
 import {
   Dialog,
@@ -16,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../components/ui/dialog";
+import { Building2, Code, Chrome, Facebook } from "lucide-react";
 
 interface IBusinessUrlForWidgetCard {
   _id: string;
@@ -49,56 +43,69 @@ interface WidgetCardProps {
 }
 
 const WidgetCard = ({ widget, onDelete, onEdit, isDeleting }: WidgetCardProps) => {
-  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [isCodeModalOpen, setIsCodeModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const createdDate = widget.createdAt
     ? new Date(widget.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
     : 'N/A';
-    const getSourceIcon = (): string => {
-      if (widget.businessUrl?.source === 'google') return 'google';
-      if (widget.businessUrl?.source === 'facebook') return 'facebook-f';
-      return 'store-alt';
-    };
-    const getSourceBgClass = (): string => {
-      if (widget.businessUrl?.source === 'google') return 'bg-red-100';
-      if (widget.businessUrl?.source === 'facebook') return 'bg-blue-100';
-      return 'bg-gray-100';
-    };
-    const getSourceTextClass = (): string => {
-      if (widget.businessUrl?.source === 'google') return 'text-red-600';
-      if (widget.businessUrl?.source === 'facebook') return 'text-blue-600';
-      return 'text-gray-600';
+    
+  const getSourceIcon = () => {
+    if (widget.businessUrl?.source === 'google') return <Chrome className="h-5 w-5" />;
+    if (widget.businessUrl?.source === 'facebook') return <Facebook className="h-5 w-5" />;
+    return <Building2 className="h-5 w-5" />;
+  };
+  
+  const getSourceBgClass = (): string => {
+    if (widget.businessUrl?.source === 'google') return 'bg-red-100';
+    if (widget.businessUrl?.source === 'facebook') return 'bg-blue-100';
+    return 'bg-gray-100';
+  };
+  
+  const getSourceTextClass = (): string => {
+    if (widget.businessUrl?.source === 'google') return 'text-red-600';
+    if (widget.businessUrl?.source === 'facebook') return 'text-blue-600';
+    return 'text-gray-600';
+  };
+
+  const getSourceTooltip = (): string => {
+    if (widget.businessUrl?.source === 'google') return 'Google Business Reviews';
+    if (widget.businessUrl?.source === 'facebook') return 'Facebook Reviews';
+    return 'No source connected';
+  };
+
+  // Function to format layout type for display
+  const getLayoutDisplayName = (type: string): string => {
+    switch (type.toLowerCase()) {
+      case 'grid': return 'Grid Layout';
+      case 'list': return 'List Layout';
+      case 'carousel': return 'Carousel Layout';
+      case 'masonry': return 'Masonry Layout';
+      case 'badge': return 'Badge Layout';
+      default: return 'Grid Layout';
+    }
+  };
+
+  // Function to get layout icon
+  const getLayoutIcon = (type: string) => {
+    switch (type.toLowerCase()) {
+      case 'grid': return <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>;
+      case 'list': return <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd"/></svg>;
+      case 'carousel': return <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z"/></svg>;
+      case 'masonry': return <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path d="M3 4a1 1 0 000 2h4a1 1 0 100-2H3zM3 8a1 1 0 000 2h8a1 1 0 100-2H3zM3 12a1 1 0 100 2h6a1 1 0 100-2H3zM11 6a1 1 0 011-1h5a1 1 0 110 2h-5a1 1 0 01-1-1zM12 9a1 1 0 100 2h5a1 1 0 100-2h-5zM11 14a1 1 0 011-1h5a1 1 0 110 2h-5a1 1 0 01-1-1z"/></svg>;
+      case 'badge': return <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/></svg>;
+      default: return <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>;
+    }
+  };
+
+  const widgetPropsForCodeModal: IWidgetForCodeModal = {
+      _id: widget._id,
+      name: widget.name,
+      themeColor: widget.themeColor,
+      layout: widget.type,
     };
 
-    const widgetPropsForPreviewModal: IWidgetForPreviewModal = {
-    _id: widget._id,
-    name: widget.name,
-    themeColor: widget.themeColor,
-    layout: widget.type,
-    minRating: widget.minRating,
-    maxReviews: widget.maxReviews,
-    showRatings: widget.showRatings,
-    showDates: widget.showDates,
-    showProfilePictures: widget.showProfilePictures,
-    businessUrlId: widget.businessUrlId,
-    businessUrl: widget.businessUrl ? { 
-        _id: widget.businessUrl._id,
-        name: widget.businessUrl.name,
-        source: widget.businessUrl.source,
-        url: widget.businessUrl.url,
-    } : undefined,
-    };
-
-     const widgetPropsForCodeModal: IWidgetForCodeModal = {
-        _id: widget._id,
-        name: widget.name,
-        themeColor: widget.themeColor,
-        layout: widget.type,
-      };
-
-    const ratingToDisplay = widget.averageRating ?? 0;
+  const ratingToDisplay = widget.averageRating ?? 0;
 
   return (
     <>
@@ -109,10 +116,14 @@ const WidgetCard = ({ widget, onDelete, onEdit, isDeleting }: WidgetCardProps) =
       >
         <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
           <div className="flex items-center min-w-0">
-            <div className={`w-9 h-9 rounded-lg ${getSourceBgClass()} flex items-center justify-center ${getSourceTextClass()} flex-shrink-0`}>
-              <i className={`fab fa-${getSourceIcon()}`}></i>
-            </div>
-            <h3 className="ml-3 font-semibold text-gray-800  truncate" title={widget.name}>
+            {/* <div 
+              className={`w-9 h-9 rounded-lg ${getSourceBgClass()} flex items-center justify-center ${getSourceTextClass()} flex-shrink-0`}
+              title={getSourceTooltip()}
+            >
+              {getSourceIcon()}
+            </div> */}
+            <Building2/>
+            <h3 className="ml-3 font-semibold text-gray-800 truncate" title={widget.name}>
               {widget.name}
             </h3>
           </div>
@@ -146,45 +157,19 @@ const WidgetCard = ({ widget, onDelete, onEdit, isDeleting }: WidgetCardProps) =
                 <span className="sr-only">Delete widget</span>
               </Button>
             )}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-8 h-8 p-0 text-gray-600 hover:text-gray-800 hover:bg-gray-100"
-                  onClick={e => e.stopPropagation()}
-                >
-                  <svg 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    className="h-5 w-5" 
-                    fill="none" 
-                    viewBox="0 0 24 24" 
-                    stroke="currentColor"
-                  >
-                    <path 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round" 
-                      strokeWidth={2} 
-                      d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" 
-                    />
-                  </svg>
-                  <span className="sr-only">Open widget menu</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={e => { e.stopPropagation(); setIsPreviewModalOpen(true); }}>
-                  <i className="fas fa-eye mr-2 h-4 w-4" /> Preview
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={e => { e.stopPropagation(); setIsCodeModalOpen(true); }}>
-                  <i className="fas fa-code mr-2 h-4 w-4 text-gray-800" /> Get Code
-                </DropdownMenuItem>
-                {onEdit && ( 
-                  <DropdownMenuItem onClick={e => { e.stopPropagation(); onEdit(widget._id); }}>
-                    <i className="fas fa-pen mr-2 h-4 w-4" /> Edit
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-8 h-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50 flex items-center justify-center border border-blue-200"
+              onClick={e => {
+                e.stopPropagation();
+                setIsCodeModalOpen(true);
+              }}
+              title="Get embed code"
+            >
+              <Code className="h-4 w-4" />
+              <span className="sr-only">Get embed code</span>
+            </Button>
           </div>
         </div>
         
@@ -201,18 +186,35 @@ const WidgetCard = ({ widget, onDelete, onEdit, isDeleting }: WidgetCardProps) =
                 }
               })}
             </div>
-            <span className="ml-2 text-sm font-medium text-gray-700 truncate" title={widget.businessUrl?.name || 'Unknown Business'}>
-              {widget.businessUrl?.name || 'Unknown Business'}
-            </span>
+            <div className="flex items-center ml-2">
+              <div className={`w-4 h-4 rounded flex items-center justify-center bg-blue-100 text-blue-600 mr-1.5`}>
+                {getLayoutIcon(widget.type)}
+              </div>
+              <span className="text-sm font-medium text-gray-700 truncate" title={getLayoutDisplayName(widget.type)}>
+                {getLayoutDisplayName(widget.type)}
+              </span>
+            </div>
           </div>
           
           <div className="flex items-center justify-between text-sm">
-            <div>
-              <span>Created: </span>
-              <span className="font-medium text-gray-700 ">{createdDate}</span>
+            <div className="flex items-center gap-3">
+              <div>
+                <span>Created: </span>
+                <span className="font-medium text-gray-700">{createdDate}</span>
+              </div>
+              {widget.businessUrl?.source && (
+                <div className="flex items-center gap-1">
+                  <div className={`w-4 h-4 rounded ${getSourceBgClass()} flex items-center justify-center ${getSourceTextClass()}`}>
+                    {widget.businessUrl.source === 'google' ? <Chrome className="h-3 w-3" /> : <Facebook className="h-3 w-3" />}
+                  </div>
+                  <span className={`text-xs font-medium ${getSourceTextClass()}`}>
+                    {widget.businessUrl.source === 'google' ? 'Google' : 'Facebook'}
+                  </span>
+                </div>
+              )}
             </div>
             <div>
-            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${widget.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${widget.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
                 {widget.isActive ? 'Active' : 'Inactive'}
               </span>
             </div>
@@ -260,13 +262,6 @@ const WidgetCard = ({ widget, onDelete, onEdit, isDeleting }: WidgetCardProps) =
         </DialogContent>
       </Dialog>
 
-      {isPreviewModalOpen && (
-        <WidgetPreviewModal
-          isOpen={isPreviewModalOpen}
-          onClose={() => setIsPreviewModalOpen(false)}
-          widget={widgetPropsForPreviewModal}
-        />
-      )}
       {isCodeModalOpen && (
         <WidgetCodeModal
           isOpen={isCodeModalOpen}

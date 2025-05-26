@@ -12,6 +12,12 @@ import { Button } from "../components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { IBusinessUrlDisplay as IBusinessUrlForDropdown } from '@/lib/storage';
 
+interface IBusinessUrlForWidget { 
+  _id: string;
+  source: 'google' | 'facebook';
+  name: string; 
+}
+
 type WidgetTab = "all" | "google" | "facebook";
 
 const Widgets = () => {
@@ -41,23 +47,15 @@ const Widgets = () => {
 
   const { data: businessUrlsData, isLoading: isBusinessUrlsLoading } = useQuery<{ businessUrls: IBusinessUrlForDropdown[] }>({
     queryKey: ['businessUrls'],
-    queryFn: () => apiRequest<{ businessUrls: IBusinessUrlForDropdown[] }>("GET", '/api/business-urls'),
-    enabled: authStatus === 'authenticated',
+    queryFn: () => apiRequest<{ businessUrls: IBusinessUrlForDropdown[] }>("GET", '/api/business-urls/all'),
+    enabled: true, // Removed authentication requirement since data is not user-specific
   });
   console.log(`[${router.pathname}] businessUrlsData from useQuery:`, businessUrlsData);
   const derivedBusinessUrls = useMemo(() => businessUrlsData?.businessUrls || [], [businessUrlsData]);
   console.log(`[${router.pathname}] derivedBusinessUrls:`, derivedBusinessUrls);
   const deleteMutation = useMutation<unknown, Error, string>({ 
     mutationFn: async (widgetId: string) => {
-      try {
-        await apiRequest<unknown>("DELETE", `/api/widgets/${widgetId}`);
-        return { success: true };
-      } catch (error) {
-        if (error instanceof Error) {
-          throw error;
-        }
-        throw new Error('Failed to delete widget');
-      }
+      return apiRequest("DELETE", `/api/widgets/${widgetId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['widgets'] });

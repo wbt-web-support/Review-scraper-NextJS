@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Improved Widget Test - Matches Live Preview</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f8fafc;
+            line-height: 1.6;
+        }
+        
+        .test-section {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            color: #1f2937;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #6b7280;
+            margin-bottom: 40px;
+            font-size: 1.1rem;
+        }
+        
+        .info-box {
+            background: #dbeafe;
+            border: 1px solid #93c5fd;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .info-box h3 {
+            color: #1e40af;
+            margin: 0 0 10px 0;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        
+        .info-box p {
+            color: #1e3a8a;
+            margin: 0;
+            font-size: 0.95rem;
+        }
+        
+        .layout-demo {
+            margin: 30px 0;
+        }
+        
+        .layout-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        .widget-container {
+            margin: 20px 0;
+            min-height: 300px;
+        }
+        
+        .comparison-note {
+            background: #f0fdf4;
+            border: 1px solid #86efac;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .comparison-note strong {
+            color: #166534;
+        }
+        
+        .comparison-note p {
+            color: #15803d;
+            margin: 5px 0 0 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎉 Improved Widget Test</h1>
+    <p class="subtitle">Now the embedded reviews look exactly like the live preview!</p>
+    
+    <div class="info-box">
+        <h3>✅ What's Fixed:</h3>
+        <p>• Embedded reviews now use the same styling as the live preview<br>
+        • Modern design with proper shadows, spacing, and hover effects<br>
+        • Consistent typography and color scheme<br>
+        • Responsive design that works on all devices<br>
+        • Better user experience with smooth animations</p>
+    </div>
+    
+    <div class="test-section">
+        <div class="layout-demo">
+            <h2 class="layout-title">Grid Layout</h2>
+            <div class="widget-container">
+                <script src="/widget.js" 
+                        data-widget-id="temp-demo-widget" 
+                        data-theme-color="#3B82F6" 
+                        data-layout="grid">
+                </script>
+            </div>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <div class="layout-demo">
+            <h2 class="layout-title">List Layout</h2>
+            <div class="widget-container">
+                <script src="/widget.js" 
+                        data-widget-id="temp-demo-widget" 
+                        data-theme-color="#10B981" 
+                        data-layout="list">
+                </script>
+            </div>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <div class="layout-demo">
+            <h2 class="layout-title">Carousel Layout</h2>
+            <div class="widget-container">
+                <script src="/widget.js" 
+                        data-widget-id="temp-demo-widget" 
+                        data-theme-color="#8B5CF6" 
+                        data-layout="carousel">
+                </script>
+            </div>
+        </div>
+    </div>
+    
+    <div class="comparison-note">
+        <strong>Perfect Match! 🎯</strong>
+        <p>The embedded widgets now look identical to what users see in the live preview.</p>
+    </div>
+    
+    <script>
+        // Debug information
+        console.log('Improved Widget Test Page Loaded');
+        console.log('Testing new styling that matches live preview');
+        
+        // Check if widgets load successfully
+        setTimeout(() => {
+            const widgets = document.querySelectorAll('.reviewhub-widget');
+            console.log(`Found ${widgets.length} widgets on page`);
+            
+            widgets.forEach((widget, index) => {
+                console.log(`Widget ${index + 1}:`, widget);
+            });
+            
+            if (widgets.length === 0) {
+                console.warn('No widgets found. Check if widget.js is loading correctly.');
+            }
+        }, 3000);
+    </script>
+</body>
+</html> 

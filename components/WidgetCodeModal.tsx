@@ -4,11 +4,14 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription
+  DialogDescription,
+  DialogFooter,
 } from "../components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Button } from "../components/ui/button";
 import { useToast } from "../hooks/use-toast";
+import { Copy, CheckCircle, Eye, Plus } from "lucide-react";
+import WidgetPreview, { IWidgetSettingsFromForm, IReviewItemFromAPI } from "./WidgetPreview";
 
 export interface IWidgetForCodeModal {
   _id: string;
@@ -16,71 +19,57 @@ export interface IWidgetForCodeModal {
   themeColor?: string; 
   layout?: "grid" | "carousel" | "list" | "masonry" | "badge";
 }
+
 interface WidgetCodeModalProps {
   isOpen: boolean;
   onClose: () => void;
   widget: IWidgetForCodeModal;
+  onCreateWidget?: () => void;
+  isCreatingWidget?: boolean;
+  formData?: any;
+  previewReviews?: IReviewItemFromAPI[];
 }
 
-const WidgetCodeModal = ({ isOpen, onClose, widget }: WidgetCodeModalProps) => {
-  const [activeTab, setActiveTab] = useState<"javascript" | "iframe">("javascript");
+const WidgetCodeModal = ({ 
+  isOpen, 
+  onClose, 
+  widget, 
+  onCreateWidget,
+  isCreatingWidget = false,
+  formData,
+  previewReviews = []
+}: WidgetCodeModalProps) => {
+  const [activeTab, setActiveTab] = useState<"javascript" | "preview">("javascript");
   const { toast } = useToast();
 
   const domain = typeof window !== 'undefined'
     ? window.location.origin
     : process.env.NEXT_PUBLIC_APP_URL || 'https://your-app-domain.com';
   
-    const javascriptCode = `<div id="reviewhub-widget-${widget._id}"></div>
-    <script>
-      (function() {
-        var config = {
-          containerId: 'reviewhub-widget-${widget._id}',
-          widgetId: '${widget._id}'
-          ${widget.themeColor ? `, themeColor: '${widget.themeColor.replace(/'/g, "\\'")}'` : ''}
-          ${widget.layout ? `, layout: '${widget.layout.replace(/'/g, "\\'")}'` : ''}
-        };
-    
-        if (window.ReviewHub && typeof window.ReviewHub.initWidget === 'function') {
-          window.ReviewHub.initWidget(config);
-        } else {
-          window.ReviewHubPendingWidgets = window.ReviewHubPendingWidgets || [];
-          window.ReviewHubPendingWidgets.push(config);
-    
-          if (!document.querySelector('script[src="${domain}/widget.js"]')) {
-            var script = document.createElement('script');
-            script.src = '${domain}/widget.js';
-            script.async = true;
-            script.defer = true;
-            script.onerror = function() {
-              console.error('ReviewHub: Failed to load widget.js from ${domain}/widget.js. Ensure the main ReviewHub application is running and accessible.');
-              var el = document.getElementById(config.containerId);
-              if(el) el.innerHTML = '<p style="color:red; text-align:center;">Error loading review widget.</p>';
-            };
-            document.head.appendChild(script);
-          }
-        }
-      })();
-    </script>`;
-
-  const iframeCode = `
-  <iframe
-    src="${domain}/embed/widget/${widget._id}"
-    style="width: 100%; min-height: 400px; border: none; overflow: hidden;"
-    title="${widget.name || 'Review Widget'}"
-    loading="lazy"
-    allowtransparency="true"
-    frameborder="0" 
-  ></iframe>`;
+  // Use temp ID for preview, but show what the actual code will look like
+  const actualWidgetId = widget._id === "temp-preview-widget" ? "YOUR_WIDGET_ID" : widget._id;
+  
+  const javascriptCode = `<script src="${domain}/widget.js" data-widget-id="${actualWidgetId}"${widget.themeColor ? ` data-theme-color="${widget.themeColor.replace(/"/g, '&quot;')}"` : ''}${widget.layout ? ` data-layout="${widget.layout.replace(/"/g, '&quot;')}"` : ''}></script>`;
 
   // Handle copy to clipboard
-  const handleCopyCode = () => {
-    const codeToCopy = activeTab === "javascript" ? javascriptCode : iframeCode;
+  const handleCopyCode = (codeType?: string) => {
+    let codeToCopy = '';
+    const type = codeType || activeTab;
+    
+    switch (type) {
+      case 'javascript':
+        codeToCopy = javascriptCode;
+        break;
+      default:
+        codeToCopy = javascriptCode;
+    }
+    
     if (codeToCopy) {
       navigator.clipboard.writeText(codeToCopy)
         .then(() => {
           toast({
             title: "Copied!",
-            description: `${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} code copied to clipboard.`,
+            description: `${type.charAt(0).toUpperCase() + type.slice(1)} code copied to clipboard.`,
           });
         })
         .catch((err) => {
@@ -94,65 +83,150 @@ const WidgetCodeModal = ({ isOpen, onClose, widget }: WidgetCodeModalProps) => {
     }
   };
 
-  const currentCodeToShow = activeTab === 'javascript' ? javascriptCode : iframeCode;
+  const currentCodeToShow = activeTab === 'javascript' ? javascriptCode : '';
+
+  // Create preview widget props if formData is available
+  const previewWidgetProps: IWidgetSettingsFromForm | null = formData ? {
+    name: formData.name || widget.name,
+    themeColor: formData.themeColor || widget.themeColor || '#3B82F6',
+    layout: formData.layout || widget.layout || 'grid',
+    minRating: formData.minRating || 0,
+    showRatings: formData.showRatings ?? true,
+    showDates: formData.showDates ?? true,
+    showProfilePictures: formData.showProfilePictures ?? true,
+    businessUrl: formData.businessUrl,
+  } : null;
+
+  const isPreviewMode = widget._id === "temp-preview-widget";
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-full max-w-lg min-w-[50vw] rounded-lg p-0">
-        <DialogHeader className="px-6 pt-6 pb-2">
-          <DialogTitle>Embed Widget on Your Website</DialogTitle>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Eye className="h-5 w-5" />
+            {isPreviewMode ? `Preview Widget: ${widget.name}` : `Embed Widget: ${widget.name}`}
+          </DialogTitle>
           <DialogDescription>
-            Copy the code below and paste it into your website where you want the widget to appear.
+            {isPreviewMode 
+              ? "This is how your widget will look when embedded. Create the widget to get the actual embed code."
+              : "Choose your preferred embedding method and copy the code to your website."
+            }
           </DialogDescription>
         </DialogHeader>
 
-        <div className="px-6">
-          <Tabs defaultValue="javascript" value={activeTab} onValueChange={(value: string) => setActiveTab(value as "javascript" | "iframe")}>
-            <TabsList className="grid w-[47vw] grid-cols-2 mb-2">
-              <TabsTrigger value="javascript">JavaScript (Recommended)</TabsTrigger>
-              <TabsTrigger value="iframe">iFrame</TabsTrigger>
+        <Tabs defaultValue="javascript" value={activeTab} onValueChange={(value: string) => setActiveTab(value as any)}>
+          {isPreviewMode && previewWidgetProps ? (
+            <TabsList className="grid w-[52rem] grid-cols-2">
+              <TabsTrigger value="javascript" className="flex items-center gap-2">
+                <CheckCircle className="h-4 w-4" />
+                JavaScript (Recommended)
+              </TabsTrigger>
+              <TabsTrigger value="preview" className="flex items-center gap-2">
+                <Eye className="h-4 w-4" />
+                Live Preview
+              </TabsTrigger>
             </TabsList>
+          ) : null}
 
-            <TabsContent value={activeTab} className="py-2 w-[47vw]">
-              <div className="bg-slate-800 rounded-md overflow-hidden shadow-inner">
-                <div className="flex items-center justify-between px-4 py-2 bg-slate-700 border-b border-slate-600">
-                  <span className="text-sm font-medium text-slate-200">
-                    {activeTab === 'javascript' ? 'JavaScript Embed Code' : 'iFrame Embed Code'}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm" 
-                    className="text-slate-300 hover:text-white hover:bg-slate-600"
-                    onClick={handleCopyCode}
-                  >
-                    <i className="fas fa-copy mr-2 h-4 w-4"></i>
-                    Copy
-                  </Button>
-                </div>
-                <pre className="p-4 text-sm text-slate-100 overflow-auto max-h-48 min-h-[100px] bg-slate-900 rounded-b-md">
-                  <code>{currentCodeToShow}</code> 
-                </pre>
+          <TabsContent value="javascript" className="space-y-4">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 w-[52rem]">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+                <h3 className="font-semibold text-green-800">JavaScript Embed</h3>
               </div>
-              <p className="mt-3 text-xs text-slate-500">
-                {activeTab === 'javascript'
-                  ? "Dynamically loads the widget. Recommended for most integrations."
-                  : "Simpler to embed, but offers less flexibility and might affect SEO or page speed."}
+              <p className="text-green-700 text-sm">
+                Fast loading, responsive, and automatically updates when you modify your widget settings.
+                {isPreviewMode && " The widget ID will be generated after you create the widget."}
               </p>
+            </div>
+            
+            <div className="relative w-[52rem]">
+              <pre className="bg-gray-50 border rounded-lg p-4 text-sm overflow-x-auto ">
+                <code>{javascriptCode}</code>
+              </pre>
+              <Button
+                size="sm"
+                variant="outline"
+                className="absolute top-2 right-2"
+                onClick={() => handleCopyCode('javascript')}
+              >
+                <Copy className="h-4 w-4 mr-1" />
+                Copy
+              </Button>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="font-medium text-blue-800 mb-2">How to use:</h4>
+              <ol className="text-blue-700 text-sm space-y-1 list-decimal list-inside">
+                <li>Copy the JavaScript code above</li>
+                <li>Paste it into your website's HTML where you want the reviews to appear</li>
+                <li>The widget will automatically load and display your reviews</li>
+              </ol>
+            </div>
+          </TabsContent>
+
+          {isPreviewMode && previewWidgetProps && (
+            <TabsContent value="preview" className="space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Eye className="h-5 w-5 text-blue-600" />
+                  <h3 className="font-semibold text-blue-800">Live Preview</h3>
+                </div>
+                <p className="text-blue-700 text-sm">
+                  This is exactly how your widget will appear when embedded on your website.
+                </p>
+              </div>
+              
+              <div className="border rounded-lg p-4 bg-white">
+                <WidgetPreview
+                  widget={previewWidgetProps}
+                  reviews={previewReviews}
+                  isLoadingReviews={false}
+                />
+              </div>
             </TabsContent>
-          </Tabs>
-        </div>
-        <div className="px-6 pt-4 pb-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="bg-slate-100 rounded px-3 py-2 text-xs text-slate-700 w-full sm:w-auto text-center sm:text-left">
-            Widget ID: <code className="font-mono">{widget._id}</code>
-          </div>
-          <div className="flex justify-end gap-2 w-full sm:w-auto">
-            <Button type="button" variant="outline" onClick={onClose}>Close</Button>
-            <Button type="button" onClick={handleCopyCode}>
-              <i className="fas fa-copy mr-2 h-4 w-4"></i>Copy Active Code
+          )}
+        </Tabs>
+
+        <DialogFooter className="flex-col sm:flex-row gap-3">
+          {isPreviewMode && onCreateWidget && (
+            <div className="flex flex-col sm:flex-row gap-3 w-full">
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex-1">
+                <p className="text-amber-800 text-sm">
+                  <strong>Note:</strong> Create the widget to get the actual embed code with a real widget ID.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={onClose}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={onCreateWidget}
+                  disabled={isCreatingWidget}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {isCreatingWidget ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Widget
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+          {!isPreviewMode && (
+            <Button variant="outline" onClick={onClose}>
+              Close
             </Button>
-          </div>
-        </div>
+          )}
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

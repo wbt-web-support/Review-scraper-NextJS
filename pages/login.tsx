@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useToast } from "../hooks/use-toast";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { useForm } from "react-hook-form";
@@ -8,6 +8,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../components/ui/form";
 import { useRouter } from 'next/router'; 
+import Link from 'next/link';
 import { signIn } from 'next-auth/react';
 import { useSession } from 'next-auth/react';
 
@@ -157,7 +158,7 @@ const Login = () => {
               </form>
             </Form>
           </CardContent>
-          {/* <CardFooter className="flex flex-col space-y-2">
+          <CardFooter className="flex flex-col space-y-2">
             <div className="text-sm text-center text-muted-foreground dark:text-muted-foreground transition-theme">
               Don&apos;t have an account?{" "}
               <Link 
@@ -167,7 +168,7 @@ const Login = () => {
                   Sign up
               </Link>
             </div>
-          </CardFooter> */}
+          </CardFooter>
         </Card>
       </div>
     </div>

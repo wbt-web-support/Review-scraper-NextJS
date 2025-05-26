@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Widget Debug Test - Force Refresh</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+            font-size: 2.5rem;
+            font-weight: 700;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .debug-info {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            color: white;
+            font-family: monospace;
+            font-size: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .layout-demo {
+            margin-bottom: 50px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .layout-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: white;
+            text-align: center;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+        .clear-cache-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 12px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+        .clear-cache-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <button class="clear-cache-btn" onclick="clearCacheAndReload()">🔄 Clear Cache & Reload</button>
+    
+    <div class="container">
+        <h1>🐛 Widget Debug Test</h1>
+        
+        <div class="debug-info" id="debug-info">
+            <div>Loading debug information...</div>
+        </div>
+        
+        <div class="layout-demo">
+            <div class="layout-title">🔲 Grid Layout Test</div>
+            <div id="widget-grid"></div>
+        </div>
+    </div>
+
+    <script>
+        // Debug function
+        function updateDebugInfo(message) {
+            const debugDiv = document.getElementById('debug-info');
+            debugDiv.innerHTML += '<div>' + new Date().toLocaleTimeString() + ': ' + message + '</div>';
+        }
+        
+        // Clear cache function
+        function clearCacheAndReload() {
+            // Clear all caches
+            if ('caches' in window) {
+                caches.keys().then(function(names) {
+                    for (let name of names) {
+                        caches.delete(name);
+                    }
+                });
+            }
+            
+            // Force reload with cache bypass
+            window.location.reload(true);
+        }
+        
+        updateDebugInfo('Starting widget load process...');
+        
+        // Load widget script with strong cache busting
+        const timestamp = Date.now();
+        const randomId = Math.random().toString(36).substring(7);
+        const script = document.createElement('script');
+        script.src = `http://localhost:3000/widget.js?v=${timestamp}&r=${randomId}`;
+        
+        updateDebugInfo('Loading script: ' + script.src);
+        
+        script.onload = function() {
+            updateDebugInfo('Script loaded successfully');
+            
+            setTimeout(() => {
+                if (window.ReviewHub) {
+                    updateDebugInfo('ReviewHub object found: ' + JSON.stringify({
+                        version: window.ReviewHub.version,
+                        isInitialized: window.ReviewHub.isInitialized
+                    }));
+                    
+                    // Check if styles are injected
+                    const styleElement = document.getElementById('reviewhub-widget-styles');
+                    updateDebugInfo('Style element found: ' + (styleElement ? 'YES' : 'NO'));
+                    
+                    if (styleElement) {
+                        updateDebugInfo('Style content length: ' + styleElement.textContent.length + ' characters');
+                    }
+                    
+                    // Initialize widget
+                    updateDebugInfo('Initializing widget...');
+                    window.ReviewHub.initWidget({
+                        widgetId: '6832c330dd506564ff9d8b8d',
+                        containerId: 'widget-grid',
+                        themeColor: '#3182CE',
+                        layout: 'grid'
+                    });
+                    
+                    // Check container after initialization
+                    setTimeout(() => {
+                        const container = document.getElementById('widget-grid');
+                        updateDebugInfo('Container classes: ' + container.className);
+                        updateDebugInfo('Container innerHTML length: ' + container.innerHTML.length);
+                        
+                        // Check for specific elements
+                        const widgetElements = container.querySelectorAll('.reviewhub-widget');
+                        const reviewItems = container.querySelectorAll('.reviewhub-review-item');
+                        updateDebugInfo('Widget elements found: ' + widgetElements.length);
+                        updateDebugInfo('Review items found: ' + reviewItems.length);
+                        
+                        if (reviewItems.length > 0) {
+                            const firstItem = reviewItems[0];
+                            const computedStyle = window.getComputedStyle(firstItem);
+                            updateDebugInfo('First review item padding: ' + computedStyle.padding);
+                            updateDebugInfo('First review item background: ' + computedStyle.backgroundColor);
+                            updateDebugInfo('First review item border-radius: ' + computedStyle.borderRadius);
+                        }
+                    }, 2000);
+                    
+                } else {
+                    updateDebugInfo('ERROR: ReviewHub object not found');
+                }
+            }, 100);
+        };
+        
+        script.onerror = function() {
+            updateDebugInfo('ERROR: Failed to load widget script');
+        };
+        
+        document.head.appendChild(script);
+    </script>
+</body>
+</html> 

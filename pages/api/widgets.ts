@@ -51,13 +51,18 @@ export default async function handler(
     if (req.method === "POST") {
       try {
         const widgetClientData = req.body as FormValues;
-        const businessUrls = await storage.getBusinessUrlsByUserId(userId);
+        // Use getAllBusinessUrlsForDisplay to match the data source used in the modal
+        const businessUrls = await storage.getAllBusinessUrlsForDisplay();
         const selectedBusinessUrlObject = businessUrls.find(
           (b: IBusinessUrlDisplay) => b._id === widgetClientData.businessUrlId
         );
         
+        if (!selectedBusinessUrlObject) {
+          return res.status(400).json({ message: "Selected business URL not found" });
+        }
+        
         // Map the source to the correct format for the widget model
-        const businessUrlSource: 'GoogleBusinessUrl' | 'FacebookBusinessUrl' = selectedBusinessUrlObject?.source === 'google' 
+        const businessUrlSource = selectedBusinessUrlObject.source === 'google' 
           ? 'GoogleBusinessUrl' 
           : 'FacebookBusinessUrl';
 
@@ -66,10 +71,10 @@ export default async function handler(
           name: widgetClientData.name,
           businessUrlId: widgetClientData.businessUrlId,
           businessUrlSource: businessUrlSource,
+          urlHash: selectedBusinessUrlObject.urlHash,
           type: widgetClientData.layout,
           themeColor: widgetClientData.themeColor,
           minRating: widgetClientData.minRating,
-          maxReviews: widgetClientData.maxReviews ?? 10,
           showRatings: widgetClientData.showRatings ?? true,
           showDates: widgetClientData.showDates ?? true,
           showProfilePictures: widgetClientData.showProfilePictures ?? true,

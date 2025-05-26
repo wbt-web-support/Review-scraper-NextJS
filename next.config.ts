@@ -9,19 +9,69 @@ const nextConfig: NextConfig = {
       },
     ]
   },
-  reactStrictMode: true, 
+  reactStrictMode: true,
+  swcMinify: true,
   async headers() {
     return [
       {
-        source: "/api/public/:path*",
+        source: '/widget.js',
         headers: [
-          { key: "Access-Control-Allow-Credentials", value: "true" },
-          { key: "Access-Control-Allow-Origin", value: "*" }, 
-          { key: "Access-Control-Allow-Methods", value: "GET,OPTIONS" }, 
-          { key: "Access-Control-Allow-Headers", value: "X-Requested-With, Accept, Content-Type" },
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: '*',
+          },
+          {
+            key: 'Access-Control-Allow-Methods',
+            value: 'GET, OPTIONS',
+          },
+          {
+            key: 'Access-Control-Allow-Headers',
+            value: 'Content-Type',
+          },
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=60',
+          },
+        ],
+      },
+      {
+        source: '/embed/:path*',
+        headers: [
+          {
+            key: 'X-Frame-Options',
+            value: 'ALLOWALL',
+          },
+          {
+            key: 'Content-Security-Policy',
+            value: "frame-ancestors *;",
+          },
+        ],
+      },
+      {
+        source: '/api/public/:path*',
+        headers: [
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: '*',
+          },
+          {
+            key: 'Access-Control-Allow-Methods',
+            value: 'GET, OPTIONS',
+          },
+          {
+            key: 'Access-Control-Allow-Headers',
+            value: 'Content-Type, Authorization',
+          },
+          {
+            key: 'Access-Control-Max-Age',
+            value: '86400',
+          },
         ],
       },
     ];
+  },
+  env: {
+    WIDGET_DOMAIN: process.env.WIDGET_DOMAIN || process.env.VERCEL_URL || 'localhost:3000',
   },
 };
 

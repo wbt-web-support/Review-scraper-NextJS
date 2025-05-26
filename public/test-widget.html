@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Widget Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .widget-container {
+            margin: 20px 0;
+            padding: 20px;
+            border: 2px dashed #ddd;
+            border-radius: 8px;
+        }
+        .note {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #2196f3;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>ReviewHub Widget Test</h1>
+        
+        <div class="note">
+            <strong>Test Purpose:</strong> This page tests the current widget implementation to verify if the business header has been removed and if "Read more" appears as a link with modal functionality.
+        </div>
+        
+        <div class="widget-container">
+            <h3>Test Widget (Replace with actual widget ID)</h3>
+            <div id="test-widget-container"></div>
+        </div>
+        
+        <div class="note">
+            <strong>Expected Behavior:</strong>
+            <ul>
+                <li>No business name or rating header should appear above the reviews</li>
+                <li>"Read more" should appear as a blue link (not a button)</li>
+                <li>Clicking "Read more" should open a modal with the full review</li>
+                <li>Modal should have a close button and close on escape key</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Widget Script - Replace WIDGET_ID with actual widget ID -->
+    <script 
+        src="/widget.js" 
+        data-widget-id="WIDGET_ID"
+        data-theme-color="#3B82F6"
+        data-layout="grid">
+    </script>
+    
+    <script>
+        // Add cache-busting parameter to force reload of widget.js
+        const timestamp = new Date().getTime();
+        console.log('Loading widget with cache-buster:', timestamp);
+        
+        // Manual widget initialization for testing
+        window.addEventListener('load', function() {
+            if (window.ReviewHub) {
+                console.log('ReviewHub loaded successfully');
+                console.log('ReviewHub version:', window.ReviewHub.version);
+            } else {
+                console.error('ReviewHub not loaded');
+            }
+        });
+    </script>
+</body>
+</html> 

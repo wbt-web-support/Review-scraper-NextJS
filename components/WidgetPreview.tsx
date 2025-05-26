@@ -35,7 +35,6 @@ export interface IWidgetSettingsFromForm {
       url?: string;
       source: 'google' | 'facebook';
   };
-  maxReviews?: number;
 }
 interface WidgetPreviewProps {
   widget: IWidgetSettingsFromForm; 
@@ -49,8 +48,7 @@ const WidgetPreview = ({
   isLoadingReviews = false 
 }: WidgetPreviewProps) => {
   const settings = widget;
-  const MAX_PREVIEW_ITEMS = widget.maxReviews || 10;
-
+  const MAX_PREVIEW_ITEMS = 50; // Show more reviews since we removed maxReviews limit
 
   const filteredReviews = useMemo(() => {
     if (!Array.isArray(reviews)) {
@@ -104,37 +102,6 @@ if (!isLoadingReviews && filteredReviews.length === 0 && settings.layout !== 'ba
       className="w-full max-w-full border border-border rounded-lg p-3 sm:p-4 bg-card text-card-foreground transition-theme"
       style={colorStyle}
     >
-      {settings.layout !== 'badge' && (
-        <div className="flex flex-col xs:flex-row items-center justify-between mb-4">
-          <div className="flex items-center">
-            <div className={`w-10 h-10 rounded-lg bg-[var(--widget-theme-color)]/20 flex items-center justify-center text-[var(--widget-theme-color)]`}>
-              <i className={`${sourceIcon} text-xl`}></i> 
-            </div>
-            <div className="ml-3">
-              <h4 className="font-semibold text-base text-foreground truncate" title={businessName}>{businessName}</h4>
-              {filteredReviews.length > 0 && ( 
-                <div className="flex items-center">
-                  <Rating value={avgRating} size="xs" /> 
-                  <span className="ml-1.5 text-xs text-muted-foreground">
-                    {formatRating(avgRating)} ({filteredReviews.length} reviews)
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-          {widget.businessUrl?.url && ( 
-            <a
-              href={widget.businessUrl.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-2 xs:mt-0 text-xs text-[var(--widget-theme-color)] hover:underline font-medium"
-            >
-              View on {source.charAt(0).toUpperCase() + source.slice(1)}
-              <i className="fas fa-external-link-alt ml-1 text-xs"></i>
-            </a>
-          )}
-        </div>
-      )}
       {settings.layout === 'grid' && filteredReviews.length > 0 && (
       <>
           {isLoadingReviews && filteredReviews.length === 0 && <p className="text-center text-muted-foreground">Loading reviews...</p>}

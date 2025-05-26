@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Widget Embed Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .widget-container {
+            margin: 20px 0;
+            padding: 20px;
+            border: 2px dashed #ddd;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <h1>ReviewHub Widget Embed Test</h1>
+    
+    <div class="test-section">
+        <h2>Test Widget 1 - Auto Container</h2>
+        <p>This widget will create its own container automatically:</p>
+        <div class="widget-container">
+            <script src="http://localhost:3000/widget.js" data-widget-id="6832d3a6dd506564ff9d8bef" data-theme-color="#e74c3c"></script>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test Widget 2 - Custom Container</h2>
+        <p>This widget will use a predefined container:</p>
+        <div class="widget-container">
+            <div id="custom-widget-container"></div>
+            <script>
+                // Test with manual initialization
+                if (window.ReviewHub) {
+                    window.ReviewHub.initWidget({
+                        containerId: 'custom-widget-container',
+                        widgetId: '6832d3a6dd506564ff9d8bef',
+                        themeColor: '#3182CE'
+                    });
+                } else {
+                    // Queue for when widget.js loads
+                    window.ReviewHubPendingWidgets = window.ReviewHubPendingWidgets || [];
+                    window.ReviewHubPendingWidgets.push({
+                        containerId: 'custom-widget-container',
+                        widgetId: '6832d3a6dd506564ff9d8bef',
+                        themeColor: '#3182CE'
+                    });
+                }
+            </script>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Instructions</h2>
+        <ol>
+            <li>Make sure your ReviewHub app is running on localhost:3000</li>
+            <li>Create a test widget using the API or dashboard</li>
+            <li>Replace "test-widget-id" with your actual widget ID</li>
+            <li>Open this file in a browser to test the embed</li>
+        </ol>
+    </div>
+    
+    <script>
+        // Load the widget.js if not already loaded
+        if (!document.querySelector('script[src="http://localhost:3000/widget.js"]')) {
+            const script = document.createElement('script');
+            script.src = 'http://localhost:3000/widget.js';
+            script.async = true;
+            document.head.appendChild(script);
+        }
+    </script>
+</body>
+</html> 
