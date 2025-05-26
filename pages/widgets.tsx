@@ -12,10 +12,11 @@ import { Button } from "../components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { IBusinessUrlDisplay as IBusinessUrlForDropdown } from '@/lib/storage';
 
-interface IBusinessUrlForWidget { 
+interface _IBusinessUrlForWidget {
   _id: string;
-  source: 'google' | 'facebook';
-  name: string; 
+  name: string;
+  source: string;
+  url?: string;
 }
 
 type WidgetTab = "all" | "google" | "facebook";

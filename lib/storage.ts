@@ -338,7 +338,7 @@ export const getReviewBatchForBusinessUrl = async (
     
     // Find the business URL by urlHash to get the businessUrlId
     const BusinessUrlModel = source === 'google' ? GoogleBusinessUrlModel : FacebookBusinessUrlModel;
-    const businessUrl = await BusinessUrlModel.findOne({ urlHash }).lean().exec();
+    const businessUrl = await (BusinessUrlModel as any).findOne({ urlHash }).lean().exec();
     
     if (businessUrl) {
       console.log(`[getReviewBatchForBusinessUrl] Found business URL with ID ${businessUrl._id}, looking for reviews`);
@@ -545,7 +545,14 @@ export const getWidgetsByUserId = async (userId: string): Promise<IWidget[]> => 
         businessUrl = {
           _id: "",
           name: widget.name, // Use widget name as fallback
-          source: (widget.businessUrlSource === 'GoogleBusinessUrl' ? 'google' : 'facebook') as 'google' | 'facebook',
+          source: widget.businessUrlSource as 'google' | 'facebook',
+          url: undefined,
+        };
+      } else {
+        businessUrl = {
+          _id: "",
+          name: widget.name, // Use widget name as fallback
+          source: 'google',
           url: undefined,
         };
       }
@@ -559,7 +566,7 @@ export const getWidgetsByUserId = async (userId: string): Promise<IWidget[]> => 
 
   return populatedWidgets;
 };
-interface CreateWidgetArgs {
+export interface CreateWidgetArgs {
   userId: string;
   businessUrlId: string;
   businessUrlSource: 'GoogleBusinessUrl' | 'FacebookBusinessUrl';
@@ -779,6 +786,7 @@ interface IGoogleBusinessUrl {
   _id: Types.ObjectId;
   name: string;
   url: string;
+  urlHash: string;
   userId: Types.ObjectId;
 }
 
@@ -786,6 +794,7 @@ interface IFacebookBusinessUrl {
   _id: Types.ObjectId;
   name: string;
   url: string;
+  urlHash: string;
   userId: Types.ObjectId;
 }
 
@@ -799,6 +808,7 @@ export const findBusinessUrlByUrl = async (url: string): Promise<IBusinessUrlDis
       _id: googleBusinessUrl._id.toString(),
       name: googleBusinessUrl.name,
       url: googleBusinessUrl.url,
+      urlHash: googleBusinessUrl.urlHash,
       source: 'google'
     };
   }
@@ -810,6 +820,7 @@ export const findBusinessUrlByUrl = async (url: string): Promise<IBusinessUrlDis
       _id: facebookBusinessUrl._id.toString(),
       name: facebookBusinessUrl.name,
       url: facebookBusinessUrl.url,
+      urlHash: facebookBusinessUrl.urlHash,
       source: 'facebook'
     };
   }

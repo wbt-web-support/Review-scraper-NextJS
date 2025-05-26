@@ -4,7 +4,7 @@ export interface IWidget extends Document {
   _id: Types.ObjectId;
   userId: Types.ObjectId;
   businessUrlId: Types.ObjectId;
-  businessUrlSource: 'google' | 'facebook';
+  businessUrlSource: 'GoogleBusinessUrl' | 'FacebookBusinessUrl';
   urlHash?: string;
   name: string;
   type: string;

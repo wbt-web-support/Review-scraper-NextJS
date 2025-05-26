@@ -45,7 +45,7 @@ export default async function handler(
     console.log('Sample documents:', sampleDocs);
     
     // Check if business URL exists
-    const businessUrl = await BusinessUrlModel.findOne({ urlHash }).lean().exec();
+    const businessUrl = await (BusinessUrlModel as any).findOne({ urlHash }).lean().exec();
     console.log('Business URL found:', businessUrl ? `ID: ${businessUrl._id}, Name: ${businessUrl.name}` : 'null');
     
     // If business URL exists, check for reviews by businessUrlId

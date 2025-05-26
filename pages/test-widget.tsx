@@ -126,7 +126,7 @@ export default function TestWidget() {
             className="min-h-[400px] border-2 border-dashed border-gray-300 rounded-lg p-4"
           >
             <p className="text-gray-500 text-center">
-              Click "Test Widget" above to load the widget here
+              Click &quot;Test Widget&quot; above to load the widget here
             </p>
           </div>
         </div>

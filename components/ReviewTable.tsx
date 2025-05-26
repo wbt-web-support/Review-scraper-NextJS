@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
+import Image from 'next/image';
 
 export interface IReviewItem {
   _id?: string;       
@@ -150,17 +151,23 @@ const ReviewTable = ({  reviews, isLoading = false, emptyState, error }: ReviewT
                   <TableCell className="px-4 py-3 whitespace-nowrap">
                     <div className="flex items-center justify-center">
                       {source === 'google' ? (
-                        <img 
-                          src="/google_logo.png" 
-                          alt="Google" 
-                          className="w-6 h-6 object-contain"
-                        />
+                        <div className="relative w-6 h-6">
+                          <Image 
+                            src="/google_logo.png" 
+                            alt="Google" 
+                            fill
+                            className="object-contain"
+                          />
+                        </div>
                       ) : source === 'facebook' ? (
-                        <img 
-                          src="/facebook-logo.png" 
-                          alt="Facebook" 
-                          className="w-6 h-6 object-contain"
-                        />
+                        <div className="relative w-6 h-6">
+                          <Image 
+                            src="/facebook-logo.png" 
+                            alt="Facebook" 
+                            fill
+                            className="object-contain"
+                          />
+                        </div>
                       ) : (
                         <div className="w-6 h-6 rounded-md flex items-center justify-center text-sm bg-slate-100 text-slate-600">
                           <i className="fas fa-store-alt"></i>
@@ -169,7 +176,17 @@ const ReviewTable = ({  reviews, isLoading = false, emptyState, error }: ReviewT
                     </div>
                   </TableCell>
                   <TableCell className="px-4 py-3 whitespace-nowrap">
-                    <div className="text-sm font-medium text-slate-900">{review.author || "Anonymous"}</div>
+                    <div className="flex items-center gap-2">
+                      <div className="relative w-8 h-8 rounded-full overflow-hidden">
+                        <Image
+                          src={review.profilePicture || '/default-avatar.png'}
+                          alt={`${review.author}'s profile`}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                      <span className="font-medium">{review.author}</span>
+                    </div>
                   </TableCell>
                   <TableCell className="px-4 py-3 whitespace-nowrap">
                     {typeof review.rating === 'number' ? (
@@ -227,17 +244,23 @@ const ReviewTable = ({  reviews, isLoading = false, emptyState, error }: ReviewT
                   return (
                     <div className="flex items-center gap-2">
                       {source === 'google' ? (
-                        <img 
-                          src="/google_logo.png" 
-                          alt="Google" 
-                          className="w-5 h-5 object-contain"
-                        />
+                        <div className="relative w-5 h-5">
+                          <Image 
+                            src="/google_logo.png" 
+                            alt="Google" 
+                            fill
+                            className="object-contain"
+                          />
+                        </div>
                       ) : source === 'facebook' ? (
-                        <img 
-                          src="/facebook-logo.png" 
-                          alt="Facebook" 
-                          className="w-5 h-5 object-contain"
-                        />
+                        <div className="relative w-5 h-5">
+                          <Image 
+                            src="/facebook-logo.png" 
+                            alt="Facebook" 
+                            fill
+                            className="object-contain"
+                          />
+                        </div>
                       ) : (
                         <div className="w-5 h-5 rounded-md flex items-center justify-center text-xs bg-slate-100 text-slate-600">
                           <i className="fas fa-store-alt"></i>

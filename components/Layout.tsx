@@ -96,7 +96,7 @@ const Layout = ({ children }: LayoutProps) => {
         onLogout={handleLogout}
         user={userForDisplay}
         currentPath={router.pathname}
-        resolvedTheme="light"
+        _resolvedTheme="light"
       />
       <Sidebar 
         isMobile={true} 
@@ -105,7 +105,7 @@ const Layout = ({ children }: LayoutProps) => {
         onLogout={handleLogout}
         user={userForDisplay} 
         currentPath={router.pathname}
-        resolvedTheme="light"
+        _resolvedTheme="light"
       />
       <main className="flex-1 md:ml-64 flex flex-col">
         <header className={mobileHeaderClasses}>

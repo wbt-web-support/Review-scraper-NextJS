@@ -1,6 +1,3 @@
-import Link from 'next/link';
-import { Button } from './ui/button';
-
 export interface IUserSessionData {
   id?: string;
   username?: string | null;
@@ -17,10 +14,10 @@ interface SidebarProps {
   onLogout: () => void;
   user?: IUserSessionData | null;
   currentPath: string;
-  resolvedTheme: "light" | "dark";
+  _resolvedTheme: "light" | "dark";
 }
 
-const Sidebar = ({ isMobile, isOpen, onClose, onLogout, user, currentPath, resolvedTheme }: SidebarProps) => {
+const Sidebar = ({ isMobile, isOpen, onClose, onLogout, user, currentPath, _resolvedTheme }: SidebarProps) => {
   const navItems = [
     { label: "Dashboard", icon: "tachometer-alt", href: "/dashboard" },
     { label: "My Widgets", icon: "th-large", href: "/widgets" },

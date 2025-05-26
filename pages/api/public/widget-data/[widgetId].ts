@@ -76,7 +76,17 @@ export default async function handler(
       }
       
       // Determine source from businessUrlSource field
-      const reviewSource = widgetDoc.businessUrlSource === 'GoogleBusinessUrl' ? 'google' : 'facebook';
+      let reviewSource: 'google' | 'facebook';
+      switch (widgetDoc.businessUrlSource) {
+        case 'GoogleBusinessUrl':
+          reviewSource = 'google';
+          break;
+        case 'FacebookBusinessUrl':
+          reviewSource = 'facebook';
+          break;
+        default:
+          reviewSource = 'google'; // fallback
+      }
       
       console.log(`[Widget API] Fetching reviews for urlHash: ${widgetDoc.urlHash}, source: ${reviewSource}`);
       
@@ -111,7 +121,7 @@ export default async function handler(
           fetchedBusinessUrlLink = businessUrlDoc.url;
           
           if (businessUrlDoc.urlHash) {
-            const reviewSource = businessUrlDoc.source as 'google' | 'facebook';
+            const reviewSource: 'google' | 'facebook' = businessUrlDoc.source as 'google' | 'facebook';
             
             console.log(`[Widget API] Fetching reviews for urlHash: ${businessUrlDoc.urlHash}, source: ${reviewSource}`);
             
@@ -147,7 +157,7 @@ export default async function handler(
     const widgetSettingsForPublic: IWidgetSettingsFromForm = {
       name: widgetDoc.name,
       themeColor: widgetDoc.settings?.themeColor as string || widgetDoc.themeColor || '#3B82F6',
-      layout: widgetDoc.type,
+      layout: (widgetDoc.type as "grid" | "carousel" | "list" | "masonry" | "badge") || "grid",
       minRating: widgetDoc.minRating,
       showRatings: (widgetDoc.settings?.showRatings as boolean) ?? widgetDoc.showRatings,
       showDates: (widgetDoc.settings?.showDates as boolean) ?? widgetDoc.showDates,

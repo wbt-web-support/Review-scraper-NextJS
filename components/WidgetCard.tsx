@@ -38,11 +38,11 @@ export interface IWidget {
 interface WidgetCardProps {
   widget: IWidget;
   onDelete?: () => void;
-  onEdit?: (widgetId: string) => void;
+  _onEdit?: (widgetId: string) => void;
   isDeleting?: boolean;
 }
 
-const WidgetCard = ({ widget, onDelete, onEdit, isDeleting }: WidgetCardProps) => {
+const WidgetCard = ({ widget, onDelete, _onEdit, isDeleting }: WidgetCardProps) => {
   const [isCodeModalOpen, setIsCodeModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
@@ -50,9 +50,9 @@ const WidgetCard = ({ widget, onDelete, onEdit, isDeleting }: WidgetCardProps) =
     ? new Date(widget.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
     : 'N/A';
     
-  const getSourceIcon = () => {
-    if (widget.businessUrl?.source === 'google') return <Chrome className="h-5 w-5" />;
-    if (widget.businessUrl?.source === 'facebook') return <Facebook className="h-5 w-5" />;
+  const _getSourceIcon = (source: string) => {
+    if (source === 'google') return <Chrome className="h-5 w-5" />;
+    if (source === 'facebook') return <Facebook className="h-5 w-5" />;
     return <Building2 className="h-5 w-5" />;
   };
   
@@ -68,9 +68,9 @@ const WidgetCard = ({ widget, onDelete, onEdit, isDeleting }: WidgetCardProps) =
     return 'text-gray-600';
   };
 
-  const getSourceTooltip = (): string => {
-    if (widget.businessUrl?.source === 'google') return 'Google Business Reviews';
-    if (widget.businessUrl?.source === 'facebook') return 'Facebook Reviews';
+  const _getSourceTooltip = (source: string): string => {
+    if (source === 'google') return 'Google Business Reviews';
+    if (source === 'facebook') return 'Facebook Reviews';
     return 'No source connected';
   };
 

@@ -66,7 +66,7 @@ export default async function handler(
           ? 'GoogleBusinessUrl' 
           : 'FacebookBusinessUrl';
 
-        const dataForStorage = {
+        const dataForStorage: import("@/lib/storage").CreateWidgetArgs = {
           userId: userId,
           name: widgetClientData.name,
           businessUrlId: widgetClientData.businessUrlId,

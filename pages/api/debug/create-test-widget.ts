@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import * as storage from '../../../lib/storage';
+import type { CreateWidgetArgs } from '../../../lib/storage';
 import dbConnect from '../../../lib/mongodb';
 
 export default async function handler(
@@ -28,11 +29,12 @@ export default async function handler(
     console.log('Using business:', heatsealBusiness);
 
     // Create a test widget with proper settings
-    const widgetData = {
+    const widgetData: CreateWidgetArgs = {
       userId: "678200664a3e0c04261128c5", // Use a valid user ID
       name: `Test Widget - ${heatsealBusiness.name}`,
       businessUrlId: heatsealBusiness._id,
-      businessUrlSource: heatsealBusiness.source, // Use the actual source value ('google' or 'facebook')
+      businessUrlSource: heatsealBusiness.source === 'google' ? 'GoogleBusinessUrl' : 'FacebookBusinessUrl',
+      urlHash: heatsealBusiness.urlHash,
       type: 'grid',
       themeColor: '#3182CE',
       minRating: 0, // Show all reviews

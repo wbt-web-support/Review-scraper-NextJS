@@ -199,7 +199,7 @@ useEffect(() => {
     },
   });
 
-const processFormSubmit = (data: FormValues) => {
+const _processFormSubmit = (data: FormValues) => {
   console.log("SUBMITTING WIDGET FORM", data);
   if (!data.businessUrlId) {
     toast({ title: "Missing Information", description: "Please select a business source.", variant: "default"});
@@ -260,7 +260,7 @@ const processFormSubmit = (data: FormValues) => {
     });
   };
 
-  const handleGetCode = () => {
+  const _handleGetCode = () => {
     form.trigger().then(isValid => {
       if (isValid) {
         setActiveTab("preview");
@@ -401,7 +401,7 @@ const processFormSubmit = (data: FormValues) => {
                   </div>
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">Widget Created Successfully!</h3>
                   <p className="text-gray-600 mb-6">
-                    Your widget "{createdWidget.name}" has been created and is ready to use.
+                    Your widget &quot;{createdWidget.name}&quot; has been created and is ready to use.
                   </p>
                   <div className="bg-green-50 border border-green-200 rounded-lg p-4 max-w-md mx-auto">
                     <p className="text-green-800 text-sm">

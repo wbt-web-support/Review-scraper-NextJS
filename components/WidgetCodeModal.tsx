@@ -83,7 +83,7 @@ const WidgetCodeModal = ({
     }
   };
 
-  const currentCodeToShow = activeTab === 'javascript' ? javascriptCode : '';
+  const _currentCodeToShow = activeTab === 'javascript' ? javascriptCode : '';
 
   // Create preview widget props if formData is available
   const previewWidgetProps: IWidgetSettingsFromForm | null = formData ? {
@@ -137,7 +137,9 @@ const WidgetCodeModal = ({
               </div>
               <p className="text-green-700 text-sm">
                 Fast loading, responsive, and automatically updates when you modify your widget settings.
-                {isPreviewMode && " The widget ID will be generated after you create the widget."}
+                {isPreviewMode && (
+                  <>The widget ID will be generated after you create the widget.</>
+                )}
               </p>
             </div>
             
@@ -160,7 +162,7 @@ const WidgetCodeModal = ({
               <h4 className="font-medium text-blue-800 mb-2">How to use:</h4>
               <ol className="text-blue-700 text-sm space-y-1 list-decimal list-inside">
                 <li>Copy the JavaScript code above</li>
-                <li>Paste it into your website's HTML where you want the reviews to appear</li>
+                <li>Paste it into your website&#39;s HTML where you want the reviews to appear</li>
                 <li>The widget will automatically load and display your reviews</li>
               </ol>
             </div>

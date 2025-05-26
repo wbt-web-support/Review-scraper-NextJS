@@ -38,7 +38,9 @@ interface IReviewItem {
   profilePicture?: string;
   recommendationStatus?: string;
   source?: 'google' | 'facebook';
-  businessUrl?: string;
+  businessUrl?: {
+    source: 'google' | 'facebook';
+  };
   scrapedAt?: string | Date;
 }
 
@@ -50,18 +52,7 @@ const businessUrlSchema = z.object({
 
 type BusinessUrlFormData = z.infer<typeof businessUrlSchema>;
 
-const fetcher = async <T = unknown,>(url: string, options?: RequestInit): Promise<T> => {
-  const res = await fetch(url, options);
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({ message: `Request to ${url} failed with status ${res.status}` }));
-    throw new Error(errorData.message || `An error occurred while fetching ${url}`);
-  }
-  const contentType = res.headers.get("content-type");
-  if (contentType && contentType.indexOf("application/json") !== -1) {
-    return res.json() as Promise<T>;
-  }
-  return undefined as T; 
-};
+const _fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 const Reviews = () => {
   const [activeTab, setActiveTab] = useState<"all" | "google" | "facebook">("all");
