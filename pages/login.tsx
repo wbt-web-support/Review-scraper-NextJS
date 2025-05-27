@@ -76,178 +76,166 @@ const Login = () => {
 
   if (authStatus === 'loading' || authStatus === 'authenticated') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
-        <div className="animate-pulse">
-          <div className="w-8 h-8 bg-primary rounded-full animate-bounce"></div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="flex items-center space-x-2">
+          <div className="w-2 h-2 bg-gray-600 rounded-full animate-bounce"></div>
+          <div className="w-2 h-2 bg-gray-600 rounded-full animate-bounce delay-75"></div>
+          <div className="w-2 h-2 bg-gray-600 rounded-full animate-bounce delay-150"></div>
         </div>
       </div>
     );
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 relative overflow-hidden">
-      {/* Animated background elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/20 to-purple-600/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-purple-400/20 to-pink-600/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-r from-blue-400/10 to-purple-600/10 rounded-full blur-3xl animate-pulse delay-500"></div>
-      </div>
-
-      <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
-        <div className="w-full max-w-md">
-          {/* Header section with logo and improved styling */}
-          <div className="text-center mb-8 animate-fade-in">
-            {/* Logo Section */}
-            <div className="flex items-center justify-center mb-6">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl blur-lg opacity-30 animate-pulse"></div>
-                <div className="relative bg-white/90 backdrop-blur-sm p-4 rounded-2xl shadow-lg border border-white/40">
-                  <Image
-                    src="https://webuildtrades.com/wp-content/uploads/WeBuildTrades-logo-1.png"
-                    alt="We Build Trades Logo"
-                    width={150}
-                    height={75}
-                    className="object-contain"
-                    priority
-                  />
-                </div>
-              </div>
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12">
+      <div className="w-full max-w-md space-y-8">
+        {/* Header Section */}
+        <div className="text-center">
+          {/* Logo */}
+          <div className="flex justify-center mb-6">
+            <div className="p-3">
+              <Image
+                src="/logo.png"
+                alt="We Build Trades Logo"
+                width={230}
+                height={60}
+                className="object-contain"
+                priority
+              />
             </div>
-            
-            {/* Brand Titles */}
-            <div className="mb-4">
-              <h1 className="font-bold text-4xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
-                Review Hub
-              </h1>
-              <p className="text-gray-600 text-lg font-medium leading-relaxed max-w-sm mx-auto">
-                Easily collect Google & Facebook reviews with one click.
-              </p>
-            </div>
-          </div>
-
-          {/* Enhanced card with glassmorphism effect */}
-          <div className="relative group">
-            {/* Card glow effect */}
-            <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200"></div>
-            
-            <Card className="relative bg-white/80 backdrop-blur-xl border-white/20 shadow-2xl rounded-2xl overflow-hidden">
-              {/* Subtle gradient overlay */}
-              <div className="absolute inset-0 bg-gradient-to-br from-white/50 to-white/30 pointer-events-none"></div>
-              
-              <CardHeader className="relative pb-8 pt-8">
-                <CardTitle className="text-2xl font-bold text-center bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-                  Sign In
-                </CardTitle>
-                <CardDescription className="text-center text-gray-600 text-base">
-                  Enter your credentials to access your account
-                </CardDescription>
-              </CardHeader>
-              
-              <CardContent className="relative px-8 pb-6">
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                    <FormField
-                      control={form.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem className="space-y-2">
-                          <FormLabel className="text-sm font-semibold text-gray-700">Email Address</FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <i className="fas fa-envelope text-gray-400"></i>
-                              </div>
-                              <Input 
-                                type="email"
-                                placeholder="you@example.com" 
-                                {...field} 
-                                disabled={isLoading}
-                                autoComplete="email"
-                                className="pl-10 h-12 bg-white/50 border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 rounded-xl transition-all duration-200 hover:bg-white/70 focus:bg-white/90"
-                              />
-                            </div>
-                          </FormControl>
-                          <FormMessage className="text-red-500" />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem className="space-y-2">
-                          <FormLabel className="text-sm font-semibold text-gray-700">Password</FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <i className="fas fa-lock text-gray-400"></i>
-                              </div>
-                              <Input 
-                                type="password" 
-                                placeholder="Enter your password" 
-                                {...field} 
-                                disabled={isLoading}
-                                className="pl-10 h-12 bg-white/50 border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 rounded-xl transition-all duration-200 hover:bg-white/70 focus:bg-white/90"
-                              />
-                            </div>
-                          </FormControl>
-                          <FormMessage className="text-red-500" />
-                        </FormItem>
-                      )}
-                    />
-
-                    <Button 
-                      type="submit" 
-                      className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200 mt-8" 
-                      disabled={isLoading}
-                    >
-                      {isLoading ? (
-                        <span className="flex items-center justify-center">
-                          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div>
-                          Signing in...
-                        </span>
-                      ) : (
-                        <span className="flex items-center justify-center">
-                          <i className="fas fa-sign-in-alt mr-2"></i>
-                          Sign In
-                        </span>
-                      )}
-                    </Button>
-                  </form>
-                </Form>
-              </CardContent>
-              
-              <CardFooter className="relative px-8 pb-8">
-                <div className="w-full text-center">
-                  <div className="text-sm text-gray-600">
-                    Don&apos;t have an account?{" "}
-                    <Link 
-                      href="/register" 
-                      className="font-semibold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:from-blue-700 hover:to-purple-700 transition-all duration-200"
-                    >
-                      Create one now
-                    </Link>
-                  </div>
-                  
-                  {/* Optional: Add "Forgot Password" link */}
-                  <div className="mt-4">
-                    <Link 
-                      href="#" 
-                      className="text-sm text-gray-500 hover:text-gray-700 transition-colors duration-200"
-                    >
-                      Forgot your password?
-                    </Link>
-                  </div>
-                </div>
-              </CardFooter>
-            </Card>
           </div>
           
-          {/* Optional: Add some additional info or features */}
-          <div className="mt-8 text-center text-sm text-gray-500">
-            <p>Secure login powered by We Build Trades Review Hub</p>
-          </div>
+          {/* Brand Title */}
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Review Hub
+          </h1>
+          <p className="text-gray-600 text-sm">
+          Easily collect Google & Facebook reviews with one click.
+          </p>
+        </div>
+
+        {/* Login Form Card */}
+        <Card className="bg-white shadow-lg border-0 rounded-xl">
+          <CardHeader className="text-center pb-6">
+            <CardTitle className="text-xl font-semibold text-gray-900">
+              Welcome back
+            </CardTitle>
+            <CardDescription className="text-gray-600">
+              Sign in to your account to continue
+            </CardDescription>
+          </CardHeader>
+          
+          <CardContent className="px-6">
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-medium text-gray-700">
+                        Email address
+                      </FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="email"
+                          placeholder="Enter your email" 
+                          {...field} 
+                          disabled={isLoading}
+                          autoComplete="email"
+                          className="h-11 border-gray-300 focus:border-gray-900 focus:ring-gray-900 rounded-lg bg-white placeholder:text-gray-400"
+                        />
+                      </FormControl>
+                      <FormMessage className="text-sm text-red-600" />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-medium text-gray-700">
+                        Password
+                      </FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="password" 
+                          placeholder="Enter your password" 
+                          {...field} 
+                          disabled={isLoading}
+                          className="h-11 border-gray-300 focus:border-gray-900 focus:ring-gray-900 rounded-lg bg-white placeholder:text-gray-400"
+                        />
+                      </FormControl>
+                      <FormMessage className="text-sm text-red-600" />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="pt-2">
+                  <Button 
+                    type="submit" 
+                    className="w-full h-11 bg-gray-900 hover:bg-gray-800 text-white font-medium rounded-lg transition-colors duration-200 focus:ring-2 focus:ring-gray-900 focus:ring-offset-2" 
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <div className="flex items-center">
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Signing in...
+                      </div>
+                    ) : (
+                      "Sign in"
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </CardContent>
+          
+          <CardFooter className="px-6 pb-6">
+            <div className="w-full space-y-4">
+              {/* Forgot Password */}
+              <div className="text-center">
+                <Link 
+                  href="#" 
+                  className="text-sm text-gray-600 hover:text-gray-900 transition-colors duration-200"
+                >
+                  Forgot your password?
+                </Link>
+              </div>
+              
+              {/* Divider */}
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-200" />
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-white text-gray-500">New to Review Hub?</span>
+                </div>
+              </div>
+              
+              {/* Sign Up Link */}
+              <div className="text-center">
+                <Link 
+                  href="/register" 
+                  className="text-sm font-medium text-gray-900 hover:text-gray-700 transition-colors duration-200"
+                >
+                  Create an account
+                </Link>
+              </div>
+            </div>
+          </CardFooter>
+        </Card>
+        
+        {/* Footer */}
+        <div className="text-center">
+          <p className="text-xs text-gray-500">
+            © 2024 We Build Trades. All rights reserved.
+          </p>
         </div>
       </div>
     </div>

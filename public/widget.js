@@ -41,6 +41,28 @@
     },
     injectStyles: function() {
       if (document.getElementById('reviewhub-widget-styles')) return;
+      
+      // Inject Roboto font
+      if (!document.querySelector('link[href*="fonts.googleapis.com/css2?family=Roboto"]')) {
+        // Add preconnect links for better performance
+        const preconnect1 = document.createElement('link');
+        preconnect1.rel = 'preconnect';
+        preconnect1.href = 'https://fonts.googleapis.com';
+        document.head.appendChild(preconnect1);
+        
+        const preconnect2 = document.createElement('link');
+        preconnect2.rel = 'preconnect';
+        preconnect2.href = 'https://fonts.gstatic.com';
+        preconnect2.crossOrigin = 'anonymous';
+        document.head.appendChild(preconnect2);
+        
+        // Add Roboto font
+        const robotoFont = document.createElement('link');
+        robotoFont.rel = 'stylesheet';
+        robotoFont.href = 'https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap';
+        document.head.appendChild(robotoFont);
+      }
+      
       if (!document.querySelector('link[href*="font-awesome"]') && !document.querySelector('link[href*="fontawesome"]')) {
         const fontAwesome = document.createElement('link');
         fontAwesome.rel = 'stylesheet';
@@ -53,7 +75,7 @@
       style.id = 'reviewhub-widget-styles';
       style.textContent = `
         .reviewhub-widget-container {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+          font-family: "Roboto", -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif !important;
           line-height: 1.6 !important;
           color: #1f2937 !important;
           box-sizing: border-box !important;
@@ -554,10 +576,11 @@
           overflow-y: auto !important;
           box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
           position: relative !important;
+          font-family: "Roboto", -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif !important;
         }
         
         .reviewhub-modal-header {
-          padding: 24px 24px 0 24px !important;
+          padding: 24px 48px 0 24px !important;
           border-bottom: 1px solid #e5e7eb !important;
           margin-bottom: 24px !important;
         }
@@ -590,12 +613,14 @@
           border: none !important;
           padding: 0 !important;
           margin: 0 !important;
+          font-family: inherit !important;
         }
         
         .reviewhub-modal .reviewhub-review-content {
           font-size: 16px !important;
           line-height: 1.6 !important;
           white-space: pre-wrap !important;
+          font-family: inherit !important;
         }
         
         .reviewhub-carousel-container {
