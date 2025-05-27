@@ -243,8 +243,6 @@ if (!isLoadingReviews && filteredReviews.length === 0 && settings.layout !== 'ba
               review={review} 
               displaySettings={displaySettingsForCard} 
               sourcePlatform={source}
-              reviewIndex={index}
-              totalReviewCount={totalReviewCount}
             />
           ))}
         </div>
@@ -258,8 +256,6 @@ if (!isLoadingReviews && filteredReviews.length === 0 && settings.layout !== 'ba
                 review={review} 
                 displaySettings={displaySettingsForCard} 
                 sourcePlatform={source}
-                reviewIndex={index}
-                totalReviewCount={totalReviewCount}
               />
             </div>
           ))}

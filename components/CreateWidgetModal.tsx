@@ -135,7 +135,7 @@ useEffect(() => {
     isLoading: isPreviewReviewsLoading,
     error: previewReviewsError,
     refetch: triggerFetchReviewsForPreview,
-  } = useQuery<{ reviews: ReviewItemForPreviewModal[] }>({
+  } = useQuery<{ reviews: ReviewItemForPreviewModal[], totalReviewCount?: number }>({
     queryKey: ["previewReviews", selectedBusinessUrlId],
     queryFn: async () => {
       if (!selectedBusinessUrlId) return { reviews: [] };
