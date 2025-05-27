@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Badge Limit Fix Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .widget-container {
+            margin: 20px 0;
+            display: flex;
+            justify-content: center;
+        }
+        .info-box {
+            background: #e8f4fd;
+            border: 1px solid #b3d9f2;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .success {
+            background: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        .warning {
+            background: #fff3cd;
+            border-color: #ffeaa7;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Badge Review Limit Fix Test</h1>
+        
+        <div class="info-box">
+            <h3>📋 Test Instructions:</h3>
+            <ol>
+                <li>Enter a widget ID that has more than 10 reviews</li>
+                <li>Click "Test Badge Limit Fix"</li>
+                <li>Check if the badge shows the correct total review count</li>
+                <li>Click on "Read our X Reviews" to see if all reviews are displayed</li>
+            </ol>
+        </div>
+
+        <div>
+            <label for="widgetId">Widget ID:</label><br>
+            <input type="text" id="widgetId" placeholder="Enter Widget ID" style="width: 100%; padding: 8px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px;">
+            <button onclick="testBadgeLimit()" style="width: 100%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Test Badge Limit Fix</button>
+        </div>
+
+        <div id="test-results" class="info-box" style="display: none;">
+            <h3>🔍 Test Results:</h3>
+            <div id="results-content"></div>
+        </div>
+
+        <div id="widget-container" class="widget-container"></div>
+    </div>
+
+    <script>
+        async function testBadgeLimit() {
+            const widgetId = document.getElementById('widgetId').value.trim();
+            if (!widgetId) {
+                alert('Please enter a Widget ID');
+                return;
+            }
+
+            const resultsDiv = document.getElementById('test-results');
+            const resultsContent = document.getElementById('results-content');
+            const widgetContainer = document.getElementById('widget-container');
+            
+            resultsDiv.style.display = 'block';
+            resultsContent.innerHTML = 'Testing...';
+
+            try {
+                // Test API call with badge layout
+                console.log('Testing API with badge layout...');
+                const badgeResponse = await fetch(`/api/public/widget-data/${widgetId}?layout=badge`);
+                const badgeData = await badgeResponse.json();
+
+                // Test API call with default layout (should be limited)
+                console.log('Testing API with default layout...');
+                const defaultResponse = await fetch(`/api/public/widget-data/${widgetId}`);
+                const defaultData = await defaultResponse.json();
+
+                // Display results
+                const badgeReviewCount = badgeData.reviews ? badgeData.reviews.length : 0;
+                const defaultReviewCount = defaultData.reviews ? defaultData.reviews.length : 0;
+                const totalAvailable = badgeData.totalReviewCount || 0;
+
+                let resultHtml = `
+                    <strong>API Test Results:</strong><br>
+                    📊 Total Reviews Available: ${totalAvailable}<br>
+                    🏷️ Badge Layout Reviews Fetched: ${badgeReviewCount}<br>
+                    📝 Default Layout Reviews Fetched: ${defaultReviewCount}<br><br>
+                `;
+
+                if (badgeReviewCount > defaultReviewCount) {
+                    resultHtml += `<div class="success">✅ SUCCESS: Badge is fetching more reviews than default limit!</div>`;
+                } else if (badgeReviewCount === totalAvailable && totalAvailable > 10) {
+                    resultHtml += `<div class="success">✅ PERFECT: Badge is fetching ALL available reviews!</div>`;
+                } else if (totalAvailable <= 10) {
+                    resultHtml += `<div class="warning">⚠️ INFO: Total reviews (${totalAvailable}) is ≤ 10, so the limit fix isn't needed for this widget.</div>`;
+                } else {
+                    resultHtml += `<div class="warning">❌ ISSUE: Badge should fetch more reviews. Expected: ${totalAvailable}, Got: ${badgeReviewCount}</div>`;
+                }
+
+                resultsContent.innerHTML = resultHtml;
+
+                // Render the badge widget
+                widgetContainer.innerHTML = '';
+                if (window.ReviewHub && window.ReviewHub.renderWidget) {
+                    const config = {
+                        themeColor: badgeData.widgetSettings?.themeColor || '#3B82F6',
+                        layout: 'badge'
+                    };
+                    
+                    window.ReviewHub.renderWidget(widgetContainer, badgeData, config);
+                    console.log('Badge widget rendered with real API data');
+                } else {
+                    widgetContainer.innerHTML = '<p style="color: red;">ReviewHub widget script not loaded</p>';
+                }
+
+            } catch (error) {
+                resultsContent.innerHTML = `<div style="color: red;">❌ ERROR: ${error.message}</div>`;
+                console.error('Test error:', error);
+            }
+        }
+
+        // Auto-load widget script
+        const script = document.createElement('script');
+        script.src = './widget.js';
+        script.onload = () => console.log('Widget script loaded');
+        script.onerror = () => console.error('Failed to load widget script');
+        document.head.appendChild(script);
+    </script>
+</body>
+</html> 

@@ -139,7 +139,7 @@ useEffect(() => {
     queryKey: ["previewReviews", selectedBusinessUrlId],
     queryFn: async () => {
       if (!selectedBusinessUrlId) return { reviews: [] };
-      return apiRequest<{ reviews: ReviewItemForPreviewModal[] }>(
+      return apiRequest<{ reviews: ReviewItemForPreviewModal[], totalReviewCount?: number }>(
         "GET",
         `/api/business-urls/${selectedBusinessUrlId}/reviews`
       );
@@ -364,6 +364,7 @@ const _processFormSubmit = (data: FormValues) => {
                     widget={previewWidgetPropsForChild}
                     reviews={reviewsToPreview}
                     isLoadingReviews={isPreviewReviewsLoading}
+                    totalReviewCount={previewReviewsQueryResult?.totalReviewCount}
                     />
                   )}
                 </div>

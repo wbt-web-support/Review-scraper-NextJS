@@ -34,7 +34,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const maxReviewsQueryParam = req.query.maxReviews;
     const maxReviews = typeof maxReviewsQueryParam === 'string' && !isNaN(parseInt(maxReviewsQueryParam))
       ? parseInt(maxReviewsQueryParam)
-      : 100; 
+      : 500; 
     console.log(`[API /scrape] Max reviews: ${maxReviews}`);
     let result;
     if (businessUrl.source === 'google') {

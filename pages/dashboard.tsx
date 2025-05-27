@@ -44,6 +44,7 @@ interface IWidget {
   isActive?: boolean;
   settings?: Record<string, any>;
   views?: number;
+  totalReviewCount?: number;
 }
 
 interface IReviewItem {

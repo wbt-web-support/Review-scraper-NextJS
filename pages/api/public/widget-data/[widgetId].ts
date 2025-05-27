@@ -35,6 +35,7 @@ export default async function handler(
 
   const { widgetId } = req.query;
   const limitQuery = req.query.limit;
+  const layoutQuery = req.query.layout;
 
   if (req.method !== 'GET') {
     res.setHeader('Allow', ['GET', 'OPTIONS']);
@@ -98,9 +99,17 @@ export default async function handler(
       
       if (reviewBatch && reviewBatch.reviews) {
         console.log(`[Widget API] Found ${reviewBatch.reviews.length} reviews`);
+        // For badge layout, use all available reviews without any limit
+        let requestedLimit;
+        if (layoutQuery === 'badge' || widgetDoc.type === 'badge') {
+          requestedLimit = undefined; // No limit for badge widgets
+        } else {
+          requestedLimit = limitQuery ? parseInt(limitQuery as string) : 10;
+        }
+        
         reviews = storage.getFilteredReviewsFromBatch(reviewBatch, {
           minRating: widgetDoc.minRating,
-          limit: parseInt(limitQuery as string) || 10,
+          limit: requestedLimit,
         });
         console.log(`[Widget API] Filtered to ${reviews.length} reviews (minRating: ${widgetDoc.minRating})`);
         var totalReviewCount = reviewBatch.reviews.length;
@@ -135,9 +144,17 @@ export default async function handler(
             
             if (reviewBatch && reviewBatch.reviews) {
               console.log(`[Widget API] Found ${reviewBatch.reviews.length} reviews`);
+              // For badge layout, use all available reviews without any limit
+              let requestedLimit;
+              if (layoutQuery === 'badge' || widgetDoc.type === 'badge') {
+                requestedLimit = undefined; // No limit for badge widgets
+              } else {
+                requestedLimit = limitQuery ? parseInt(limitQuery as string) : 10;
+              }
+              
               reviews = storage.getFilteredReviewsFromBatch(reviewBatch, {
                 minRating: widgetDoc.minRating,
-                limit: parseInt(limitQuery as string) || 10,
+                limit: requestedLimit,
               });
               console.log(`[Widget API] Filtered to ${reviews.length} reviews (minRating: ${widgetDoc.minRating})`);
               var totalReviewCount = reviewBatch.reviews.length;

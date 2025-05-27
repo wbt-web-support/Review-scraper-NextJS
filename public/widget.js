@@ -912,15 +912,26 @@
     },
     generateStars: function(rating) {
       const fullStars = Math.floor(rating);
-      const hasHalfStar = rating % 1 >= 0.5;
+      const decimal = rating % 1;
+      const hasHalfStar = decimal >= 0.3 && decimal < 0.8; // More generous range for half stars
+      const shouldRoundUp = decimal >= 0.8; // Round up to full star if >= 0.8
+      
       let stars = '';
-      for (let i = 0; i < fullStars; i++) {
+      
+      // Add full stars
+      const totalFullStars = shouldRoundUp ? fullStars + 1 : fullStars;
+      for (let i = 0; i < totalFullStars; i++) {
         stars += '★';
       }
-      if (hasHalfStar) {
-        stars += '☆';
+      
+      // Add half star if needed (and we haven't rounded up)
+      if (hasHalfStar && !shouldRoundUp) {
+        stars += '★'; // Use full star for visual consistency
       }
-      for (let i = fullStars + (hasHalfStar ? 1 : 0); i < 5; i++) {
+      
+      // Add empty stars
+      const starsUsed = totalFullStars + (hasHalfStar && !shouldRoundUp ? 1 : 0);
+      for (let i = starsUsed; i < 5; i++) {
         stars += '☆';
       }
       
@@ -979,7 +990,8 @@
       if (widgetSettings.layout === 'badge') {
         const googleLogoUrl = 'https://assetsforscraper.b-cdn.net/Google-logo.png';
         const avgRating = reviews.length > 0 ? (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length).toFixed(1) : '5.0';
-        const reviewCount = typeof totalReviewCount === 'number' ? totalReviewCount : reviews.length;
+        // For badge layout, always show the exact total review count the business has
+        const reviewCount = totalReviewCount || reviews.length;
         const reviewText = reviewCount === 1 ? 'Review' : 'Reviews';
         // Generate a proper Google review URL for the specific business
         let reviewUrl;
@@ -1004,12 +1016,11 @@
               background: #fff;
               border-radius: 16px;
               box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-              padding: 20px 18px 16px 18px;
+              padding: 15px;
               display: flex;
               flex-direction: column;
               align-items: center;
               border: none;
-              min-width: 210px;
               max-width: 240px;
               font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
             ">
@@ -1020,7 +1031,7 @@
               <div style="width: 100%; height: 1px; background: #f0f0f0; margin: 8px 0 10px 0;"></div>
               <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 2px;">
                 <span style="font-size: 1.3rem; font-weight: 700; color: #222; margin-right: 7px;">${avgRating}</span>
-                <span style="color: #fbbf24; font-size: 1.6rem; letter-spacing: 1px;">${'★'.repeat(5)}</span>
+                <span style="color: #fbbf24; font-size: 1.6rem; letter-spacing: 1px;">${window.ReviewHub.generateStars(parseFloat(avgRating))}</span>
               </div>
               <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 8px;">
                 <span class="reviewhub-badge-modal-btn" style="
@@ -1056,7 +1067,7 @@
                     </div>
                     <div style="display: flex; align-items: center;">
                       <span style="font-size: 1.1rem; font-weight: bold; margin-right: 6px;">${avgRating}</span>
-                      <span style="color: #f59e0b; font-size: 1.1rem; letter-spacing: 2px;">${'★'.repeat(5)}</span>
+                      <span style="color: #f59e0b; font-size: 1.1rem; letter-spacing: 2px;">${window.ReviewHub.generateStars(parseFloat(avgRating))}</span>
                       <span style="margin-left: 8px; color: #888; font-size: 0.95rem;">(${reviewCount})</span>
                     </div>
                     <a href="${reviewUrl}" 
@@ -1150,6 +1161,9 @@
         let isAutoPlaying = true;
         const AUTO_PLAY_DELAY = 4000; // 4 seconds
         // Build reviews HTML
+        const totalReviews = typeof totalReviewCount === 'number' ? totalReviewCount : reviews.length;
+        const platformName = widgetSettings.businessUrl?.source === 'facebook' ? 'Facebook' : 'Google';
+        
         const reviewsHtml = reviews.map((review, index) => {
           const authorInitials = this.getInitials(review.author);
           const ratingStars = review.rating ? this.generateStars(review.rating) : '';

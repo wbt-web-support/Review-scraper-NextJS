@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Badge Widget</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .debug-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .debug-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        .debug-section h3 {
+            margin-top: 0;
+            color: #007bff;
+        }
+        pre {
+            background: #f1f3f4;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+        input, button {
+            padding: 8px 12px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .widget-container {
+            margin: 20px 0;
+            display: flex;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="debug-container">
+        <h1>Debug Badge Widget</h1>
+        
+        <div class="debug-section">
+            <h3>Widget ID Input</h3>
+            <input type="text" id="widgetIdInput" placeholder="Enter Widget ID" style="width: 300px;">
+            <button onclick="fetchWidgetData()">Fetch Widget Data</button>
+            <button onclick="renderBadgeWidget()">Render Badge Widget</button>
+        </div>
+
+        <div class="debug-section">
+            <h3>API Response</h3>
+            <pre id="apiResponse">Enter a widget ID and click "Fetch Widget Data" to see the API response...</pre>
+        </div>
+
+        <div class="debug-section">
+            <h3>URL Analysis</h3>
+            <pre id="urlAnalysis">API data will be analyzed here...</pre>
+        </div>
+
+        <div class="debug-section">
+            <h3>Rendered Widget</h3>
+            <div id="widget-container" class="widget-container"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentWidgetData = null;
+
+        async function fetchWidgetData() {
+            const widgetId = document.getElementById('widgetIdInput').value.trim();
+            if (!widgetId) {
+                alert('Please enter a Widget ID');
+                return;
+            }
+
+            try {
+                document.getElementById('apiResponse').textContent = 'Fetching...';
+                
+                const response = await fetch(`/api/public/widget-data/${widgetId}`);
+                const data = await response.json();
+                
+                currentWidgetData = data;
+                document.getElementById('apiResponse').textContent = JSON.stringify(data, null, 2);
+                
+                // Analyze URL data
+                analyzeUrls(data);
+                
+            } catch (error) {
+                document.getElementById('apiResponse').textContent = `Error: ${error.message}`;
+                console.error('Fetch error:', error);
+            }
+        }
+
+        function analyzeUrls(data) {
+            const analysis = {
+                businessName: data.businessName || 'NOT SET',
+                businessUrlLink: data.businessUrlLink || 'NOT SET',
+                widgetSettings_businessUrl: data.widgetSettings?.businessUrl || 'NOT SET',
+                widgetSettings_businessUrl_url: data.widgetSettings?.businessUrl?.url || 'NOT SET',
+                urlPriority: determineUrlPriority(data),
+                finalUrl: getFinalUrl(data)
+            };
+            
+            document.getElementById('urlAnalysis').textContent = JSON.stringify(analysis, null, 2);
+        }
+
+        function determineUrlPriority(data) {
+            if (data.businessUrlLink) {
+                return '1. businessUrlLink (highest priority)';
+            } else if (data.widgetSettings?.businessUrl?.url) {
+                return '2. widgetSettings.businessUrl.url';
+            } else if (data.businessName) {
+                return '3. Google Maps search by business name';
+            } else {
+                return '4. Generic Google Maps (fallback)';
+            }
+        }
+
+        function getFinalUrl(data) {
+            if (data.businessUrlLink) {
+                return data.businessUrlLink;
+            } else if (data.widgetSettings?.businessUrl?.url) {
+                return data.widgetSettings.businessUrl.url;
+            } else if (data.businessName) {
+                return `https://www.google.com/maps/search/${encodeURIComponent(data.businessName)}`;
+            } else {
+                return 'https://www.google.com/maps';
+            }
+        }
+
+        function renderBadgeWidget() {
+            if (!currentWidgetData) {
+                alert('Please fetch widget data first');
+                return;
+            }
+
+            const container = document.getElementById('widget-container');
+            container.innerHTML = '';
+            
+            if (window.ReviewHub && window.ReviewHub.renderWidget) {
+                const config = {
+                    themeColor: currentWidgetData.widgetSettings?.themeColor || '#3B82F6',
+                    layout: 'badge'
+                };
+                
+                window.ReviewHub.renderWidget(container, currentWidgetData, config);
+                console.log('Badge widget rendered with real API data');
+            } else {
+                container.innerHTML = '<p style="color: red;">ReviewHub widget script not loaded</p>';
+            }
+        }
+
+        // Auto-load widget script
+        const script = document.createElement('script');
+        script.src = './widget.js';
+        script.onload = () => console.log('Widget script loaded');
+        script.onerror = () => console.error('Failed to load widget script');
+        document.head.appendChild(script);
+    </script>
+</body>
+</html> 

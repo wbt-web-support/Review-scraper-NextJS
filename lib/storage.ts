@@ -520,10 +520,11 @@ export const getWidgetsByUserId = async (userId: string): Promise<IWidget[]> => 
     .lean()
     .exec();
 
-  // Manually populate business URL information
+  // Manually populate business URL information and get total review count
   const populatedWidgets = await Promise.all(
     widgets.map(async (widget) => {
       let businessUrl = undefined;
+      let totalReviewCount = 0;
       
       if (widget.businessUrlId) {
         try {
@@ -536,6 +537,21 @@ export const getWidgetsByUserId = async (userId: string): Promise<IWidget[]> => 
               source: businessUrlData.source as 'google' | 'facebook',
               url: businessUrlData.url,
             };
+
+            // Get total review count for this business URL
+            if (businessUrlData.urlHash) {
+              try {
+                const reviewBatch = await getReviewBatchForBusinessUrl(
+                  businessUrlData.urlHash,
+                  businessUrlData.source as 'google' | 'facebook'
+                );
+                if (reviewBatch && reviewBatch.reviews) {
+                  totalReviewCount = reviewBatch.reviews.length;
+                }
+              } catch (error) {
+                console.error(`[Storage/getWidgetsByUserId] Error fetching review count for widget ${widget._id}:`, error);
+              }
+            }
           }
         } catch (error) {
           console.error(`[Storage/getWidgetsByUserId] Error fetching business URL for widget ${widget._id}:`, error);
@@ -548,6 +564,19 @@ export const getWidgetsByUserId = async (userId: string): Promise<IWidget[]> => 
           source: widget.businessUrlSource as 'google' | 'facebook',
           url: undefined,
         };
+
+        // Try to get total review count using urlHash from widget
+        if (widget.urlHash) {
+          try {
+            const source = widget.businessUrlSource === 'GoogleBusinessUrl' ? 'google' : 'facebook';
+            const reviewBatch = await getReviewBatchForBusinessUrl(widget.urlHash, source);
+            if (reviewBatch && reviewBatch.reviews) {
+              totalReviewCount = reviewBatch.reviews.length;
+            }
+          } catch (error) {
+            console.error(`[Storage/getWidgetsByUserId] Error fetching review count for widget ${widget._id}:`, error);
+          }
+        }
       } else {
         businessUrl = {
           _id: "",
@@ -560,6 +589,7 @@ export const getWidgetsByUserId = async (userId: string): Promise<IWidget[]> => 
       return {
         ...widget,
         businessUrl,
+        totalReviewCount,
       } as IWidget;
     })
   );

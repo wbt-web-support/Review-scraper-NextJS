@@ -49,9 +49,10 @@ interface ReviewCarouselProps {
   getReviewKey: (review: any, idx: number) => string;
   displaySettingsForCard: any;
   source: any;
+  totalReviewCount?: number;
 }
 
-function ReviewCarousel({ filteredReviews, getReviewKey, displaySettingsForCard, source }: ReviewCarouselProps) {
+function ReviewCarousel({ filteredReviews, getReviewKey, displaySettingsForCard, source, totalReviewCount }: ReviewCarouselProps) {
   const DOT_COUNT = 5;
   function getVisibleCount() {
     if (typeof window !== 'undefined' && window.innerWidth < 600) return 1;
@@ -97,7 +98,12 @@ function ReviewCarousel({ filteredReviews, getReviewKey, displaySettingsForCard,
               style={{ width: `calc(100% / ${visibleCount})` }}
             >
               <div className="p-1 h-full">
-                <SingleReviewCard review={review} displaySettings={displaySettingsForCard} sourcePlatform={source} widgetStyleCard />
+                <SingleReviewCard 
+                  review={review} 
+                  displaySettings={displaySettingsForCard} 
+                  sourcePlatform={source} 
+                  widgetStyleCard
+                />
               </div>
             </div>
           ))}
@@ -207,7 +213,12 @@ if (!isLoadingReviews && filteredReviews.length === 0 && settings.layout !== 'ba
           {filteredReviews.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
               {filteredReviews.map((review, index) => (
-                <SingleReviewCard key={getReviewKey(review, index)} review={review} displaySettings={displaySettingsForCard} sourcePlatform={source} />
+                <SingleReviewCard 
+                  key={getReviewKey(review, index)} 
+                  review={review} 
+                  displaySettings={displaySettingsForCard} 
+                  sourcePlatform={source}
+                />
               ))}
             </div>
           )}
@@ -220,13 +231,21 @@ if (!isLoadingReviews && filteredReviews.length === 0 && settings.layout !== 'ba
           getReviewKey={getReviewKey}
           displaySettingsForCard={displaySettingsForCard}
           source={source}
+          totalReviewCount={totalReviewCount}
         />
       )}
 
       {settings.layout === 'list' && filteredReviews.length > 0 && (
         <div className="space-y-3">
           {filteredReviews.map((review, index) => (
-            <SingleReviewCard key={getReviewKey(review, index)} review={review} displaySettings={displaySettingsForCard} sourcePlatform={source} />
+            <SingleReviewCard 
+              key={getReviewKey(review, index)} 
+              review={review} 
+              displaySettings={displaySettingsForCard} 
+              sourcePlatform={source}
+              reviewIndex={index}
+              totalReviewCount={totalReviewCount}
+            />
           ))}
         </div>
       )}
@@ -235,7 +254,13 @@ if (!isLoadingReviews && filteredReviews.length === 0 && settings.layout !== 'ba
         <div className="columns-1 sm:columns-2 gap-3 space-y-3"> 
           {filteredReviews.map((review, index) => (
             <div key={getReviewKey(review, index)} className="break-inside-avoid-column">
-              <SingleReviewCard review={review} displaySettings={displaySettingsForCard} sourcePlatform={source} />
+              <SingleReviewCard 
+                review={review} 
+                displaySettings={displaySettingsForCard} 
+                sourcePlatform={source}
+                reviewIndex={index}
+                totalReviewCount={totalReviewCount}
+              />
             </div>
           ))}
         </div>
@@ -246,8 +271,12 @@ if (!isLoadingReviews && filteredReviews.length === 0 && settings.layout !== 'ba
           <GoogleReviewsBadge
             businessName={businessName}
             rating={avgRating}
-            reviewCount={typeof totalReviewCount === 'number' ? totalReviewCount : filteredReviews.length}
-            reviews={filteredReviews.map(r => ({
+            reviewCount={
+              totalReviewCount !== undefined && totalReviewCount !== null 
+                ? totalReviewCount 
+                : (reviews ? reviews.length : 0)
+            }
+            reviews={filteredReviews.slice(0, 10).map(r => ({
               name: r.author,
               avatar: r.profilePicture || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(r.author),
               date: r.postedAt,

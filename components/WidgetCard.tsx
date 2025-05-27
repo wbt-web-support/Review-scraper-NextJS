@@ -33,6 +33,7 @@ export interface IWidget {
   averageRating?: number;
   isActive?: boolean;
   settings?: Record<string, any>;
+  totalReviewCount?: number;
 }
 
 interface WidgetCardProps {
@@ -219,6 +220,18 @@ const WidgetCard = ({ widget, onDelete, _onEdit, isDeleting }: WidgetCardProps) 
               </span>
             </div>
           </div>
+          
+          {/* Total Reviews Count */}
+          {widget.totalReviewCount !== undefined && (
+            <div className="mt-3 pt-3 border-t border-gray-100">
+              <div className="flex items-center justify-center gap-2">
+                <i className="fas fa-star text-warning-500 text-sm"></i>
+                <span className="text-sm font-medium text-gray-700">
+                  {widget.totalReviewCount} {widget.totalReviewCount === 1 ? 'Review' : 'Reviews'} Total
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

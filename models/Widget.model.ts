@@ -23,6 +23,7 @@ export interface IWidget extends Document {
     url: string;
     source: 'google' | 'facebook';
   };
+  totalReviewCount?: number; // Computed field, not stored in DB
   createdAt: Date;
   updatedAt: Date;
 }
