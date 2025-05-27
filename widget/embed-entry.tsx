@@ -23,7 +23,7 @@ if (typeof window !== "undefined") {
       const widgetId = script.getAttribute('data-widget-id');
       const container = document.createElement('div');
       script.parentNode?.insertBefore(container, script.nextSibling);
-      fetch(`http://localhost:3000/api/public/widget-data/${widgetId}`)
+      fetch(`https://reviews.webuildtrades.com/api/public/widget-data/${widgetId}`)
         .then(res => res.json())
         .then(data => {
           (window as any).ReviewHub.renderWidget(container, {

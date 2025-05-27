@@ -16,7 +16,7 @@
       if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
         return window.location.protocol + '//' + window.location.host;
       }
-      return 'http://localhost:3000/';
+      return 'https://reviews.webuildtrades.com/';
     })(),
     
     RETRY_ATTEMPTS: 3,

@@ -55,8 +55,8 @@ export default async function handler(
     res.status(201).json({
       message: 'Test widget created successfully',
       widget: createdWidget,
-      testUrl: `http://localhost:3000${testUrl}`,
-      embedCode: `<script src="http://localhost:3000/widget.js" data-widget-id="${createdWidget._id}"></script>`
+      testUrl: `https://reviews.webuildtrades.com/${testUrl}`,
+      embedCode: `<script src="https://reviews.webuildtrades.com/widget.js" data-widget-id="${createdWidget._id}"></script>`
     });
 
   } catch (error) {

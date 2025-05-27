@@ -158,7 +158,7 @@
         const timestamp = Date.now();
         const randomId = Math.random().toString(36).substring(7);
         const script = document.createElement('script');
-        script.src = `http://localhost:3000/widget.js?v=${timestamp}&r=${randomId}`;
+        script.src = `https://reviews.webuildtrades.com/widget.js?v=${timestamp}&r=${randomId}`;
         
         updateDebugInfo('Loading script: ' + script.src);
         
