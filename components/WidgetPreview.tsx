@@ -41,6 +41,7 @@ interface WidgetPreviewProps {
   widget: IWidgetSettingsFromForm; 
   reviews: IReviewItemFromAPI[];
   isLoadingReviews?: boolean;
+  totalReviewCount?: number;
 }
 
 interface ReviewCarouselProps {
@@ -141,7 +142,8 @@ function ReviewCarousel({ filteredReviews, getReviewKey, displaySettingsForCard,
 const WidgetPreview = ({ 
   widget, 
   reviews,
-  isLoadingReviews = false 
+  isLoadingReviews = false,
+  totalReviewCount
 }: WidgetPreviewProps) => {
   const settings = widget;
   const MAX_PREVIEW_ITEMS = 50; // Show more reviews since we removed maxReviews limit
@@ -244,7 +246,7 @@ if (!isLoadingReviews && filteredReviews.length === 0 && settings.layout !== 'ba
           <GoogleReviewsBadge
             businessName={businessName}
             rating={avgRating}
-            reviewCount={filteredReviews.length}
+            reviewCount={typeof totalReviewCount === 'number' ? totalReviewCount : filteredReviews.length}
             reviews={filteredReviews.map(r => ({
               name: r.author,
               avatar: r.profilePicture || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(r.author),

@@ -75,15 +75,15 @@ const WidgetPreviewModal = ({ isOpen, onClose, widget }: WidgetPreviewModalProps
     }
   }, [isOpen, widget]);
 
- const { data: reviewsData, isLoading: isLoadingReviews } = useQuery<{ reviews: ReviewItemForPreviewModal[] }>({
+ const { data: reviewsData, isLoading: isLoadingReviews } = useQuery<{ reviews: ReviewItemForPreviewModal[], totalReviewCount?: number }>({
     queryKey: ['widgetPreviewReviews', widget.businessUrlId],
     queryFn: async () => {
       if (!widget.businessUrlId) { 
         console.log("[PreviewQuery] No businessUrlId, returning empty reviews.");
-        return { reviews: [] };
+        return { reviews: [], totalReviewCount: 0 };
       }
       console.log(`[PreviewQuery] Fetching reviews for ID: ${widget.businessUrlId}`);
-      return apiRequest<{ reviews: ReviewItemForPreviewModal[] }>(
+      return apiRequest<{ reviews: ReviewItemForPreviewModal[], totalReviewCount?: number }>(
         "GET",
         `/api/business-urls/${widget.businessUrlId}/reviews?limit=${customizations.maxReviews || 10}` 
       );
@@ -91,6 +91,7 @@ const WidgetPreviewModal = ({ isOpen, onClose, widget }: WidgetPreviewModalProps
     enabled: isOpen && !!widget.businessUrlId,
   });
   const reviewsToPreview = reviewsData?.reviews || [];
+  const totalReviewCount = reviewsData?.totalReviewCount;
 
   const themeColors = [
     { name: "Blue", value: "#3182CE" },
@@ -182,6 +183,7 @@ const WidgetPreviewModal = ({ isOpen, onClose, widget }: WidgetPreviewModalProps
                 <WidgetPreview
                   widget={dataForActualPreview}
                   reviews={reviewsToPreview}
+                  totalReviewCount={totalReviewCount}
                 />
               </div>
             )}

@@ -9,6 +9,7 @@ export interface PublicWidgetDataResponse {
   reviews: IReviewItemFromAPI[];
   businessName?: string; 
   businessUrlLink?: string;
+  totalReviewCount?: number;
 }
 
 // CORS headers for widget embedding
@@ -102,8 +103,10 @@ export default async function handler(
           limit: parseInt(limitQuery as string) || 10,
         });
         console.log(`[Widget API] Filtered to ${reviews.length} reviews (minRating: ${widgetDoc.minRating})`);
+        var totalReviewCount = reviewBatch.reviews.length;
       } else {
         console.log(`[Widget API] No review batch found for urlHash: ${widgetDoc.urlHash}`);
+        var totalReviewCount = 0;
       }
     } else {
       console.warn(`[Widget API] Widget ${widgetId} has no urlHash - using fallback method`);
@@ -137,17 +140,22 @@ export default async function handler(
                 limit: parseInt(limitQuery as string) || 10,
               });
               console.log(`[Widget API] Filtered to ${reviews.length} reviews (minRating: ${widgetDoc.minRating})`);
+              var totalReviewCount = reviewBatch.reviews.length;
             } else {
               console.log(`[Widget API] No review batch found for urlHash: ${businessUrlDoc.urlHash}`);
+              var totalReviewCount = 0;
             }
           } else {
             console.warn(`[Widget API] Business URL ${businessUrlDoc._id} is missing urlHash`);
+            var totalReviewCount = 0;
           }
         } else {
           console.warn(`[Widget API] Business URL not found for ID: ${widgetDoc.businessUrlId}`);
+          var totalReviewCount = 0;
         }
       } else {
         console.warn(`[Widget API] Widget ${widgetId} has no businessUrlId`);
+        var totalReviewCount = 0;
       }
     }
 
@@ -177,6 +185,7 @@ export default async function handler(
       reviews,
       businessName: fetchedBusinessName,
       businessUrlLink: fetchedBusinessUrlLink,
+      totalReviewCount,
     });
 
   } catch (error) {

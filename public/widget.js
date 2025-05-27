@@ -932,10 +932,13 @@
         if (typeof dateString === 'string' && dateString.includes('ago')) {
           return dateString;
         }
+        
+        // Handle ISO date format like "2025-05-15T07:45:30.345Z"
         const date = new Date(dateString);
         if (isNaN(date.getTime())) {
           return dateString || 'Recently';
         }
+        
         const now = new Date();
         const diffTime = Math.abs(now - date);
         const diffMinutes = Math.floor(diffTime / (1000 * 60));
@@ -944,16 +947,18 @@
         const diffWeeks = Math.floor(diffDays / 7);
         const diffMonths = Math.floor(diffDays / 30);
         const diffYears = Math.floor(diffDays / 365);
-        if (diffMinutes < 60) return diffMinutes <= 1 ? 'Just now' : `${diffMinutes} minutes ago`;
-        if (diffHours < 24) return diffHours === 1 ? '1 hour ago' : `${diffHours} hours ago`;
-        if (diffDays === 1) return 'Yesterday';
-        if (diffDays < 7) return `${diffDays} days ago`;
+        
+        if (diffMinutes < 1) return 'Just now';
+        if (diffMinutes < 60) return `${diffMinutes} minute${diffMinutes === 1 ? '' : 's'} ago`;
+        if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
+        if (diffDays === 1) return '1 day ago';
+        if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
         if (diffWeeks === 1) return '1 week ago';
-        if (diffWeeks < 4) return `${diffWeeks} weeks ago`;
+        if (diffWeeks < 4) return `${diffWeeks} week${diffWeeks === 1 ? '' : 's'} ago`;
         if (diffMonths === 1) return '1 month ago';
-        if (diffMonths < 12) return `${diffMonths} months ago`;
+        if (diffMonths < 12) return `${diffMonths} month${diffMonths === 1 ? '' : 's'} ago`;
         if (diffYears === 1) return '1 year ago';
-        return `${diffYears} years ago`;
+        return `${diffYears} year${diffYears === 1 ? '' : 's'} ago`;
       } catch (e) {
         return dateString || 'Recently';
       }
@@ -966,7 +971,7 @@
       return (words[0].charAt(0) + words[words.length - 1].charAt(0)).toUpperCase();
     },
     renderWidget: function(container, widgetData, config) {
-      const { widgetSettings, reviews, businessName, businessUrlLink } = widgetData;
+      const { widgetSettings, reviews, businessName, businessUrlLink, totalReviewCount } = widgetData;
       const themeColor = config.themeColor || widgetSettings.themeColor || '#3B82F6';
       const themeColorDark = this.darkenColor(themeColor, 20);
       container.style.setProperty('--widget-theme-color', themeColor);
@@ -974,8 +979,24 @@
       if (widgetSettings.layout === 'badge') {
         const googleLogoUrl = 'https://assetsforscraper.b-cdn.net/Google-logo.png';
         const avgRating = reviews.length > 0 ? (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length).toFixed(1) : '5.0';
-        const reviewText = reviews.length === 1 ? 'Review' : 'Reviews';
-        const reviewUrl = businessUrlLink || widgetSettings.businessUrl?.url || '#';
+        const reviewCount = typeof totalReviewCount === 'number' ? totalReviewCount : reviews.length;
+        const reviewText = reviewCount === 1 ? 'Review' : 'Reviews';
+        // Generate a proper Google review URL for the specific business
+        let reviewUrl;
+        if (businessUrlLink) {
+          // If businessUrlLink is provided, use it directly (like the NJ Designpark URL)
+          reviewUrl = businessUrlLink;
+        } else if (widgetSettings.businessUrl?.url) {
+          // Use the widget settings URL
+          reviewUrl = widgetSettings.businessUrl.url;
+        } else if (businessName) {
+          // Fallback to search by business name
+          reviewUrl = `https://www.google.com/maps/search/${encodeURIComponent(businessName)}`;
+        } else {
+          // Last resort fallback
+          reviewUrl = 'https://www.google.com/maps';
+        }
+
         
         container.innerHTML = `
           <div class="reviewhub-widget">
@@ -1012,7 +1033,7 @@
                   cursor: pointer;
                   padding: 0;
                   display: inline-block;
-                ">Read our ${reviews.length} ${reviewText}</span>
+                ">Read our ${reviewCount} ${reviewText}</span>
               </div>
             </div>
           </div>
@@ -1036,7 +1057,7 @@
                     <div style="display: flex; align-items: center;">
                       <span style="font-size: 1.1rem; font-weight: bold; margin-right: 6px;">${avgRating}</span>
                       <span style="color: #f59e0b; font-size: 1.1rem; letter-spacing: 2px;">${'★'.repeat(5)}</span>
-                      <span style="margin-left: 8px; color: #888; font-size: 0.95rem;">(${reviews.length})</span>
+                      <span style="margin-left: 8px; color: #888; font-size: 0.95rem;">(${reviewCount})</span>
                     </div>
                     <a href="${reviewUrl}" 
                        target="_blank" 
@@ -1054,7 +1075,7 @@
                          transition: background 0.2s ease-in-out;
                          text-align: center;
                          width: 100%;
-                         ${reviewUrl === '#' ? 'pointer-events: none; opacity: 0.6;' : ''}
+
                        "
                        onmouseover="this.style.background='#1d4ed8'"
                        onmouseout="this.style.background='#2563eb'">
@@ -1062,13 +1083,15 @@
                     </a>
                   </div>
                   <div style="max-height: 55vh; overflow-y: auto;">
-                    ${reviews.map(r => `
+                    ${reviews.map((r) => {
+                      const formattedDate = window.ReviewHub.formatDate(r.postedAt);
+                      return `
                       <div style="background: #fff; border-radius: 10px; padding: 14px 12px; border: 1px solid #f3f4f6; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
                         <div style="display: flex; align-items: center; margin-bottom: 6px;">
                           <img src="${r.profilePicture || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(r.author)}" alt="${r.author}" style="width: 36px; height: 36px; border-radius: 50%; margin-right: 10px; border: 1.5px solid #e5e7eb; object-fit: cover;" />
                           <div>
                             <div style="font-weight: 600; color: #222; font-size: 1rem;">${r.author}</div>
-                            <div style="font-size: 0.85rem; color: #888;">${r.postedAt}</div>
+                            <div style="font-size: 0.85rem; color: #888;">${formattedDate}</div>
                           </div>
                         </div>
                         <div style="color: #f59e0b; font-size: 1rem; margin-bottom: 2px; letter-spacing: 2px;">${'★'.repeat(r.rating || 0)}</div>
@@ -1077,7 +1100,8 @@
                           <img src="${googleLogoUrl}" alt="Google" style="width: 14px; height: 14px; margin-right: 4px;" />Posted on Google
                         </div>
                       </div>
-                    `).join('')}
+                      `;
+                    }).join('')}
                   </div>
                 </div>
               </div>
@@ -1188,11 +1212,9 @@
             <div class="reviewhub-widget-content layout-carousel">
               ${carouselHtml}
             </div>
-            ${(businessUrlLink || widgetSettings.businessUrl?.url) ? `
-              <div style="text-align: center; padding: 16px;">
-                <a href="${businessUrlLink || widgetSettings.businessUrl?.url}" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 8px 18px; background: #2563eb; color: #fff; border-radius: 8px; font-weight: 600; font-size: 1rem; text-decoration: none; transition: background 0.2s ease-in-out;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">Write a review on Google</a>
-              </div>
-            ` : ''}
+            <div style="text-align: center; padding: 16px;">
+              <a href="${businessUrlLink || widgetSettings.businessUrl?.url || (businessName ? `https://www.google.com/maps/search/${encodeURIComponent(businessName)}` : 'https://www.google.com/maps')}" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 8px 18px; background: #2563eb; color: #fff; border-radius: 8px; font-weight: 600; font-size: 1rem; text-decoration: none; transition: background 0.2s ease-in-out;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">Write a review on Google</a>
+            </div>
           </div>
         `;
         container.innerHTML = widgetHtml;
@@ -1491,11 +1513,9 @@
           <div class="reviewhub-widget-content layout-${widgetSettings.layout || 'grid'}">
             ${reviewsHtml || '<div class="reviewhub-widget-error"><div class="reviewhub-error-title">No reviews available</div></div>'}
           </div>
-          ${(businessUrlLink || widgetSettings.businessUrl?.url) ? `
-            <div style="text-align: center; padding: 16px;">
-              <a href="${businessUrlLink || widgetSettings.businessUrl?.url}" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 8px 18px; background: #2563eb; color: #fff; border-radius: 8px; font-weight: 600; font-size: 1rem; text-decoration: none; transition: background 0.2s ease-in-out;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">Write a review on Google</a>
-            </div>
-          ` : ''}
+          <div style="text-align: center; padding: 16px;">
+            <a href="${businessUrlLink || widgetSettings.businessUrl?.url || (businessName ? `https://www.google.com/maps/search/${encodeURIComponent(businessName)}` : 'https://www.google.com/maps')}" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 8px 18px; background: #2563eb; color: #fff; border-radius: 8px; font-weight: 600; font-size: 1rem; text-decoration: none; transition: background 0.2s ease-in-out;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">Write a review on Google</a>
+          </div>
         </div>
       `;
       

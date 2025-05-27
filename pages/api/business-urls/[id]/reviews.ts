@@ -8,6 +8,7 @@ import { Types } from 'mongoose';
 
 interface ReviewsApiResponse {
   reviews?: IReviewItem[];
+  totalReviewCount?: number;
   message?: string;
 }
 
@@ -79,12 +80,12 @@ export default async function handler(
 
     if (!reviewBatchDoc || !reviewBatchDoc.reviews || reviewBatchDoc.reviews.length === 0) {
       console.log(`[API /reviews] No reviews found in storage for BusinessUrl ID: ${businessUrlDoc._id}, Source: ${source}`);
-      return res.status(200).json({ reviews: [] }); 
+      return res.status(200).json({ reviews: [], totalReviewCount: 0 }); 
     }
 
     const reviewsToReturn = reviewBatchDoc.reviews.slice(0, limit);
     console.log(`[API /reviews] Returning ${reviewsToReturn.length} reviews from storage.`);
-    return res.status(200).json({ reviews: reviewsToReturn });
+    return res.status(200).json({ reviews: reviewsToReturn, totalReviewCount: reviewBatchDoc.reviews.length });
 
   } catch (error: unknown) {
     const err = error as Error; 

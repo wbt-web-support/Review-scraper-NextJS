@@ -37,11 +37,12 @@ const defaultReviews: GoogleReview[] = [
 const GoogleReviewsBadge: React.FC<GoogleReviewsBadgeProps> = ({
   businessName = 'Your Business Name',
   rating = 5.0,
-  reviewCount = 59,
+  reviewCount,
   reviews = defaultReviews,
   googleReviewUrl = 'https://www.google.com/search?q=Your+Business+Name+Google+Reviews',
 }) => {
   const [open, setOpen] = useState(false);
+  const displayReviewCount = reviewCount ?? reviews.length;
 
   return (
     <>
@@ -65,7 +66,7 @@ const GoogleReviewsBadge: React.FC<GoogleReviewsBadgeProps> = ({
           href="#"
           onClick={e => { e.preventDefault(); setOpen(true); }}
         >
-          Read our {reviewCount} reviews
+          Read our {displayReviewCount} reviews
         </a>
       </div>
 
@@ -99,7 +100,7 @@ const GoogleReviewsBadge: React.FC<GoogleReviewsBadgeProps> = ({
                     <svg key={i} className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.967a1 1 0 00.95.69h4.175c.969 0 1.371 1.24.588 1.81l-3.38 2.455a1 1 0 00-.364 1.118l1.287 3.966c.3.922-.755 1.688-1.54 1.118l-3.38-2.454a1 1 0 00-1.175 0l-3.38 2.454c-.784.57-1.838-.196-1.54-1.118l1.287-3.966a1 1 0 00-.364-1.118L2.05 9.394c-.783-.57-.38-1.81.588-1.81h4.175a1 1 0 00.95-.69l1.286-3.967z" /></svg>
                   ))}
                 </div>
-                <span className="ml-2 text-gray-600 text-sm">({reviewCount})</span>
+                <span className="ml-2 text-gray-600 text-sm">({displayReviewCount})</span>
               </div>
               <a
                 href={googleReviewUrl}
@@ -115,7 +116,7 @@ const GoogleReviewsBadge: React.FC<GoogleReviewsBadgeProps> = ({
               {reviews.map((review, idx) => (
                 <div key={idx} className="bg-white rounded-lg p-4 border border-gray-100 shadow-sm">
                   <div className="flex items-center mb-2">
-                    <Image src={review.avatar} alt={review.name} className="w-10 h-10 rounded-full mr-3 border" />
+                    <Image src={review.avatar} width={40} height={40} alt={review.name} className="w-10 h-10 rounded-full mr-3 border" />
                     <div>
                       <div className="font-semibold text-gray-900">{review.name}</div>
                       <div className="text-xs text-gray-500">{review.date}</div>
