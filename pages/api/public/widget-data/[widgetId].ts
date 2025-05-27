@@ -60,8 +60,33 @@ export default async function handler(
     console.log(`[Widget API] Widget found: ${widgetDoc.name}, businessUrlId: ${widgetDoc.businessUrlId}`);
 
     let reviews: IReviewItemFromAPI[] = [];
-    let fetchedBusinessName: string | undefined = widgetDoc.businessUrl?.name;
-    let fetchedBusinessUrlLink: string | undefined = widgetDoc.businessUrl?.url;
+    let fetchedBusinessName: string | undefined = undefined;
+    let fetchedBusinessUrlLink: string | undefined = undefined;
+
+    if (widgetDoc.businessUrlId) {
+      const businessUrlDoc = await storage.getBusinessUrlById(widgetDoc.businessUrlId.toString());
+      if (businessUrlDoc) {
+        fetchedBusinessName = businessUrlDoc.name;
+        fetchedBusinessUrlLink = businessUrlDoc.url;
+      }
+    }
+    // Fallbacks if DB lookup fails
+    if (!fetchedBusinessName) {
+      fetchedBusinessName = widgetDoc.businessUrl?.name || widgetDoc.name || "Review Widget";
+    }
+    if (!fetchedBusinessUrlLink) {
+      fetchedBusinessUrlLink = widgetDoc.businessUrl?.url;
+    }
+    // Fallback: try to get from the review batch if available
+    if (!fetchedBusinessUrlLink && widgetDoc.urlHash) {
+      const reviewBatchForUrl = await storage.getReviewBatchForBusinessUrl(
+        widgetDoc.urlHash,
+        widgetDoc.businessUrlSource === 'GoogleBusinessUrl' ? 'google' : 'facebook'
+      );
+      if (reviewBatchForUrl && reviewBatchForUrl.url) {
+        fetchedBusinessUrlLink = reviewBatchForUrl.url;
+      }
+    }
 
     // Simplified approach: use urlHash directly from widget document
     if (widgetDoc.urlHash) {

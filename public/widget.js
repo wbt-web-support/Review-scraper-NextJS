@@ -982,6 +982,9 @@
       return (words[0].charAt(0) + words[words.length - 1].charAt(0)).toUpperCase();
     },
     renderWidget: function(container, widgetData, config) {
+      console.log("WIDGET DATA", widgetData);
+      console.log("CONFIG", config);
+      console.log("CONTAINER", container);
       const { widgetSettings, reviews, businessName, businessUrlLink, totalReviewCount } = widgetData;
       const themeColor = config.themeColor || widgetSettings.themeColor || '#3B82F6';
       const themeColorDark = this.darkenColor(themeColor, 20);
@@ -995,18 +998,28 @@
         const reviewText = reviewCount === 1 ? 'Review' : 'Reviews';
         // Generate a proper Google review URL for the specific business
         let reviewUrl;
+        // Always use the actual Google Maps URL if available
         if (businessUrlLink) {
-          // If businessUrlLink is provided, use it directly (like the NJ Designpark URL)
           reviewUrl = businessUrlLink;
         } else if (widgetSettings.businessUrl?.url) {
-          // Use the widget settings URL
           reviewUrl = widgetSettings.businessUrl.url;
         } else if (businessName) {
-          // Fallback to search by business name
-          reviewUrl = `https://www.google.com/maps/search/${encodeURIComponent(businessName)}`;
+          reviewUrl = `https://www.google.com/maps/search/${encodeURIComponent(businessName)}+reviews`;
         } else {
-          // Last resort fallback
           reviewUrl = 'https://www.google.com/maps';
+        }
+        
+        // Get the proper Google review URL - exactly like in WidgetPreview
+        let writeReviewUrl;
+        // Priority order: businessUrlLink > widgetSettings.businessUrl.url > businessName fallback
+        if (businessUrlLink) {
+          writeReviewUrl = businessUrlLink;
+        } else if (widgetSettings.businessUrl?.url) {
+          writeReviewUrl = widgetSettings.businessUrl.url;
+        } else if (businessName) {
+          writeReviewUrl = `https://www.google.com/search?q=${encodeURIComponent(businessName)}+google+reviews`;
+        } else {
+          writeReviewUrl = 'https://www.google.com/maps';
         }
 
         
@@ -1086,7 +1099,6 @@
                          transition: background 0.2s ease-in-out;
                          text-align: center;
                          width: 100%;
-
                        "
                        onmouseover="this.style.background='#1d4ed8'"
                        onmouseout="this.style.background='#2563eb'">
@@ -1227,7 +1239,27 @@
               ${carouselHtml}
             </div>
             <div style="text-align: center; padding: 16px;">
-              <a href="${businessUrlLink || widgetSettings.businessUrl?.url || (businessName ? `https://www.google.com/maps/search/${encodeURIComponent(businessName)}` : 'https://www.google.com/maps')}" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 8px 18px; background: #2563eb; color: #fff; border-radius: 8px; font-weight: 600; font-size: 1rem; text-decoration: none; transition: background 0.2s ease-in-out;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">Write a review on Google</a>
+              <a href="${reviewUrl}" 
+                 target="_blank" 
+                 rel="noopener noreferrer" 
+                 style="
+                   display: inline-block;
+                   margin-top: 12px;
+                   padding: 8px 18px;
+                   background: #2563eb;
+                   color: #fff;
+                   border-radius: 8px;
+                   font-weight: 600;
+                   font-size: 1rem;
+                   text-decoration: none;
+                   transition: background 0.2s ease-in-out;
+                   text-align: center;
+                   width: 100%;
+                 "
+                 onmouseover="this.style.background='#1d4ed8'"
+                 onmouseout="this.style.background='#2563eb'">
+                Write a review on Google
+              </a>
             </div>
           </div>
         `;
@@ -1528,7 +1560,27 @@
             ${reviewsHtml || '<div class="reviewhub-widget-error"><div class="reviewhub-error-title">No reviews available</div></div>'}
           </div>
           <div style="text-align: center; padding: 16px;">
-            <a href="${businessUrlLink || widgetSettings.businessUrl?.url || (businessName ? `https://www.google.com/maps/search/${encodeURIComponent(businessName)}` : 'https://www.google.com/maps')}" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 8px 18px; background: #2563eb; color: #fff; border-radius: 8px; font-weight: 600; font-size: 1rem; text-decoration: none; transition: background 0.2s ease-in-out;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">Write a review on Google</a>
+            <a href="${reviewUrl}" 
+               target="_blank" 
+               rel="noopener noreferrer" 
+               style="
+                 display: inline-block;
+                 margin-top: 12px;
+                 padding: 8px 18px;
+                 background: #2563eb;
+                 color: #fff;
+                 border-radius: 8px;
+                 font-weight: 600;
+                 font-size: 1rem;
+                 text-decoration: none;
+                 transition: background 0.2s ease-in-out;
+                 text-align: center;
+                 width: 100%;
+               "
+               onmouseover="this.style.background='#1d4ed8'"
+               onmouseout="this.style.background='#2563eb'">
+              Write a review on Google
+            </a>
           </div>
         </div>
       `;
@@ -1768,7 +1820,7 @@
       
       const queryString = params.toString();
       const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${config.widgetId}${queryString ? '?' + queryString : ''}`;
-
+      console.log("API URL", apiUrl);
       // Create retry function
       const retryLoad = () => {
         this.log('info', 'Retrying widget load', { widgetId: config.widgetId });
