@@ -1068,8 +1068,17 @@
         if (modalBtn && overlay) {
           modalBtn.addEventListener('click', function(e) {
             e.preventDefault();
-            overlay.innerHTML = `
-              <div class="reviewhub-badge-modal-bg" style="position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 10000; display: flex; align-items: center; justify-content: center;">
+            // Create overlay element and append to body
+            const bodyOverlay = document.createElement('div');
+            bodyOverlay.className = 'reviewhub-badge-modal-overlay';
+            bodyOverlay.style.position = 'fixed';
+            bodyOverlay.style.inset = '0';
+            bodyOverlay.style.background = 'rgba(0,0,0,0.45)';
+            bodyOverlay.style.zIndex = '99999';
+            bodyOverlay.style.display = 'flex';
+            bodyOverlay.style.alignItems = 'center';
+            bodyOverlay.style.justifyContent = 'center';
+            bodyOverlay.innerHTML = `
                 <div class="reviewhub-badge-modal-panel" style="background: #fff; border-radius: 16px; max-width: 420px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.18); position: relative; padding: 32px 24px;">
                   <button class="reviewhub-badge-modal-close" style="position: absolute; top: 18px; right: 18px; background: none; border: none; font-size: 2rem; color: #888; cursor: pointer;">&times;</button>
                   <h2 style="font-size: 1.3rem; font-weight: bold; margin-bottom: 10px;">What our customers say</h2>
@@ -1127,13 +1136,19 @@
                     }).join('')}
                   </div>
                 </div>
-              </div>
             `;
-            overlay.style.display = 'block';
+            document.body.appendChild(bodyOverlay);
+            document.body.style.overflow = 'hidden'; // Prevent background scroll
             // Close modal logic
-            const closeBtn = overlay.querySelector('.reviewhub-badge-modal-close');
-            if (closeBtn) closeBtn.addEventListener('click', function() { overlay.style.display = 'none'; overlay.innerHTML = ''; });
-            overlay.addEventListener('click', function(e) { if (e.target === overlay) { overlay.style.display = 'none'; overlay.innerHTML = ''; } });
+            const closeBtn = bodyOverlay.querySelector('.reviewhub-badge-modal-close');
+            function closeModal() {
+              document.body.removeChild(bodyOverlay);
+              document.body.style.overflow = '';
+            }
+            if (closeBtn) closeBtn.addEventListener('click', closeModal);
+            bodyOverlay.addEventListener('click', function(e) {
+              if (e.target === bodyOverlay) closeModal();
+            });
           });
         }
         return;
@@ -1774,11 +1789,7 @@
       let container = null;
       
       this.log('info', 'Initializing widget', config);
-      
-      // Inject styles first
       this.injectStyles();
-      
-      // Find or create container
       if (config.containerId) {
         container = document.getElementById(config.containerId);
         if (!container) {

@@ -10,6 +10,7 @@ import { useToast } from "../hooks/use-toast";
 import { useRouter } from 'next/router';
 import { useSession } from 'next-auth/react';
 import { Plus } from "lucide-react";
+import { Button } from "@headlessui/react";
 
 interface IStats {
   totalWidgets: number;
@@ -216,13 +217,13 @@ const Dashboard = () => {
           <h2 className="text-xl font-heading font-semibold text-gray-800">
             Your Review Widgets
           </h2>
-          <button
+          <Button
             onClick={() => setIsCreateModalOpen(true)}
-            className="inline-flex items-center px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600 transition duration-150"
+            className="inline-flex items-center px-4 py-2 text-white rounded-lg text-sm font-medium transition duration-150 bg-blue-600 hover:bg-blue-700"
           >
-            <i className="fas fa-plus mr-2"></i>
+            <Plus className="mr-2 text-white w-4 h-4 " />
             Create Widget
-          </button>
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -236,10 +237,7 @@ const Dashboard = () => {
           ) : widgets.length > 0 ? (
             // Display widgets
             <>
-              {widgets.map((widget) => (
-                <WidgetCard key={widget._id} widget={widget} />
-              ))}
-              {/* Add Widget Card */}
+              {/* Add Widget Card FIRST */}
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden widget-card flex flex-col">
                 <div className="flex-1 flex flex-col items-center justify-center p-8">
                   <div className="w-16 h-16 flex items-center justify-center rounded-full bg-gray-100 text-gray-400 mb-5">
@@ -251,13 +249,16 @@ const Dashboard = () => {
                   </p>
                   <button
                     onClick={() => setIsCreateModalOpen(true)}
-                    className="inline-flex items-center px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600 transition duration-150"
+                    className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium transition duration-150 cursor-pointer bg-blue-600 hover:bg-blue-700 text-white"
                   >
-                    <Plus className="w-4 h-4 mr-2" />
+                    <Plus className="w-4 h-4 mr-2 text-white" />
                     Create Widget
                   </button>
                 </div>
               </div>
+              {widgets.map((widget) => (
+                <WidgetCard key={widget._id} widget={widget} />
+              ))}
             </>
           ) : (
             // No widgets state

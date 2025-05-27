@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]'; 
 import dbConnect from '@/lib/mongodb'; 
+import * as storage from '@/lib/storage';
 
 interface StatsResponse {
   totalWidgets?: number;
@@ -24,16 +25,18 @@ export default async function handler(
     if (!session || !session.user?.id) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
-    const stats = {
-      totalWidgets: 5,
-      totalReviews: 150,
-      averageRating: 4.5,
-      totalViews: 1200,
-    };
+    // Get real stats from storage
+    const stats = await storage.getBusinessUrlStats(session.user.id);
     if (!stats) {
-        return res.status(404).json({ message: "Statistics not found." });
+      return res.status(404).json({ message: "Statistics not found." });
     }
-    return res.status(200).json(stats);
+    // Return only the fields needed by the dashboard
+    return res.status(200).json({
+      totalWidgets: stats.totalWidgets,
+      totalReviews: stats.totalReviews,
+      averageRating: stats.averageRating,
+      totalViews: stats.totalViews,
+    });
   } catch (error: unknown) {
     console.error("API Error in /api/dashboard/stats:", error);
     const message = error instanceof Error ? error.message : "Server error fetching dashboard stats.";
