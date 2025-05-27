@@ -1021,7 +1021,7 @@
               flex-direction: column;
               align-items: center;
               border: none;
-              max-width: 240px;
+              min-width: 210px;
               font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
             ">
               <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
