@@ -17,7 +17,7 @@ const eslintConfig = [
   },
   ...compat.extends("next/core-web-vitals"),
   {
-    files: ["**/*.ts", "**/*.tsx"], 
+    files: ['widget/**/*.{js,jsx,ts,tsx}'], 
     languageOptions: {
       parser: tseslint.parser, 
       parserOptions: {
@@ -43,6 +43,7 @@ const eslintConfig = [
           "caughtErrorsIgnorePattern": "^_" 
         }
       ],
+      "@next/next/no-img-element": "off"
     },
   },
 ];

@@ -12,6 +12,17 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<{ acknowledged: boolean; deletedCount: number } | ErrorResponse>
 ) {
+  // CORS headers for all requests
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,DELETE');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
   if (req.method !== 'DELETE') {
     res.setHeader('Allow', ['DELETE']);
     return res.status(405).json({ message: `Method ${req.method} Not Allowed` });

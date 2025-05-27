@@ -1,4 +1,3 @@
-import Image from 'next/image';
 import { useState } from 'react';
 import { Rating } from './ui/Rating'; 
 import { IReviewItemFromAPI } from './WidgetPreview';
@@ -8,6 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
+import Image from 'next/image';
 
 interface SingleReviewCardProps {
   review: IReviewItemFromAPI;
@@ -18,9 +18,10 @@ interface SingleReviewCardProps {
     themeColor: string; 
   };
   sourcePlatform: 'google' | 'facebook'; 
+  widgetStyleCard?: boolean;
 }
 
-const SingleReviewCard = ({ review, displaySettings, sourcePlatform }: SingleReviewCardProps) => {
+const SingleReviewCard = ({ review, displaySettings, sourcePlatform, widgetStyleCard = false }: SingleReviewCardProps) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const content = review.content || "";
   const canReadMore = content.length > 180; 
@@ -39,7 +40,10 @@ const SingleReviewCard = ({ review, displaySettings, sourcePlatform }: SingleRev
 
   return (
     <>
-      <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 flex flex-col space-y-4 border border-gray-100 h-full group">
+      <div className={widgetStyleCard
+        ? "bg-white rounded-[12px] border border-[#e5e7eb] shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1),0_4px_6px_-2px_rgba(0,0,0,0.05)] p-6 flex flex-col space-y-4 h-full transition-all"
+        : "bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 flex flex-col space-y-4 border border-gray-100 h-full group"
+      }>
         {/* Header Section */}
         <div className="flex items-start space-x-4">
           {displaySettings.showProfilePictures && (

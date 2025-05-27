@@ -9,6 +9,7 @@ import CreateWidgetModal from "../components/CreateWidgetModal";
 import { useToast } from "../hooks/use-toast";
 import { useRouter } from 'next/router';
 import { useSession } from 'next-auth/react';
+import { Plus } from "lucide-react";
 
 interface IStats {
   totalWidgets: number;
@@ -241,7 +242,7 @@ const Dashboard = () => {
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden widget-card flex flex-col">
                 <div className="flex-1 flex flex-col items-center justify-center p-8">
                   <div className="w-16 h-16 flex items-center justify-center rounded-full bg-gray-100 text-gray-400 mb-5">
-                    <i className="fas fa-plus text-xl"></i>
+                    <Plus className="w-8 h-8" />
                   </div>
                   <h3 className="text-center font-medium text-gray-800 mb-2">Create a New Widget</h3>
                   <p className="text-center text-gray-500 text-sm mb-4">
@@ -251,7 +252,7 @@ const Dashboard = () => {
                     onClick={() => setIsCreateModalOpen(true)}
                     className="inline-flex items-center px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600 transition duration-150"
                   >
-                    <i className="fas fa-plus mr-2"></i>
+                    <Plus className="w-4 h-4 mr-2" />
                     Create Widget
                   </button>
                 </div>

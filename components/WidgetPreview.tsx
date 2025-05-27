@@ -1,6 +1,6 @@
 import { Rating } from "../components/ui/Rating";
 import { formatRating } from "../lib/utils";
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import SingleReviewCard from "./SingleReviewCard";
 import {
   Carousel,
@@ -9,6 +9,7 @@ import {
   CarouselPrevious,
   CarouselNext
 } from "./ui/carousel";
+import GoogleReviewsBadge from "./GoogleReviewsBadge";
 
 export interface IReviewItemFromAPI {
   _id?: string;
@@ -40,6 +41,101 @@ interface WidgetPreviewProps {
   widget: IWidgetSettingsFromForm; 
   reviews: IReviewItemFromAPI[];
   isLoadingReviews?: boolean;
+}
+
+interface ReviewCarouselProps {
+  filteredReviews: any[];
+  getReviewKey: (review: any, idx: number) => string;
+  displaySettingsForCard: any;
+  source: any;
+}
+
+function ReviewCarousel({ filteredReviews, getReviewKey, displaySettingsForCard, source }: ReviewCarouselProps) {
+  const DOT_COUNT = 5;
+  function getVisibleCount() {
+    if (typeof window !== 'undefined' && window.innerWidth < 600) return 1;
+    if (typeof window !== 'undefined' && window.innerWidth < 900) return 3;
+    return 5;
+  }
+  const [visibleCount, setVisibleCount] = useState(getVisibleCount());
+  const [current, setCurrent] = useState(0);
+  const maxIndex = Math.max(0, filteredReviews.length - visibleCount);
+
+  useEffect(() => {
+    function handleResize() {
+      setVisibleCount(getVisibleCount());
+    }
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  useEffect(() => {
+    setCurrent(prev => prev > maxIndex ? maxIndex : prev);
+  }, [maxIndex]);
+
+  function getDotIndexes() {
+    let start = current - Math.floor(DOT_COUNT / 2);
+    if (start < 0) start = 0;
+    if (start > maxIndex - DOT_COUNT + 1) start = Math.max(0, maxIndex - DOT_COUNT + 1);
+    return Array.from({ length: Math.min(DOT_COUNT, maxIndex + 1) }, (_, i) => start + i);
+  }
+
+  return (
+    <div className="relative max-w-[1200px] mx-auto">
+      <div className="overflow-hidden">
+        <div
+          className="flex transition-transform duration-500"
+          style={{
+            transform: `translateX(-${current * (100 / visibleCount)}%)`,
+            width: `${(filteredReviews.length * 100) / visibleCount}%`,
+          }}
+        >
+          {filteredReviews.map((review: any, idx: number) => (
+            <div
+              key={getReviewKey(review, idx)}
+              className="min-w-[90vw] sm:min-w-[50vw] md:min-w-[33.33vw] lg:min-w-[20vw] max-w-[320px] flex-shrink-0 px-2"
+              style={{ width: `calc(100% / ${visibleCount})` }}
+            >
+              <div className="p-1 h-full">
+                <SingleReviewCard review={review} displaySettings={displaySettingsForCard} sourcePlatform={source} widgetStyleCard />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      {/* Navigation Arrows */}
+      {current > 0 && (
+        <button
+          className="absolute left-2 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full bg-white/80 backdrop-blur-sm text-gray-700 shadow-md border border-gray-200 hover:bg-gray-100 flex items-center justify-center"
+          onClick={() => setCurrent(current - 1)}
+        >
+          <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15.5 19L9.5 12L15.5 5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        </button>
+      )}
+      {current < maxIndex && (
+        <button
+          className="absolute right-2 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full bg-white/80 backdrop-blur-sm text-gray-700 shadow-md border border-gray-200 hover:bg-gray-100 flex items-center justify-center"
+          onClick={() => setCurrent(current + 1)}
+        >
+          <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8.5 5L14.5 12L8.5 19" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        </button>
+      )}
+      {/* Dots */}
+      <div className="flex justify-center gap-1.5 mt-4">
+        {getDotIndexes().map((idx: number) => (
+          <button
+            key={idx}
+            className={`w-2 h-2 rounded-full transition-colors duration-200
+              ${idx === current
+                ? 'bg-neutral-900 opacity-100'
+                : 'bg-gray-500 opacity-60'
+              }`}
+            onClick={() => setCurrent(idx)}
+            aria-label={`Go to slide ${idx + 1}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
 }
 
 const WidgetPreview = ({ 
@@ -117,38 +213,12 @@ if (!isLoadingReviews && filteredReviews.length === 0 && settings.layout !== 'ba
       )
       }
       {settings.layout === 'carousel' && filteredReviews.length > 0 && (
-        <Carousel
-          opts={{ align: "start", loop: filteredReviews.length > (filteredReviews.length < 3 ? 1 : 2) }} 
-          className="w-full max-w-full"
-        >
-          <CarouselContent className="-ml-2 py-1"> 
-            {filteredReviews.map((review, index) => (
-              <CarouselItem key={getReviewKey(review, index)} className="pl-2 basis-full md:basis-1/2"> 
-                <div className="p-1 h-full">
-                  <SingleReviewCard review={review} displaySettings={displaySettingsForCard} sourcePlatform={source} />
-                </div>
-              </CarouselItem>
-            ))}
-          </CarouselContent>
-          {filteredReviews.length > 1 && (
-            <>
-              <CarouselPrevious className="absolute left-0 top-1/2 -translate-y-1/2 z-10 
-                                          h-8 w-8 rounded-full 
-                                          bg-card/80 backdrop-blur-sm text-card-foreground 
-                                          shadow-md border-border 
-                                          hover:bg-accent disabled:opacity-30 
-                                          sm:left-1" 
-              />
-              <CarouselNext className="absolute right-0 top-1/2 -translate-y-1/2 z-10 
-                                        h-8 w-8 rounded-full 
-                                        bg-card/80 backdrop-blur-sm text-card-foreground 
-                                        shadow-md border-border 
-                                        hover:bg-accent disabled:opacity-30 
-                                        sm:right-1"
-              />
-            </>
-          )}
-        </Carousel>
+        <ReviewCarousel
+          filteredReviews={filteredReviews}
+          getReviewKey={getReviewKey}
+          displaySettingsForCard={displaySettingsForCard}
+          source={source}
+        />
       )}
 
       {settings.layout === 'list' && filteredReviews.length > 0 && (
@@ -171,26 +241,19 @@ if (!isLoadingReviews && filteredReviews.length === 0 && settings.layout !== 'ba
       
         {settings.layout === 'badge' && (
         <div className="flex justify-center items-center py-4">
-            <div className="w-full max-w-[280px] sm:max-w-xs mx-auto flex flex-col shadow-lg rounded-lg overflow-hidden border-2 border-[var(--widget-theme-color)]">
-              <div className="bg-[var(--widget-theme-color)] text-white px-3 py-2 flex items-center justify-between">
-                <div className="flex items-center">
-                  <i className={`${sourceIcon} text-lg mr-1.5`}></i>
-                  <span className="font-semibold text-xs sm:text-sm">{businessName}</span>
-                </div>
-                {widget.businessUrl?.url && <a href={widget.businessUrl.url} target="_blank" rel="noopener noreferrer" className="text-white/80 hover:text-white text-xs hover:underline"><i className="fas fa-external-link-alt text-xs"></i></a>}
-              </div>
-              <div className="bg-card p-3 text-center">
-                <div className="flex justify-center items-center mb-1.5">
-                  <div className="rounded-full bg-[var(--widget-theme-color)] text-white text-lg w-8 h-8 flex items-center justify-center mr-2 font-bold">
-                    {formatRating(avgRating)}
-                  </div>
-                  <Rating value={avgRating} size="default" color={settings.themeColor} />
-                </div>
-                <div className="text-xs font-medium text-muted-foreground">
-                  Based on {filteredReviews.length} review{filteredReviews.length !== 1 && 's'}
-                </div>
-              </div>
-            </div>
+          <GoogleReviewsBadge
+            businessName={businessName}
+            rating={avgRating}
+            reviewCount={filteredReviews.length}
+            reviews={filteredReviews.map(r => ({
+              name: r.author,
+              avatar: r.profilePicture || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(r.author),
+              date: r.postedAt,
+              rating: r.rating || 0,
+              text: r.content,
+            }))}
+            googleReviewUrl={widget.businessUrl?.url || ''}
+          />
         </div>
       )}
       {settings.layout !== 'badge' && filteredReviews.length > 0 && (

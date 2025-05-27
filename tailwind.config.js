@@ -3,6 +3,7 @@ module.exports = {
     content: [
       './pages/**/*.{js,ts,jsx,tsx,mdx}',
       './components/**/*.{js,ts,jsx,tsx,mdx}',
+      './widget/**/*.{js,ts,jsx,tsx}',
     ],
     prefix: "", 
     theme: {

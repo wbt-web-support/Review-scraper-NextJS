@@ -39,12 +39,8 @@
         }
       }
     },
-
-    // Inject enhanced styles with proper scoping
     injectStyles: function() {
       if (document.getElementById('reviewhub-widget-styles')) return;
-      
-      // Add Font Awesome if not already present
       if (!document.querySelector('link[href*="font-awesome"]') && !document.querySelector('link[href*="fontawesome"]')) {
         const fontAwesome = document.createElement('link');
         fontAwesome.rel = 'stylesheet';
@@ -173,31 +169,10 @@
         }
         
         .reviewhub-widget-content.layout-carousel {
-          display: flex !important;
-          overflow-x: auto !important;
-          scroll-snap-type: x mandatory !important;
-          gap: 12px !important;
-          scrollbar-width: thin !important;
-          scrollbar-color: #d1d5db #f9fafb !important;
-          padding-bottom: 8px !important;
-        }
-        
-        .reviewhub-widget-content.layout-carousel::-webkit-scrollbar {
-          height: 8px !important;
-        }
-        
-        .reviewhub-widget-content.layout-carousel::-webkit-scrollbar-track {
-          background: #f9fafb !important;
-          border-radius: 4px !important;
-        }
-        
-        .reviewhub-widget-content.layout-carousel::-webkit-scrollbar-thumb {
-          background: #d1d5db !important;
-          border-radius: 4px !important;
-        }
-        
-        .reviewhub-widget-content.layout-carousel::-webkit-scrollbar-thumb:hover {
-          background: #9ca3af !important;
+          display: block !important;
+          width: 100% !important;
+          padding: 0 !important;
+          position: relative !important;
         }
         
         .reviewhub-widget-content.layout-masonry {
@@ -213,7 +188,6 @@
           padding: 16px !important;
         }
         
-        /* Review item styles matching SingleReviewCard */
         .reviewhub-review-item {
           background: #ffffff !important;
           border-radius: 12px !important;
@@ -234,7 +208,6 @@
         }
         
         .layout-carousel .reviewhub-review-item {
-          min-width: 320px !important;
           flex-shrink: 0 !important;
           scroll-snap-align: start !important;
         }
@@ -558,7 +531,6 @@
           }
         }
         
-        /* Modal styles */
         .reviewhub-modal-overlay {
           position: fixed !important;
           top: 0 !important;
@@ -625,22 +597,303 @@
           line-height: 1.6 !important;
           white-space: pre-wrap !important;
         }
+        
+        .reviewhub-carousel-container {
+          position: relative !important;
+          width: 100% !important;
+          overflow: hidden !important;
+          padding: 0 70px !important;
+          box-sizing: border-box !important;
+        }
+        
+        .reviewhub-carousel-viewport {
+          overflow: hidden !important;
+          width: 100% !important;
+          position: relative !important;
+        }
+        
+        .reviewhub-carousel-track {
+          display: flex !important;
+          transition: transform 0.5s cubic-bezier(0.4,0,0.2,1) !important;
+          will-change: transform !important;
+          align-items: stretch !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          transform-origin: left center !important;
+        }
+        
+        .layout-carousel .reviewhub-review-item {
+          flex: 0 0 auto !important;
+          width: 320px !important;
+          min-width: 320px !important;
+          max-width: 320px !important;
+          height: 280px !important;
+          margin: 0 12px !important;
+          box-sizing: border-box !important;
+        }
+        
+        .layout-carousel .reviewhub-review-item:first-child {
+          margin-left: 0 !important;
+        }
+        
+        .layout-carousel .reviewhub-review-item:last-child {
+          margin-right: 0 !important;
+        }
+        
+        .reviewhub-carousel-prev, .reviewhub-carousel-next {
+          position: absolute !important;
+          top: 50% !important;
+          transform: translateY(-50%) !important;
+          width: 44px !important;
+          height: 44px !important;
+          background: rgba(255, 255, 255, 0.95) !important;
+          border: 1px solid #e5e7eb !important;
+          border-radius: 50% !important;
+          color: #6b7280 !important;
+          font-size: 18px !important;
+          cursor: pointer !important;
+          z-index: 10 !important;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+          transition: all 0.2s ease !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          user-select: none !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          backdrop-filter: blur(4px) !important;
+        }
+        
+        .reviewhub-carousel-prev:hover:not([disabled]), .reviewhub-carousel-next:hover:not([disabled]) {
+          background: var(--widget-theme-color, #3B82F6) !important;
+          color: #fff !important;
+          border-color: var(--widget-theme-color, #3B82F6) !important;
+        }
+        
+        .reviewhub-carousel-prev[disabled], .reviewhub-carousel-next[disabled] {
+          opacity: 0.3 !important;
+          cursor: not-allowed !important;
+          pointer-events: none !important;
+        }
+        
+        .reviewhub-carousel-prev {
+          left: 15px !important;
+        }
+        
+        .reviewhub-carousel-next {
+          right: 15px !important;
+        }
+        
+        .reviewhub-carousel-dots {
+          display: flex !important;
+          justify-content: center !important;
+          align-items: center !important;
+          gap: 8px !important;
+          margin-top: 20px !important;
+        }
+        
+        .reviewhub-carousel-dot {
+          width: 4px !important;
+          height: 4px !important;
+          border-radius: 50% !important;
+          background: #d1d5db !important;
+          border: none !important;
+          cursor: pointer !important;
+          transition: all 0.3s ease !important;
+          opacity: 0.4 !important;
+          transform: scale(1) !important;
+        }
+        
+        .reviewhub-carousel-dot.active {
+          background: var(--widget-theme-color, #3B82F6) !important;
+          width: 5px !important;
+          height: 5px !important;
+          opacity: 1 !important;
+          transform: scale(1) !important;
+        }
+        
+        .reviewhub-carousel-dot.near {
+          width: 8px !important;
+          height: 8px !important;
+          opacity: 0.8 !important;
+          background: #9ca3af !important;
+        }
+        
+        .reviewhub-carousel-dot.far {
+          width: 6px !important;
+          height: 6px !important;
+          opacity: 0.6 !important;
+          background: #d1d5db !important;
+        }
+        
+                 /* Extra Large Desktop (1680px+) - 5 cards */
+         @media (min-width: 1680px) {
+           .layout-carousel .reviewhub-review-item {
+             width: 300px !important;
+             min-width: 300px !important;
+             max-width: 300px !important;
+             height: 300px !important;
+             margin: 0 12px !important;
+           }
+           .reviewhub-carousel-container {
+             padding: 0 80px !important;
+           }
+         }
+        
+                 /* Large Desktop (1440px - 1679px) - 4 cards */
+         @media (max-width: 1679px) and (min-width: 1440px) {
+           .layout-carousel .reviewhub-review-item {
+             width: 320px !important;
+             min-width: 320px !important;
+             max-width: 320px !important;
+             height: 300px !important;
+             margin: 0 12px !important;
+           }
+           .reviewhub-carousel-container {
+             padding: 0 80px !important;
+           }
+         }
+        
+                 /* Medium Desktop (1200px - 1439px) - 4 cards */
+         @media (max-width: 1439px) and (min-width: 1200px) {
+           .layout-carousel .reviewhub-review-item {
+             width: 300px !important;
+             min-width: 300px !important;
+             max-width: 300px !important;
+             height: 280px !important;
+             margin: 0 12px !important;
+           }
+           .reviewhub-carousel-container {
+             padding: 0 70px !important;
+           }
+         }
+        
+                 /* Small Desktop (992px - 1199px) - 3 cards */
+         @media (max-width: 1199px) and (min-width: 992px) {
+           .layout-carousel .reviewhub-review-item {
+             width: 320px !important;
+             min-width: 320px !important;
+             max-width: 320px !important;
+             height: 280px !important;
+             margin: 0 12px !important;
+           }
+           .reviewhub-carousel-container {
+             padding: 0 70px !important;
+           }
+         }
+        
+                 /* Tablet Landscape (768px - 991px) - 2 cards */
+         @media (max-width: 991px) and (min-width: 768px) {
+           .layout-carousel .reviewhub-review-item {
+             width: 340px !important;
+             min-width: 340px !important;
+             max-width: 340px !important;
+             height: 280px !important;
+             margin: 0 12px !important;
+           }
+           .reviewhub-carousel-container {
+             padding: 0 60px !important;
+           }
+         }
+        
+                 /* Tablet Portrait (576px - 767px) - 2 cards */
+         @media (max-width: 767px) and (min-width: 576px) {
+           .layout-carousel .reviewhub-review-item {
+             width: 300px !important;
+             min-width: 300px !important;
+             max-width: 300px !important;
+             height: 280px !important;
+             margin: 0 12px !important;
+           }
+           .layout-carousel .reviewhub-review-item:first-child {
+             margin-left: 0 !important;
+           }
+           .layout-carousel .reviewhub-review-item:last-child {
+             margin-right: 0 !important;
+           }
+           .reviewhub-carousel-container {
+             padding: 0 55px !important;
+           }
+           .reviewhub-carousel-prev, .reviewhub-carousel-next {
+             width: 38px !important;
+             height: 38px !important;
+             font-size: 16px !important;
+           }
+           .reviewhub-carousel-prev {
+             left: 12px !important;
+           }
+           .reviewhub-carousel-next {
+             right: 12px !important;
+           }
+         }
+        
+                 /* Mobile (below 576px) - 1 card */
+         @media (max-width: 575px) {
+           .layout-carousel .reviewhub-review-item {
+             width: calc(100vw - 100px) !important;
+             min-width: calc(100vw - 100px) !important;
+             max-width: 320px !important;
+             height: 280px !important;
+             margin: 0 !important;
+           }
+           .layout-carousel .reviewhub-review-item:first-child {
+             margin-left: 0 !important;
+           }
+           .layout-carousel .reviewhub-review-item:last-child {
+             margin-right: 0 !important;
+           }
+           .reviewhub-carousel-container {
+             padding: 0 45px !important;
+           }
+           .reviewhub-carousel-prev, .reviewhub-carousel-next {
+             width: 36px !important;
+             height: 36px !important;
+             font-size: 14px !important;
+           }
+           .reviewhub-carousel-prev {
+             left: 8px !important;
+           }
+           .reviewhub-carousel-next {
+             right: 8px !important;
+           }
+         }
+        
+                 /* Extra Small Mobile (below 320px) */
+         @media (max-width: 319px) {
+           .layout-carousel .reviewhub-review-item {
+             width: calc(100vw - 80px) !important;
+             min-width: calc(100vw - 80px) !important;
+             max-width: 240px !important;
+             height: 260px !important;
+             margin: 0 4px !important;
+           }
+           .reviewhub-carousel-container {
+             padding: 0 35px !important;
+           }
+           .reviewhub-carousel-prev, .reviewhub-carousel-next {
+             width: 28px !important;
+             height: 28px !important;
+             font-size: 10px !important;
+           }
+           .reviewhub-carousel-prev {
+             left: 4px !important;
+           }
+           .reviewhub-carousel-next {
+             right: 4px !important;
+           }
+         }
       `;
       document.head.appendChild(style);
     },
-    
-    // Enhanced star generation with proper Unicode stars
     generateStars: function(rating) {
       const fullStars = Math.floor(rating);
       const hasHalfStar = rating % 1 >= 0.5;
       let stars = '';
-      
-      // Use filled stars (★) and empty stars (☆)
       for (let i = 0; i < fullStars; i++) {
         stars += '★';
       }
       if (hasHalfStar) {
-        stars += '☆'; // Half star representation
+        stars += '☆';
       }
       for (let i = fullStars + (hasHalfStar ? 1 : 0); i < 5; i++) {
         stars += '☆';
@@ -649,21 +902,15 @@
       return stars;
     },
     
-    // Enhanced date formatting with better relative dates
     formatDate: function(dateString) {
       try {
-        // Handle relative date strings like "15 hours ago", "3 days ago", etc.
         if (typeof dateString === 'string' && dateString.includes('ago')) {
-          return dateString; // Return as-is since it's already formatted
+          return dateString;
         }
-        
         const date = new Date(dateString);
-        
-        // Check if date is valid
         if (isNaN(date.getTime())) {
-          return dateString || 'Recently'; // Return original string or fallback
+          return dateString || 'Recently';
         }
-        
         const now = new Date();
         const diffTime = Math.abs(now - date);
         const diffMinutes = Math.floor(diffTime / (1000 * 60));
@@ -672,7 +919,6 @@
         const diffWeeks = Math.floor(diffDays / 7);
         const diffMonths = Math.floor(diffDays / 30);
         const diffYears = Math.floor(diffDays / 365);
-        
         if (diffMinutes < 60) return diffMinutes <= 1 ? 'Just now' : `${diffMinutes} minutes ago`;
         if (diffHours < 24) return diffHours === 1 ? '1 hour ago' : `${diffHours} hours ago`;
         if (diffDays === 1) return 'Yesterday';
@@ -683,13 +929,10 @@
         if (diffMonths < 12) return `${diffMonths} months ago`;
         if (diffYears === 1) return '1 year ago';
         return `${diffYears} years ago`;
-        
       } catch (e) {
-        return dateString || 'Recently'; // Return original or fallback
+        return dateString || 'Recently';
       }
     },
-    
-    // Get initials with better handling
     getInitials: function(name) {
       if (!name) return '?';
       const words = name.trim().split(' ').filter(word => word.length > 0);
@@ -697,17 +940,468 @@
       if (words.length === 1) return words[0].charAt(0).toUpperCase();
       return (words[0].charAt(0) + words[words.length - 1].charAt(0)).toUpperCase();
     },
-    
-    // Enhanced widget rendering with proper event handling
     renderWidget: function(container, widgetData, config) {
       const { widgetSettings, reviews, businessName, businessUrlLink } = widgetData;
       const themeColor = config.themeColor || widgetSettings.themeColor || '#3B82F6';
       const themeColorDark = this.darkenColor(themeColor, 20);
-      
-      // Set CSS custom properties on the container
       container.style.setProperty('--widget-theme-color', themeColor);
       container.style.setProperty('--widget-theme-color-dark', themeColorDark);
-      
+      if (widgetSettings.layout === 'badge') {
+        const googleLogoUrl = 'https://assetsforscraper.b-cdn.net/Google-logo.png';
+        const avgRating = reviews.length > 0 ? (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length).toFixed(1) : '5.0';
+        const reviewText = reviews.length === 1 ? 'Review' : 'Reviews';
+        const reviewUrl = businessUrlLink || widgetSettings.businessUrl?.url || '#';
+        
+        container.innerHTML = `
+          <div class="reviewhub-widget">
+            <div style="
+              background: #fff;
+              border-radius: 16px;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+              padding: 20px 18px 16px 18px;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              border: none;
+              min-width: 210px;
+              max-width: 240px;
+              font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            ">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                <img src="${googleLogoUrl}" alt="Google" style="width: 28px; height: 28px;" />
+                <span style="font-weight: 600; font-size: 1.08rem; color: #222;">Google Reviews</span>
+              </div>
+              <div style="width: 100%; height: 1px; background: #f0f0f0; margin: 8px 0 10px 0;"></div>
+              <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 2px;">
+                <span style="font-size: 1.3rem; font-weight: 700; color: #222; margin-right: 7px;">${avgRating}</span>
+                <span style="color: #fbbf24; font-size: 1.6rem; letter-spacing: 1px;">${'★'.repeat(5)}</span>
+              </div>
+              <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 8px;">
+                <span class="reviewhub-badge-modal-btn" style="
+                  color: #6b7280;
+                  text-decoration: underline;
+                  font-size: 0.78rem;
+                  font-weight: 400;
+                  background: none;
+                  border: none;
+                  cursor: pointer;
+                  padding: 0;
+                  display: inline-block;
+                ">Read our ${reviews.length} ${reviewText}</span>
+              </div>
+            </div>
+          </div>
+          <div class="reviewhub-badge-modal-overlay" style="display:none;"></div>
+        `;
+        const modalBtn = container.querySelector('.reviewhub-badge-modal-btn');
+        const overlay = container.querySelector('.reviewhub-badge-modal-overlay');
+        if (modalBtn && overlay) {
+          modalBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            overlay.innerHTML = `
+              <div class="reviewhub-badge-modal-bg" style="position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 10000; display: flex; align-items: center; justify-content: center;">
+                <div class="reviewhub-badge-modal-panel" style="background: #fff; border-radius: 16px; max-width: 420px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.18); position: relative; padding: 32px 24px;">
+                  <button class="reviewhub-badge-modal-close" style="position: absolute; top: 18px; right: 18px; background: none; border: none; font-size: 2rem; color: #888; cursor: pointer;">&times;</button>
+                  <h2 style="font-size: 1.3rem; font-weight: bold; margin-bottom: 10px;">What our customers say</h2>
+                  <div style="background: #f9fafb; border-radius: 10px; padding: 16px; margin-bottom: 18px; border: 1px solid #e5e7eb;">
+                    <div style="display: flex; align-items: center; margin-bottom: 6px;">
+                      <img src="${googleLogoUrl}" alt="Google" style="width: 24px; height: 24px; margin-right: 8px;" />
+                      <span style="font-weight: 600; font-size: 1.1rem;">Google Reviews</span>
+                    </div>
+                    <div style="display: flex; align-items: center;">
+                      <span style="font-size: 1.1rem; font-weight: bold; margin-right: 6px;">${avgRating}</span>
+                      <span style="color: #f59e0b; font-size: 1.1rem; letter-spacing: 2px;">${'★'.repeat(5)}</span>
+                      <span style="margin-left: 8px; color: #888; font-size: 0.95rem;">(${reviews.length})</span>
+                    </div>
+                    <a href="${reviewUrl}" 
+                       target="_blank" 
+                       rel="noopener noreferrer" 
+                       style="
+                         display: inline-block;
+                         margin-top: 12px;
+                         padding: 8px 18px;
+                         background: #2563eb;
+                         color: #fff;
+                         border-radius: 8px;
+                         font-weight: 600;
+                         font-size: 1rem;
+                         text-decoration: none;
+                         transition: background 0.2s ease-in-out;
+                         text-align: center;
+                         width: 100%;
+                         ${reviewUrl === '#' ? 'pointer-events: none; opacity: 0.6;' : ''}
+                       "
+                       onmouseover="this.style.background='#1d4ed8'"
+                       onmouseout="this.style.background='#2563eb'">
+                      Review us on Google
+                    </a>
+                  </div>
+                  <div style="max-height: 55vh; overflow-y: auto;">
+                    ${reviews.map(r => `
+                      <div style="background: #fff; border-radius: 10px; padding: 14px 12px; border: 1px solid #f3f4f6; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+                        <div style="display: flex; align-items: center; margin-bottom: 6px;">
+                          <img src="${r.profilePicture || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(r.author)}" alt="${r.author}" style="width: 36px; height: 36px; border-radius: 50%; margin-right: 10px; border: 1.5px solid #e5e7eb; object-fit: cover;" />
+                          <div>
+                            <div style="font-weight: 600; color: #222; font-size: 1rem;">${r.author}</div>
+                            <div style="font-size: 0.85rem; color: #888;">${r.postedAt}</div>
+                          </div>
+                        </div>
+                        <div style="color: #f59e0b; font-size: 1rem; margin-bottom: 2px; letter-spacing: 2px;">${'★'.repeat(r.rating || 0)}</div>
+                        <div style="color: #333; font-size: 0.98rem; margin-bottom: 2px;">${r.content}</div>
+                        <div style="display: flex; align-items: center; font-size: 0.85rem; color: #888; margin-top: 2px;">
+                          <img src="${googleLogoUrl}" alt="Google" style="width: 14px; height: 14px; margin-right: 4px;" />Posted on Google
+                        </div>
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
+              </div>
+            `;
+            overlay.style.display = 'block';
+            // Close modal logic
+            const closeBtn = overlay.querySelector('.reviewhub-badge-modal-close');
+            if (closeBtn) closeBtn.addEventListener('click', function() { overlay.style.display = 'none'; overlay.innerHTML = ''; });
+            overlay.addEventListener('click', function(e) { if (e.target === overlay) { overlay.style.display = 'none'; overlay.innerHTML = ''; } });
+          });
+        }
+        return;
+      }
+
+      // --- Modern, professional carousel ---
+      if (widgetSettings.layout === 'carousel') {
+        function getVisibleCount() {
+          const width = window.innerWidth;
+          
+          // Enhanced responsive breakpoints for better card distribution
+          
+          // Mobile (below 576px) - 1 card only
+          if (width < 576) return 1;
+          
+          // Tablet Portrait (576px - 767px) - 2 cards
+          if (width < 768) return 2;
+          
+          // Tablet Landscape (768px - 991px) - 2 cards
+          if (width < 992) return 2;
+          
+          // Small Desktop (992px - 1199px) - 3 cards
+          if (width < 1200) return 3;
+          
+          // Medium Desktop (1200px - 1439px) - 4 cards
+          if (width < 1440) return 4;
+          
+          // Large Desktop (1440px - 1679px) - 4 cards
+          if (width < 1680) return 4;
+          
+          // Extra Large Desktop (1680px+) - 5 cards
+          return 5;
+        }
+        let visibleCount = getVisibleCount();
+        let currentIndex = 0;
+        let autoPlayInterval = null;
+        let isAutoPlaying = true;
+        const AUTO_PLAY_DELAY = 4000; // 4 seconds
+        // Build reviews HTML
+        const reviewsHtml = reviews.map((review, index) => {
+          const authorInitials = this.getInitials(review.author);
+          const ratingStars = review.rating ? this.generateStars(review.rating) : '';
+          const reviewDate = review.postedAt ? this.formatDate(review.postedAt) : '';
+          const sourceClass = review.source === 'google' ? 'google' : 'facebook';
+          const reviewText = review.content || review.text || '';
+          const isLongText = reviewText.length > 180;
+          const truncatedText = isLongText ? reviewText.substring(0, 180) + '...' : reviewText;
+          const googleLogo = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>`;
+          const facebookLogo = `<svg width="14" height="14" viewBox="0 0 24 24" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>`;
+          return `
+            <div class="reviewhub-review-item" data-review-index="${index}">
+              <div class="reviewhub-review-header">
+                <div class="reviewhub-review-avatar">
+                  ${review.profilePicture && widgetSettings.showProfilePictures ? 
+                    `<img src="${review.profilePicture}" alt="${this.escapeHtml(review.author)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                     <div class="reviewhub-avatar-fallback" style="display:none;">${authorInitials}</div>` :
+                    `<div class="reviewhub-avatar-fallback">${authorInitials}</div>`
+                  }
+                </div>
+                <div class="reviewhub-review-info">
+                  <div class="reviewhub-review-author-line">
+                    <span class="reviewhub-review-author">${this.escapeHtml(review.author || 'Anonymous')}</span>
+                    <div class="reviewhub-source-badge ${sourceClass}">
+                      ${review.source === 'google' ? googleLogo : facebookLogo}
+                    </div>
+                  </div>
+                  ${widgetSettings.showRatings && ratingStars ? `<div class="reviewhub-review-rating">${ratingStars}</div>` : ''}
+                  ${widgetSettings.showDates && reviewDate ? `<div class="reviewhub-review-date">${reviewDate}</div>` : ''}
+                </div>
+              </div>
+              ${reviewText ? `
+                <div class="reviewhub-review-text">
+                  <div class="reviewhub-review-content">
+                    ${this.escapeHtml(isLongText ? truncatedText : reviewText)}
+                    ${isLongText ? `<span class="reviewhub-read-more" data-review-index="${index}">Read more</span>` : ''}
+                  </div>
+                </div>
+              ` : ''}
+            </div>
+          `;
+        }).join('');
+        // SVG chevrons for navigation
+        const chevronLeft = `<svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15.5 19L9.5 12L15.5 5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+        const chevronRight = `<svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8.5 5L14.5 12L8.5 19" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+        const carouselHtml = `
+          <div class="reviewhub-carousel-container">
+            <button class="reviewhub-carousel-prev" aria-label="Previous">${chevronLeft}</button>
+            <div class="reviewhub-carousel-viewport">
+              <div class="reviewhub-carousel-track">
+                ${reviewsHtml}
+              </div>
+            </div>
+            <button class="reviewhub-carousel-next" aria-label="Next">${chevronRight}</button>
+          </div>
+          <div class="reviewhub-carousel-dots"></div>
+        `;
+        const widgetHtml = `
+          <div class="reviewhub-widget">
+            <div class="reviewhub-widget-content layout-carousel">
+              ${carouselHtml}
+            </div>
+            ${(businessUrlLink || widgetSettings.businessUrl?.url) ? `
+              <div style="text-align: center; padding: 16px;">
+                <a href="${businessUrlLink || widgetSettings.businessUrl?.url}" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 8px 18px; background: #2563eb; color: #fff; border-radius: 8px; font-weight: 600; font-size: 1rem; text-decoration: none; transition: background 0.2s ease-in-out;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">Write a review on Google</a>
+              </div>
+            ` : ''}
+          </div>
+        `;
+        container.innerHTML = widgetHtml;
+        // Carousel logic
+        const track = container.querySelector('.reviewhub-carousel-track');
+        const prevBtn = container.querySelector('.reviewhub-carousel-prev');
+        const nextBtn = container.querySelector('.reviewhub-carousel-next');
+        const dotsContainer = container.querySelector('.reviewhub-carousel-dots');
+        const carouselContainer = container.querySelector('.reviewhub-carousel-container');
+
+        function renderCarousel() {
+          // Ensure we start with a valid index that shows complete cards
+          const maxIndex = getMaxIndex();
+          if (currentIndex > maxIndex) {
+            currentIndex = maxIndex;
+          }
+          
+          updateArrows();
+          updateDots();
+          goTo(currentIndex, false);
+          startAutoPlay();
+        }
+        
+        function startAutoPlay() {
+          if (autoPlayInterval) clearInterval(autoPlayInterval);
+          
+          // Only start auto-play if there are enough reviews to scroll
+          const currentVisibleCount = getVisibleCount();
+          const maxIndex = getMaxIndex();
+          if (reviews.length <= currentVisibleCount || maxIndex === 0) return;
+          
+          autoPlayInterval = setInterval(() => {
+            if (isAutoPlaying) {
+              const currentMaxIndex = getMaxIndex();
+              if (currentIndex >= currentMaxIndex) {
+                // Reset to beginning when reaching the end
+                goTo(0);
+              } else {
+                // Move to next slide, but ensure we don't exceed max index
+                const nextIndex = Math.min(currentIndex + 1, currentMaxIndex);
+                goTo(nextIndex);
+              }
+            }
+          }, AUTO_PLAY_DELAY);
+        }
+        
+        function stopAutoPlay() {
+          if (autoPlayInterval) {
+            clearInterval(autoPlayInterval);
+            autoPlayInterval = null;
+          }
+        }
+        
+        function pauseAutoPlay() {
+          isAutoPlaying = false;
+        }
+        
+        function resumeAutoPlay() {
+          isAutoPlaying = true;
+        }
+        // Initial render with small delay to ensure DOM is ready
+        setTimeout(() => {
+          renderCarousel();
+        }, 50);
+        window.addEventListener('resize', () => {
+          updateVisibleCount();
+          stopAutoPlay();
+          renderCarousel();
+        });
+        function updateVisibleCount() {
+          visibleCount = getVisibleCount();
+          // Clamp currentIndex if needed
+          const maxIndex = getMaxIndex();
+          if (currentIndex > maxIndex) currentIndex = maxIndex;
+          renderCarousel();
+        }
+        function getMaxIndex() {
+          // Calculate the maximum index where we can still show complete cards only
+          if (reviews.length <= visibleCount) {
+            return 0; // No scrolling needed if we can show all cards
+          }
+          
+          // Use the responsive visible count which is more reliable
+          const currentVisibleCount = getVisibleCount();
+          return Math.max(0, reviews.length - currentVisibleCount);
+        }
+        function updateArrows() {
+          const maxIndex = getMaxIndex();
+          
+          // Always show arrows, but disable them when at limits
+          prevBtn.style.display = 'flex';
+          nextBtn.style.display = 'flex';
+          
+          // Disable/enable arrows based on position
+          if (currentIndex === 0) {
+            prevBtn.setAttribute('disabled', 'true');
+            prevBtn.style.opacity = '0.3';
+            prevBtn.style.pointerEvents = 'none';
+          } else {
+            prevBtn.removeAttribute('disabled');
+            prevBtn.style.opacity = '1';
+            prevBtn.style.pointerEvents = 'auto';
+          }
+          
+          if (currentIndex >= maxIndex) {
+            nextBtn.setAttribute('disabled', 'true');
+            nextBtn.style.opacity = '0.3';
+            nextBtn.style.pointerEvents = 'none';
+          } else {
+            nextBtn.removeAttribute('disabled');
+            nextBtn.style.opacity = '1';
+            nextBtn.style.pointerEvents = 'auto';
+          }
+        }
+        function updateDots() {
+          const maxIndex = getMaxIndex();
+          dotsContainer.innerHTML = '';
+          
+          // Only show dots if there are multiple slides
+          if (maxIndex === 0) {
+            dotsContainer.style.display = 'none';
+            return;
+          } else {
+            dotsContainer.style.display = 'flex';
+          }
+          
+          for (let i = 0; i <= maxIndex; i++) {
+            const dot = document.createElement('button');
+            dot.className = 'reviewhub-carousel-dot';
+            
+            const distance = Math.abs(i - currentIndex);
+            
+            if (i === currentIndex) {
+              dot.classList.add('active');
+            } else if (distance === 1) {
+              dot.classList.add('near');
+            } else if (distance === 2) {
+              dot.classList.add('far');
+            }
+            // dots with distance > 2 keep the default small size
+            
+            dot.setAttribute('aria-label', `Go to slide ${i + 1}`);
+            dot.addEventListener('click', () => {
+              pauseAutoPlay();
+              goTo(i);
+              // Resume auto-play after 2 seconds of inactivity
+              setTimeout(() => resumeAutoPlay(), 2000);
+            });
+            dotsContainer.appendChild(dot);
+          }
+        }
+        function goTo(index, animate = true) {
+          const maxIndex = getMaxIndex();
+          if (index < 0) index = 0;
+          if (index > maxIndex) index = maxIndex;
+          currentIndex = index;
+          
+          if (track.children.length > 0) {
+            // Get the actual card width and margin
+            const cardElement = track.children[0];
+            const cardWidth = cardElement.offsetWidth;
+            
+            // Get responsive margin based on screen size
+            const width = window.innerWidth;
+            let margin = 12; // Default margin
+            
+            // Mobile (below 576px) - no margin between cards since only 1 card visible
+            if (width < 576) margin = 0;
+            // All other screen sizes use 12px margin
+            else margin = 12;
+            
+            // Calculate position based on visible count to prevent partial cards
+            const visibleCount = getVisibleCount();
+            let translateX = 0;
+            
+            if (currentIndex > 0) {
+              // For mobile (1 card), move by full card width for each index
+              if (visibleCount === 1) {
+                translateX = currentIndex * cardWidth;
+              } else {
+                // For multi-card layouts, calculate based on cards to move
+                const cardsToMove = Math.min(currentIndex, reviews.length - visibleCount);
+                if (cardsToMove > 0) {
+                  translateX = cardsToMove * (cardWidth + margin);
+                }
+              }
+            }
+            
+            track.style.transition = animate ? 'transform 0.5s cubic-bezier(0.4,0,0.2,1)' : 'none';
+            track.style.transform = `translateX(-${translateX}px)`;
+          }
+          
+          updateArrows();
+          updateDots();
+        }
+        prevBtn.addEventListener('click', () => {
+          pauseAutoPlay();
+          goTo(currentIndex - 1);
+          // Resume auto-play after 2 seconds of inactivity
+          setTimeout(() => resumeAutoPlay(), 2000);
+        });
+        
+        nextBtn.addEventListener('click', () => {
+          pauseAutoPlay();
+          goTo(currentIndex + 1);
+          // Resume auto-play after 2 seconds of inactivity
+          setTimeout(() => resumeAutoPlay(), 2000);
+        });
+        goTo(currentIndex, false);
+        
+        // Add hover pause/resume functionality
+        carouselContainer.addEventListener('mouseenter', () => {
+          pauseAutoPlay();
+        });
+        
+        carouselContainer.addEventListener('mouseleave', () => {
+          resumeAutoPlay();
+        });
+        
+        // Pause auto-play when user interacts with review cards
+        track.addEventListener('mouseenter', () => {
+          pauseAutoPlay();
+        });
+        
+        track.addEventListener('mouseleave', () => {
+          resumeAutoPlay();
+        });
+        
+        // Add event listeners for read more buttons
+        this.attachEventListeners(container, reviews);
+        return;
+      }
+
+      // --- DEFAULT (GRID/LIST/MASONRY) LAYOUTS ---
       // Generate reviews HTML
       const reviewsHtml = reviews.map((review, index) => {
         const authorInitials = this.getInitials(review.author);
@@ -772,6 +1466,11 @@
           <div class="reviewhub-widget-content layout-${widgetSettings.layout || 'grid'}">
             ${reviewsHtml || '<div class="reviewhub-widget-error"><div class="reviewhub-error-title">No reviews available</div></div>'}
           </div>
+          ${(businessUrlLink || widgetSettings.businessUrl?.url) ? `
+            <div style="text-align: center; padding: 16px;">
+              <a href="${businessUrlLink || widgetSettings.businessUrl?.url}" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 8px 18px; background: #2563eb; color: #fff; border-radius: 8px; font-weight: 600; font-size: 1rem; text-decoration: none; transition: background 0.2s ease-in-out;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">Write a review on Google</a>
+            </div>
+          ` : ''}
         </div>
       `;
       

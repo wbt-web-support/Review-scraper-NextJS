@@ -300,7 +300,7 @@ const _processFormSubmit = (data: FormValues) => {
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "settings" | "preview")}>
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-[68.6rem] grid-cols-2">
             <TabsTrigger value="settings">Settings</TabsTrigger>
             <TabsTrigger value="preview">Live Preview</TabsTrigger>
           </TabsList>
@@ -344,7 +344,7 @@ const _processFormSubmit = (data: FormValues) => {
             {!createdWidget ? (
               // Before widget creation - show preview
               <>
-                <div className="min-h-[300px] max-h-[60vh] sm:min-h-[400px] md:min-h-[450px] p-4 border border-dashed border-border rounded-lg bg-slate-100 dark:bg-slate-800/50 overflow-auto flex flex-col items-center justify-start">
+                <div className="min-h-[300px] max-h-[60vh] sm:min-h-[400px] md:min-h-[450px] p-4 border border-dashed border-border rounded-lg bg-slate-100 dark:bg-slate-800/50 overflow-auto flex flex-col items-center justify-start w-[68.6rem]">
                   {!selectedBusinessUrlId ? (
                     <div className="text-center py-10 flex flex-col items-center justify-center h-full text-muted-foreground">
                       <i className="fas fa-search text-3xl mb-4"></i>

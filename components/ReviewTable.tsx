@@ -14,7 +14,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
-import Image from 'next/image';
+import { formatTimeAgo } from "../lib/utils";
+import Image from "next/image";
 
 export interface IReviewItem {
   _id?: string;       
@@ -30,6 +31,7 @@ export interface IReviewItem {
   postedAt?: string;   
   scrapedAt?: string | Date; 
   profilePicture?: string; 
+  userProfile?: string;
 }
 interface ReviewTableProps {
   reviews: IReviewItem[];
@@ -114,18 +116,27 @@ const ReviewTable = ({  reviews, isLoading = false, emptyState, error }: ReviewT
   };
 
   const getDisplayDate = (review: IReviewItem): string => {
-    if (review.postedAt) return review.postedAt;
+    if (review.postedAt) return formatTimeAgo(review.postedAt);
     if (review.scrapedAt) {
       try {
-        return new Date(review.scrapedAt).toLocaleDateString('en-US', {
-          year: 'numeric', month: 'short', day: 'numeric'
-        });
+        return formatTimeAgo(
+          typeof review.scrapedAt === 'string' ? review.scrapedAt : review.scrapedAt.toISOString()
+        );
       } catch (error) {
         console.error("Error parsing date:", error);
         return "Invalid Date";
       }
     }
     return "N/A";
+  };
+
+  // Helper to get initials from author name
+  const getInitials = (name: string | undefined) => {
+    if (!name) return '?';
+    const words = name.trim().split(' ').filter(Boolean);
+    if (words.length === 0) return '?';
+    if (words.length === 1) return words[0][0].toUpperCase();
+    return (words[0][0] + words[words.length - 1][0]).toUpperCase();
   };
 
   return (
@@ -155,7 +166,8 @@ const ReviewTable = ({  reviews, isLoading = false, emptyState, error }: ReviewT
                           <Image 
                             src="/google_logo.png" 
                             alt="Google" 
-                            fill
+                            width={24}
+                            height={24}
                             className="object-contain"
                           />
                         </div>
@@ -164,7 +176,8 @@ const ReviewTable = ({  reviews, isLoading = false, emptyState, error }: ReviewT
                           <Image 
                             src="/facebook-logo.png" 
                             alt="Facebook" 
-                            fill
+                            width={24}
+                            height={24}
                             className="object-contain"
                           />
                         </div>
@@ -177,24 +190,56 @@ const ReviewTable = ({  reviews, isLoading = false, emptyState, error }: ReviewT
                   </TableCell>
                   <TableCell className="px-4 py-3 whitespace-nowrap">
                     <div className="flex items-center gap-2">
-                      <div className="relative w-8 h-8 rounded-full overflow-hidden">
-                        <Image
-                          src={review.profilePicture || '/default-avatar.png'}
-                          alt={`${review.author}'s profile`}
-                          fill
-                          className="object-cover"
-                        />
+                      <div className="relative w-8 h-8 rounded-full overflow-hidden bg-slate-100 flex items-center justify-center">
+                        {(() => {
+                          const profilePic = review.profilePicture || review.userProfile;
+                          const isFacebook = getReviewSource(review) === 'facebook';
+                          if (profilePic) {
+                            if (isFacebook) {
+                              // Use <img> for Facebook
+                              return (
+                                <Image
+                                  src={profilePic}
+                                  alt={`${review.author || 'Anonymous'}'s profile`}
+                                  className="w-full h-full object-cover rounded-full"
+                                  onError={(e) => { e.currentTarget.style.display = 'none'; const fallback = e.currentTarget.nextElementSibling as HTMLElement; if (fallback) fallback.style.display = 'flex'; }}
+                                />
+                              );
+                            } else {
+                              // Use <Image> for Google
+                              return (
+                                <Image
+                                  src={profilePic}
+                                  alt={`${review.author || 'Anonymous'}'s profile`}
+                                  width={32}
+                                  height={32}
+                                  className="object-cover rounded-full"
+                                  onError={(e: any) => { e.target.onerror = null; e.target.style.display = 'none'; const fallback = e.target.nextElementSibling; if (fallback) fallback.style.display = 'flex'; }}
+                                />
+                              );
+                            }
+                          }
+                          return null;
+                        })()}
+                        {/* Initials fallback, hidden if image loads */}
+                        <span
+                          className="absolute inset-0 flex items-center justify-center text-base font-semibold text-slate-500 bg-slate-100"
+                          style={{ display: (review.profilePicture || review.userProfile) ? 'none' : 'flex' }}
+                        >
+                          {getInitials(review.author)}
+                        </span>
                       </div>
-                      <span className="font-medium">{review.author}</span>
+                      <span className="font-medium">{review.author && review.author !== '' ? review.author : 'Anonymous Reviewer'}</span>
                     </div>
                   </TableCell>
                   <TableCell className="px-4 py-3 whitespace-nowrap">
-                    {typeof review.rating === 'number' ? (
-                      <Rating value={review.rating} size="xs"/>
-                    ) : review.recommendationStatus === 'recommended' ? (
+                    {/* Facebook: always show recommendation status if present, else rating, else fallback */}
+                    {source === 'facebook' && review.recommendationStatus === 'recommended' ? (
                       <span className="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Recommended</span>
-                    ) : review.recommendationStatus === 'not_recommended' ? (
+                    ) : source === 'facebook' && review.recommendationStatus === 'not_recommended' ? (
                       <span className="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Not Recommended</span>
+                    ) : typeof review.rating === 'number' ? (
+                      <Rating value={review.rating} size="xs"/>
                     ) : (
                       <span className="text-slate-400 text-xs italic">No Rating</span>
                     )}
@@ -248,7 +293,8 @@ const ReviewTable = ({  reviews, isLoading = false, emptyState, error }: ReviewT
                           <Image 
                             src="/google_logo.png" 
                             alt="Google" 
-                            fill
+                            width={20}
+                            height={20}
                             className="object-contain"
                           />
                         </div>
@@ -257,7 +303,8 @@ const ReviewTable = ({  reviews, isLoading = false, emptyState, error }: ReviewT
                           <Image 
                             src="/facebook-logo.png" 
                             alt="Facebook" 
-                            fill
+                            width={20}
+                            height={20}
                             className="object-contain"
                           />
                         </div>

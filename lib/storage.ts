@@ -837,3 +837,18 @@ export const getWidgetsByBusinessUrlId = async (businessUrlId: string): Promise<
     .lean()
     .exec();
 };
+
+export const deleteBusinessUrl = async (businessUrlId: string): Promise<void> => {
+  await ensureDbConnected();
+  
+  // Try to delete from Google Business URLs
+  const googleResult = await GoogleBusinessUrlModel.deleteOne({ _id: businessUrlId }).exec();
+  
+  // Try to delete from Facebook Business URLs
+  const facebookResult = await FacebookBusinessUrlModel.deleteOne({ _id: businessUrlId }).exec();
+  
+  // If neither deletion was successful, throw an error
+  if (googleResult.deletedCount === 0 && facebookResult.deletedCount === 0) {
+    throw new Error('Business URL not found or could not be deleted.');
+  }
+};

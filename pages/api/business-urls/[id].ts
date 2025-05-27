@@ -45,7 +45,16 @@ export default async function handler(
     } else if (req.method === 'PUT') {
       return res.status(501).json({ message: 'Not Implemented: PUT method for updating business URL is not yet implemented.' });
     } else if (req.method === 'DELETE') {
-      return res.status(501).json({ message: 'Not Implemented: DELETE method for deleting business URL is not yet implemented.' });
+      const businessUrl = await storage.getBusinessUrlById(businessUrlId_param);
+      if (!businessUrl) {
+        return res.status(404).json({ message: 'Not Found: Business URL not found.' });
+      }
+      if (!businessUrl.userId || businessUrl.userId.toString() !== userId_string) {
+        return res.status(403).json({ message: 'Forbidden: You do not have permission to delete this resource.' });
+      }
+      
+      await storage.deleteBusinessUrl(businessUrlId_param);
+      return res.status(200).json({ message: 'Business URL deleted successfully.' });
     } else {
       res.setHeader('Allow', ['GET', 'PUT', 'DELETE']); 
       return res.status(405).json({ message: `Method ${req.method} Not Allowed` });

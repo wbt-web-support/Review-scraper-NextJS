@@ -16,6 +16,15 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../components/ui/form";
+import { useRef } from 'react';
+import {
+  Command,
+  CommandInput,
+  CommandList,
+  CommandItem,
+  CommandEmpty,
+} from "../components/ui/command";
+import { Combobox, ComboboxOption } from "../components/ui/combobox";
 
 interface IBusinessUrl {
   _id: string;
@@ -58,6 +67,10 @@ const Reviews = () => {
   const [activeTab, setActiveTab] = useState<"all" | "google" | "facebook">("all");
   const [selectedBusinessUrl, setSelectedBusinessUrl] = useState<string>("");
   const [isAddBusinessModalOpen, setIsAddBusinessModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [businessToDelete, setBusinessToDelete] = useState<IBusinessUrl | null>(null);
+  const [newBusinessId, setNewBusinessId] = useState<string | null>(null);
+  const [searchText, setSearchText] = useState("");
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -81,9 +94,16 @@ const Reviews = () => {
   const allBusinessUrls = useMemo(() => businessUrlsData?.businessUrls || [], [businessUrlsData]);
   
   const filteredBusinessUrls = useMemo(() => {
-    if (activeTab === "all") return allBusinessUrls;
-    return allBusinessUrls.filter((url: IBusinessUrl) => url.source === activeTab);
-  }, [allBusinessUrls, activeTab]);
+    let urls = allBusinessUrls;
+    if (activeTab !== "all") {
+      urls = urls.filter((url: IBusinessUrl) => url.source === activeTab);
+    }
+    if (searchText.trim()) {
+      const lower = searchText.trim().toLowerCase();
+      urls = urls.filter((url: IBusinessUrl) => url.name.toLowerCase().includes(lower));
+    }
+    return urls;
+  }, [allBusinessUrls, activeTab, searchText]);
 
   useEffect(() => {
     if (filteredBusinessUrls.length > 0) {
@@ -133,13 +153,22 @@ const Reviews = () => {
     defaultValues: { name: "", url: "", source: "google" }
   });
 
-  const addBusinessUrlMutation = useMutation<unknown, Error, BusinessUrlFormData>({
-    mutationFn: (newData: BusinessUrlFormData) => apiRequest("POST", "/api/business-urls", newData),
-    onSuccess: () => {
+  const addBusinessUrlMutation = useMutation<
+    { _id: string }, // Expecting the API to return the new business _id
+    Error,
+    BusinessUrlFormData
+  >({
+    mutationFn: async (newData: BusinessUrlFormData) => {
+      const result = await apiRequest<{ _id: string }>("POST", "/api/business-urls", newData);
+      // Expect result to have _id of new business
+      return result;
+    },
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['businessUrls'] });
-      setIsAddBusinessModalOpen(false);
+      setNewBusinessId(data._id); // Save new business id for scraping
+      // Don't close modal yet, show scrape button
       form.reset();
-      toast({ title: "Success", description: "Business URL added successfully." });
+      toast({ title: "Success", description: "Business URL added successfully. You can now scrape reviews." });
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message || "Failed to add business URL.", variant: "destructive" });
@@ -171,6 +200,39 @@ const Reviews = () => {
     }
   });
 
+  const deleteBusinessMutation = useMutation<void, Error, string>({
+    mutationFn: async (businessUrlId: string) => {
+      await apiRequest("DELETE", `/api/business-urls/${businessUrlId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['businessUrls'] });
+      toast({
+        title: "Success",
+        description: "Business deleted successfully.",
+      });
+      setIsDeleteModalOpen(false);
+      setBusinessToDelete(null);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete business.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleDeleteClick = (business: IBusinessUrl) => {
+    setBusinessToDelete(business);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (businessToDelete) {
+      deleteBusinessMutation.mutate(businessToDelete._id);
+    }
+  };
+
   const onSubmit = (data: BusinessUrlFormData) => {
     addBusinessUrlMutation.mutate(data);
   };
@@ -197,43 +259,49 @@ const Reviews = () => {
           ) : filteredBusinessUrls.length > 0 ? (
             <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between mb-6">
               <div className="w-full sm:w-auto sm:min-w-[250px]">
-                <Label htmlFor="business-select" className="mb-1 block">Select Business</Label>
-                <Select
+                <Label htmlFor="business-combobox" className="mb-1 block">Select Business</Label>
+                <Combobox
+                  options={filteredBusinessUrls.map((url) => ({
+                    value: url._id,
+                    label: `${url.name} (${url.source.charAt(0).toUpperCase() + url.source.slice(1)})`,
+                  }))}
                   value={selectedBusinessUrl}
-                  onValueChange={setSelectedBusinessUrl}
-                >
-                  <SelectTrigger id="business-select">
-                    <SelectValue placeholder="Select a business to view reviews" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {filteredBusinessUrls.map((url: IBusinessUrl) => (
-                      <SelectItem key={url._id} value={url._id}>
-                        {url.name} ({url.source.charAt(0).toUpperCase() + url.source.slice(1)})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  onChange={setSelectedBusinessUrl}
+                  placeholder="Search business by name..."
+                />
               </div>
 
-              {selectedBusinessUrl && (
-                <Button 
-                  onClick={() => scrapeReviewsMutation.mutate(selectedBusinessUrl)}
-                  disabled={scrapeReviewsMutation.isPending}
-                  className="bg-secondary-500 hover:bg-secondary-600 mt-4 sm:mt-0 self-start sm:self-end text-gray-800"
-                >
-                  {scrapeReviewsMutation.isPending ? (
-                    <>
-                      <i className="fas fa-spinner fa-spin mr-2 text-gray-800"></i>
-                      Scraping...
-                    </>
-                  ) : (
-                    <>
-                      <i className="fas fa-sync-alt mr-2 text-gray-800"></i>
-                      Refresh Reviews
-                    </>
-                  )}
-                </Button>
-              )}
+              <div className="flex gap-2">
+                {selectedBusinessUrl && (
+                  <>
+                    <Button 
+                      onClick={() => scrapeReviewsMutation.mutate(selectedBusinessUrl)}
+                      disabled={scrapeReviewsMutation.isPending}
+                      className="bg-secondary-500 hover:bg-secondary-600 text-gray-800"
+                    >
+                      {scrapeReviewsMutation.isPending ? (
+                        <>
+                          <i className="fas fa-spinner fa-spin mr-2 text-gray-800"></i>
+                          Scraping...
+                        </>
+                      ) : (
+                        <>
+                          <i className="fas fa-sync-alt mr-2 text-gray-800"></i>
+                          Refresh Reviews
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      onClick={() => handleDeleteClick(filteredBusinessUrls.find(b => b._id === selectedBusinessUrl)!)}
+                      variant="destructive"
+                      className="bg-red-600 hover:bg-red-700"
+                    >
+                      <i className="fas fa-trash-alt mr-2"></i>
+                      Delete Business
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
           ) : (
             <div className="text-center py-8">
@@ -253,7 +321,7 @@ const Reviews = () => {
         </div>
       </div>
 
-      <Dialog open={isAddBusinessModalOpen} onOpenChange={setIsAddBusinessModalOpen}>
+      <Dialog open={isAddBusinessModalOpen} onOpenChange={(open) => { setIsAddBusinessModalOpen(open); if (!open) setNewBusinessId(null); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add Business</DialogTitle>
@@ -315,12 +383,72 @@ const Reviews = () => {
                 )}
               />
               <DialogFooter>
-                <Button type="submit" disabled={addBusinessUrlMutation.isPending}>
+                <Button type="submit" disabled={addBusinessUrlMutation.isPending || !!newBusinessId}>
                   {addBusinessUrlMutation.isPending ? "Adding..." : "Add Business"}
                 </Button>
+                {newBusinessId && (
+                  <Button
+                    type="button"
+                    className="ml-2 bg-secondary-500 hover:bg-secondary-600 text-gray-800"
+                    disabled={scrapeReviewsMutation.isPending}
+                    onClick={async () => {
+                      await scrapeReviewsMutation.mutateAsync(newBusinessId);
+                      setIsAddBusinessModalOpen(false);
+                      setNewBusinessId(null);
+                    }}
+                  >
+                    {scrapeReviewsMutation.isPending ? (
+                      <>
+                        <i className="fas fa-spinner fa-spin mr-2 text-gray-800"></i>
+                        Scraping...
+                      </>
+                    ) : (
+                      <>
+                        <i className="fas fa-sync-alt mr-2 text-gray-800"></i>
+                        Scrape Reviews
+                      </>
+                    )}
+                  </Button>
+                )}
               </DialogFooter>
             </form>
           </Form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Business</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete {businessToDelete?.name}? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsDeleteModalOpen(false);
+                setBusinessToDelete(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteConfirm}
+              disabled={deleteBusinessMutation.isPending}
+            >
+              {deleteBusinessMutation.isPending ? (
+                <>
+                  <i className="fas fa-spinner fa-spin mr-2"></i>
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </Layout>

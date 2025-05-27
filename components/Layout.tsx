@@ -4,6 +4,7 @@ import { useSession, signOut } from 'next-auth/react';
 import Sidebar from "./Sidebar";
 import { useToast } from "../hooks/use-toast";
 import { Button } from "./ui/button";
+import LogoutConfirmationModal from "./LogoutConfirmationModal";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -20,6 +21,7 @@ interface IUserSessionData {
 
 const Layout = ({ children }: LayoutProps) => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const router = useRouter();
   const { data: session, status: authStatus } = useSession(); 
   const { toast } = useToast();
@@ -89,11 +91,16 @@ const Layout = ({ children }: LayoutProps) => {
 
   return (
     <div className={mainLayoutClasses}>
+      <LogoutConfirmationModal
+        isOpen={isLogoutModalOpen}
+        onClose={() => setIsLogoutModalOpen(false)}
+        onConfirm={handleLogout}
+      />
       <Sidebar
         isMobile={false}
         isOpen={true}
         onClose={() => {}}
-        onLogout={handleLogout}
+        onLogout={() => setIsLogoutModalOpen(true)}
         user={userForDisplay}
         currentPath={router.pathname}
         _resolvedTheme="light"
@@ -102,7 +109,7 @@ const Layout = ({ children }: LayoutProps) => {
         isMobile={true} 
         isOpen={isMobileSidebarOpen} 
         onClose={() => setIsMobileSidebarOpen(false)} 
-        onLogout={handleLogout}
+        onLogout={() => setIsLogoutModalOpen(true)}
         user={userForDisplay} 
         currentPath={router.pathname}
         _resolvedTheme="light"
@@ -128,7 +135,20 @@ const Layout = ({ children }: LayoutProps) => {
               </div>
             </div>
             <div className="flex items-center space-x-3">
-              {userForDisplay && (<div className={userAvatarClasses}>{userInitials}</div>)}
+              {userForDisplay && (
+                <div className="flex items-center space-x-2">
+                  <div className={userAvatarClasses}>{userInitials}</div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsLogoutModalOpen(true)}
+                    className="text-sm text-gray-600 hover:text-gray-900"
+                  >
+                    <i className="fas fa-sign-out-alt mr-2"></i>
+                    Logout
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </header>
@@ -141,7 +161,22 @@ const Layout = ({ children }: LayoutProps) => {
               <i className="fas fa-bell text-lg"></i>
               <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full ring-1 bg-red-500 ring-white"></span>
             </Button>
-            {userForDisplay && (<div className={desktopUserAvatarClasses} title={userForDisplay.name || userForDisplay.email || ""}>{userInitials}</div>)}
+            {userForDisplay && (
+              <div className="flex items-center space-x-2">
+                <div className={desktopUserAvatarClasses} title={userForDisplay.name || userForDisplay.email || ""}>
+                  {userInitials}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsLogoutModalOpen(true)}
+                  className="text-sm text-gray-600 hover:text-gray-900"
+                >
+                  <i className="fas fa-sign-out-alt mr-2"></i>
+                  Logout
+                </Button>
+              </div>
+            )}
           </div>
         </header>
         <div className={contentWrapperClasses}>

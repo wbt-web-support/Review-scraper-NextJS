@@ -1,0 +1,23 @@
+{
+  "name": "widget",
+  "version": "1.0.0",
+  "main": "vite.config.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "description": "",
+  "dependencies": {
+    "@vitejs/plugin-react": "^4.5.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "vite": "^6.3.5"
+  },
+  "devDependencies": {
+    "@rollup/plugin-alias": "^5.1.1",
+    "tailwindcss": "^4.1.7"
+  }
+}

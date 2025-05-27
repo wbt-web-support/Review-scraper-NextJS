@@ -44,6 +44,13 @@ interface ApifyGoogleReviewItem {
     user_avatar?: string;
     recommendation_type?: string;
     scrapedAt?: string | Date;
+    user?: {
+      id?: string;
+      name?: string;
+      profileUrl?: string;
+      profilePic?: string;
+    };
+    isRecommended?: boolean;
   }
 
 const parseGoogleReviewFromApify = (item: ApifyGoogleReviewItem): IReviewItem => {
@@ -60,11 +67,13 @@ const parseGoogleReviewFromApify = (item: ApifyGoogleReviewItem): IReviewItem =>
 const parseFacebookReviewFromApify = (item: ApifyFacebookReviewItem): IReviewItem => {
     return {
         reviewId: item.review_id?.toString() || item.id?.toString(),
-        author: item.author_name || item.name || "Anonymous Reviewer",
+        author: item.user?.name || item.author_name || item.name || "Anonymous Reviewer",
         content: item.review_text || item.text || "",
-        postedAt: item.review_time || item.date || "Recently",
-        profilePicture: item.author_avatar || item.user_avatar,
-        recommendationStatus: item.recommendation_type,
+        postedAt: item.date || item.review_time || "Recently",
+        profilePicture: item.user?.profilePic || item.author_avatar || item.user_avatar,
+        recommendationStatus: typeof item.isRecommended === 'boolean'
+          ? (item.isRecommended ? 'recommended' : 'not_recommended')
+          : item.recommendation_type,
         scrapedAt: item.scrapedAt ? new Date(item.scrapedAt) : undefined, 
     }
 };

@@ -65,8 +65,19 @@ export default async function handler(
       return res.status(200).json({ reviews: [] });
     }
     
-    console.log('Returning reviews:', reviewBatch.reviews.length);
-    return res.status(200).json({ reviews: reviewBatch.reviews });
+    // Normalize Facebook review fields for frontend compatibility
+    let reviews = reviewBatch.reviews;
+    if (source === 'facebook') {
+      reviews = reviews.map((review) => ({
+        ...review,
+        profilePicture: review.profilePicture || review.userProfile || '',
+        recommendationStatus: review.recommendationStatus === 'recommended' ? 'recommended' : (review.recommendationStatus === 'not_recommended' ? 'not_recommended' : undefined),
+        source: 'facebook',
+      }));
+    }
+    
+    console.log('Returning reviews:', reviews.length);
+    return res.status(200).json({ reviews });
   } catch (error) {
     console.error('Error fetching reviews:', error);
     const message = error instanceof Error ? error.message : 'Server error fetching reviews.';
