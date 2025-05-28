@@ -18,7 +18,6 @@
       }
       return 'https://reviews.webuildtrades.com/';
     })(),
-    
     RETRY_ATTEMPTS: 3,
     RETRY_DELAY: 1000,
     TIMEOUT: 10000
@@ -41,22 +40,16 @@
     },
     injectStyles: function() {
       if (document.getElementById('reviewhub-widget-styles')) return;
-      
-      // Inject Roboto font
       if (!document.querySelector('link[href*="fonts.googleapis.com/css2?family=Roboto"]')) {
-        // Add preconnect links for better performance
         const preconnect1 = document.createElement('link');
         preconnect1.rel = 'preconnect';
         preconnect1.href = 'https://fonts.googleapis.com';
         document.head.appendChild(preconnect1);
-        
         const preconnect2 = document.createElement('link');
         preconnect2.rel = 'preconnect';
         preconnect2.href = 'https://fonts.gstatic.com';
         preconnect2.crossOrigin = 'anonymous';
         document.head.appendChild(preconnect2);
-        
-        // Add Roboto font
         const robotoFont = document.createElement('link');
         robotoFont.rel = 'stylesheet';
         robotoFont.href = 'https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap';
@@ -562,27 +555,37 @@
           background: rgba(0, 0, 0, 0.5) !important;
           z-index: 10000 !important;
           display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          padding: 20px !important;
+          align-items: stretch !important;
+          justify-content: flex-start !important;
+          padding: 0 !important;
         }
         
         .reviewhub-modal {
           background: white !important;
-          border-radius: 12px !important;
-          max-width: 500px !important;
+          border-radius: 0 !important;
           width: 100% !important;
-          max-height: 80vh !important;
+          max-width: 420px !important;
+          height: 100vh !important;
           overflow-y: auto !important;
-          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+          box-shadow: 0 0 20px rgba(0, 0, 0, 0.2) !important;
           position: relative !important;
           font-family: "Roboto", -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif !important;
+          transform: translateX(0) !important;
+          transition: transform 0.3s ease-in-out !important;
+        }
+        
+        .reviewhub-modal.closing {
+          transform: translateX(-100%) !important;
         }
         
         .reviewhub-modal-header {
           padding: 24px 48px 0 24px !important;
           border-bottom: 1px solid #e5e7eb !important;
           margin-bottom: 24px !important;
+          position: sticky !important;
+          top: 0 !important;
+          background: white !important;
+          z-index: 1 !important;
         }
         
         .reviewhub-modal-close {
@@ -1076,10 +1079,25 @@
             bodyOverlay.style.background = 'rgba(0,0,0,0.45)';
             bodyOverlay.style.zIndex = '99999';
             bodyOverlay.style.display = 'flex';
-            bodyOverlay.style.alignItems = 'center';
-            bodyOverlay.style.justifyContent = 'center';
+            bodyOverlay.style.alignItems = 'stretch';
+            bodyOverlay.style.justifyContent = 'flex-start';
             bodyOverlay.innerHTML = `
-                <div class="reviewhub-badge-modal-panel" style="background: #fff; border-radius: 16px; max-width: 420px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.18); position: relative; padding: 32px 24px;">
+                <div class="reviewhub-badge-modal-panel" style="
+                  background: #fff;
+                  border-radius: 0 16px 16px 0;
+                  max-width: 420px;
+                  width: 100%;
+                  height: 100vh;
+                  overflow-y: auto;
+                  box-shadow: 4px 0 32px rgba(0,0,0,0.18);
+                  position: relative;
+                  padding: 32px 24px;
+                  transform: translateX(-100%);
+                  transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+                  display: flex;
+                  flex-direction: column;
+                  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+                ">
                   <button class="reviewhub-badge-modal-close" style="position: absolute; top: 18px; right: 18px; background: none; border: none; font-size: 2rem; color: #888; cursor: pointer;">&times;</button>
                   <h2 style="font-size: 1.3rem; font-weight: bold; margin-bottom: 10px;">What our customers say</h2>
                   <div style="background: #f9fafb; border-radius: 10px; padding: 16px; margin-bottom: 18px; border: 1px solid #e5e7eb;">
@@ -1107,14 +1125,14 @@
                          text-decoration: none;
                          transition: background 0.2s ease-in-out;
                          text-align: center;
-                         width: 100%;
+                         width: 90%;
                        "
                        onmouseover="this.style.background='#1d4ed8'"
                        onmouseout="this.style.background='#2563eb'">
                       Review us on Google
                     </a>
                   </div>
-                  <div style="max-height: 55vh; overflow-y: auto;">
+                  <div style="max-height: 70vh; overflow-y: auto;">
                     ${reviews.map((r) => {
                       const formattedDate = window.ReviewHub.formatDate(r.postedAt);
                       return `
@@ -1139,11 +1157,20 @@
             `;
             document.body.appendChild(bodyOverlay);
             document.body.style.overflow = 'hidden'; // Prevent background scroll
+            // Animate drawer in
+            setTimeout(() => {
+              const panel = bodyOverlay.querySelector('.reviewhub-badge-modal-panel');
+              if (panel) panel.style.transform = 'translateX(0)';
+            }, 10);
             // Close modal logic
             const closeBtn = bodyOverlay.querySelector('.reviewhub-badge-modal-close');
             function closeModal() {
-              document.body.removeChild(bodyOverlay);
-              document.body.style.overflow = '';
+              const panel = bodyOverlay.querySelector('.reviewhub-badge-modal-panel');
+              if (panel) panel.style.transform = 'translateX(-100%)';
+              setTimeout(() => {
+                document.body.removeChild(bodyOverlay);
+                document.body.style.overflow = '';
+              }, 350);
             }
             if (closeBtn) closeBtn.addEventListener('click', closeModal);
             bodyOverlay.addEventListener('click', function(e) {
@@ -1364,12 +1391,8 @@
         }
         function updateArrows() {
           const maxIndex = getMaxIndex();
-          
-          // Always show arrows, but disable them when at limits
           prevBtn.style.display = 'flex';
           nextBtn.style.display = 'flex';
-          
-          // Disable/enable arrows based on position
           if (currentIndex === 0) {
             prevBtn.setAttribute('disabled', 'true');
             prevBtn.style.opacity = '0.3';
@@ -1393,8 +1416,6 @@
         function updateDots() {
           const maxIndex = getMaxIndex();
           dotsContainer.innerHTML = '';
-          
-          // Only show dots if there are multiple slides
           if (maxIndex === 0) {
             dotsContainer.style.display = 'none';
             return;
@@ -1415,13 +1436,10 @@
             } else if (distance === 2) {
               dot.classList.add('far');
             }
-            // dots with distance > 2 keep the default small size
-            
             dot.setAttribute('aria-label', `Go to slide ${i + 1}`);
             dot.addEventListener('click', () => {
               pauseAutoPlay();
               goTo(i);
-              // Resume auto-play after 2 seconds of inactivity
               setTimeout(() => resumeAutoPlay(), 2000);
             });
             dotsContainer.appendChild(dot);
@@ -1434,29 +1452,18 @@
           currentIndex = index;
           
           if (track.children.length > 0) {
-            // Get the actual card width and margin
             const cardElement = track.children[0];
             const cardWidth = cardElement.offsetWidth;
-            
-            // Get responsive margin based on screen size
             const width = window.innerWidth;
-            let margin = 12; // Default margin
-            
-            // Mobile (below 576px) - no margin between cards since only 1 card visible
+            let margin = 12; 
             if (width < 576) margin = 0;
-            // All other screen sizes use 12px margin
             else margin = 12;
-            
-            // Calculate position based on visible count to prevent partial cards
             const visibleCount = getVisibleCount();
             let translateX = 0;
-            
             if (currentIndex > 0) {
-              // For mobile (1 card), move by full card width for each index
               if (visibleCount === 1) {
                 translateX = currentIndex * cardWidth;
               } else {
-                // For multi-card layouts, calculate based on cards to move
                 const cardsToMove = Math.min(currentIndex, reviews.length - visibleCount);
                 if (cardsToMove > 0) {
                   translateX = cardsToMove * (cardWidth + margin);
@@ -1474,19 +1481,15 @@
         prevBtn.addEventListener('click', () => {
           pauseAutoPlay();
           goTo(currentIndex - 1);
-          // Resume auto-play after 2 seconds of inactivity
           setTimeout(() => resumeAutoPlay(), 2000);
         });
         
         nextBtn.addEventListener('click', () => {
           pauseAutoPlay();
           goTo(currentIndex + 1);
-          // Resume auto-play after 2 seconds of inactivity
           setTimeout(() => resumeAutoPlay(), 2000);
         });
         goTo(currentIndex, false);
-        
-        // Add hover pause/resume functionality
         carouselContainer.addEventListener('mouseenter', () => {
           pauseAutoPlay();
         });
@@ -1494,8 +1497,6 @@
         carouselContainer.addEventListener('mouseleave', () => {
           resumeAutoPlay();
         });
-        
-        // Pause auto-play when user interacts with review cards
         track.addEventListener('mouseenter', () => {
           pauseAutoPlay();
         });
@@ -1503,14 +1504,9 @@
         track.addEventListener('mouseleave', () => {
           resumeAutoPlay();
         });
-        
-        // Add event listeners for read more buttons
         this.attachEventListeners(container, reviews);
         return;
       }
-
-      // --- DEFAULT (GRID/LIST/MASONRY) LAYOUTS ---
-      // Generate reviews HTML
       const reviewsHtml = reviews.map((review, index) => {
         const authorInitials = this.getInitials(review.author);
         const ratingStars = review.rating ? this.generateStars(review.rating) : '';
@@ -1601,15 +1597,10 @@
       `;
       
       container.innerHTML = widgetHtml;
-      
-      // Add event listeners for read more buttons
       this.attachEventListeners(container, reviews);
     },
-    
-    // Attach event listeners for read more functionality
     attachEventListeners: function(container, reviews) {
       const readMoreButtons = container.querySelectorAll('.reviewhub-read-more');
-      
       readMoreButtons.forEach(button => {
         button.addEventListener('click', (e) => {
           e.preventDefault();
@@ -1618,16 +1609,12 @@
         });
       });
     },
-    
-    // Show review modal with full text
     showReviewModal: function(review) {
       const reviewText = review.content || review.text || '';
       const authorInitials = this.getInitials(review.author);
       const ratingStars = review.rating ? this.generateStars(review.rating) : '';
       const reviewDate = review.postedAt ? this.formatDate(review.postedAt) : '';
       const sourceClass = review.source === 'google' ? 'google' : 'facebook';
-      
-      // Source logo SVGs
       const googleLogo = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
         <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
         <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -1672,19 +1659,18 @@
           </div>
         </div>
       `;
-      
-      // Create modal element
       const modalElement = document.createElement('div');
       modalElement.innerHTML = modalHtml;
       document.body.appendChild(modalElement);
-      
-      // Add event listeners
       const overlay = modalElement.querySelector('.reviewhub-modal-overlay');
-      const closeButton = modalElement.querySelector('.reviewhub-modal-close');
       const modal = modalElement.querySelector('.reviewhub-modal');
+      const closeButton = modalElement.querySelector('.reviewhub-modal-close');
       
       const closeModal = () => {
-        document.body.removeChild(modalElement);
+        modal.classList.add('closing');
+        setTimeout(() => {
+          document.body.removeChild(modalElement);
+        }, 300);
       };
       
       closeButton.addEventListener('click', closeModal);
@@ -1693,8 +1679,6 @@
           closeModal();
         }
       });
-      
-      // Close on escape key
       const handleEscape = (e) => {
         if (e.key === 'Escape') {
           closeModal();
