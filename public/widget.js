@@ -907,22 +907,19 @@
       const fullStars = Math.floor(rating);
       const decimal = rating % 1;
       const hasHalfStar = decimal >= 0.3 && decimal < 0.8; 
-        const shouldRoundUp = decimal >= 0.8; // Round up to full star if >= 0.8
+        const shouldRoundUp = decimal >= 0.8; 
         
       let stars = '';
       
-      // Add full stars
       const totalFullStars = shouldRoundUp ? fullStars + 1 : fullStars;
       for (let i = 0; i < totalFullStars; i++) {
         stars += '★';
       }
       
-      // Add half star if needed (and we haven't rounded up)
       if (hasHalfStar && !shouldRoundUp) {
-        stars += '★'; // Use full star for visual consistency
+        stars += '★'; 
       }
       
-      // Add empty stars
       const starsUsed = totalFullStars + (hasHalfStar && !shouldRoundUp ? 1 : 0);
       for (let i = starsUsed; i < 5; i++) {
         stars += '☆';
@@ -937,7 +934,6 @@
           return dateString;
         }
         
-        // Handle ISO date format like "2025-05-15T07:45:30.345Z"
         const date = new Date(dateString);
         if (isNaN(date.getTime())) {
           return dateString || 'Recently';
@@ -986,12 +982,9 @@
       if (widgetSettings.layout === 'badge') {
         const googleLogoUrl = 'https://assetsforscraper.b-cdn.net/Google-logo.png';
         const avgRating = reviews.length > 0 ? (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length).toFixed(1) : '5.0';
-        // For badge layout, always show the exact total review count the business has
         const reviewCount = totalReviewCount || reviews.length;
         const reviewText = reviewCount === 1 ? 'Review' : 'Reviews';
-        // Generate a proper Google review URL for the specific business
         let reviewUrl;
-        // Always use the actual Google Maps URL if available
         if (businessUrlLink) {
           reviewUrl = businessUrlLink;
         } else if (widgetSettings.businessUrl?.url) {
@@ -1002,9 +995,7 @@
           reviewUrl = 'https://www.google.com/maps';
         }
         
-        // Get the proper Google review URL - exactly like in WidgetPreview
         let writeReviewUrl;
-        // Priority order: businessUrlLink > widgetSettings.businessUrl.url > businessName fallback
         if (businessUrlLink) {
           writeReviewUrl = businessUrlLink;
         } else if (widgetSettings.businessUrl?.url) {
@@ -1061,7 +1052,6 @@
         if (modalBtn && overlay) {
           modalBtn.addEventListener('click', function(e) {
             e.preventDefault();
-            // Create overlay element and append to body
             const bodyOverlay = document.createElement('div');
             bodyOverlay.className = 'reviewhub-badge-modal-overlay';
             bodyOverlay.style.position = 'fixed';
@@ -1146,13 +1136,11 @@
                 </div>
             `;
             document.body.appendChild(bodyOverlay);
-            document.body.style.overflow = 'hidden'; // Prevent background scroll
-            // Animate drawer in
+            document.body.style.overflow = 'hidden'; 
             setTimeout(() => {
               const panel = bodyOverlay.querySelector('.reviewhub-badge-modal-panel');
               if (panel) panel.style.transform = 'translateX(0)';
             }, 10);
-            // Close modal logic
             const closeBtn = bodyOverlay.querySelector('.reviewhub-badge-modal-close');
             function closeModal() {
               const panel = bodyOverlay.querySelector('.reviewhub-badge-modal-panel');
@@ -1171,40 +1159,41 @@
         return;
       }
 
-      // --- Modern, professional carousel ---
       if (widgetSettings.layout === 'carousel') {
+        // Define reviewUrl for carousel layout
+        let reviewUrl;
+        if (businessUrlLink) {
+          reviewUrl = businessUrlLink;
+        } else if (widgetSettings.businessUrl?.url) {
+          reviewUrl = widgetSettings.businessUrl.url;
+        } else if (businessName) {
+          reviewUrl = `https://www.google.com/maps/search/${encodeURIComponent(businessName)}+reviews`;
+        } else {
+          reviewUrl = 'https://www.google.com/maps';
+        }
         function getVisibleCount() {
           const width = window.innerWidth;
           
-          // Enhanced responsive breakpoints for better card distribution
           
-          // Mobile (below 576px) - 1 card only
           if (width < 576) return 1;
           
-          // Tablet Portrait (576px - 767px) - 2 cards
           if (width < 768) return 2;
           
-          // Tablet Landscape (768px - 991px) - 2 cards
           if (width < 992) return 2;
           
-          // Small Desktop (992px - 1199px) - 3 cards
           if (width < 1200) return 3;
           
-          // Medium Desktop (1200px - 1439px) - 4 cards
           if (width < 1440) return 4;
           
-          // Large Desktop (1440px - 1679px) - 4 cards
           if (width < 1680) return 4;
           
-          // Extra Large Desktop (1680px+) - 5 cards
           return 5;
         }
         let visibleCount = getVisibleCount();
         let currentIndex = 0;
         let autoPlayInterval = null;
         let isAutoPlaying = true;
-        const AUTO_PLAY_DELAY = 4000; // 4 seconds
-        // Build reviews HTML
+        const AUTO_PLAY_DELAY = 4000; 
         const totalReviews = typeof totalReviewCount === 'number' ? totalReviewCount : reviews.length;
         const platformName = widgetSettings.businessUrl?.source === 'facebook' ? 'Facebook' : 'Google';
         
@@ -1250,7 +1239,6 @@
             </div>
           `;
         }).join('');
-        // SVG chevrons for navigation
         const chevronLeft = `<svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15.5 19L9.5 12L15.5 5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
         const chevronRight = `<svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8.5 5L14.5 12L8.5 19" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
         const carouselHtml = `
@@ -1296,7 +1284,6 @@
           </div>
         `;
         container.innerHTML = widgetHtml;
-        // Carousel logic
         const track = container.querySelector('.reviewhub-carousel-track');
         const prevBtn = container.querySelector('.reviewhub-carousel-prev');
         const nextBtn = container.querySelector('.reviewhub-carousel-next');
@@ -1304,7 +1291,6 @@
         const carouselContainer = container.querySelector('.reviewhub-carousel-container');
 
         function renderCarousel() {
-          // Ensure we start with a valid index that shows complete cards
           const maxIndex = getMaxIndex();
           if (currentIndex > maxIndex) {
             currentIndex = maxIndex;
@@ -1318,20 +1304,15 @@
         
         function startAutoPlay() {
           if (autoPlayInterval) clearInterval(autoPlayInterval);
-          
-          // Only start auto-play if there are enough reviews to scroll
           const currentVisibleCount = getVisibleCount();
           const maxIndex = getMaxIndex();
           if (reviews.length <= currentVisibleCount || maxIndex === 0) return;
-          
           autoPlayInterval = setInterval(() => {
             if (isAutoPlaying) {
               const currentMaxIndex = getMaxIndex();
               if (currentIndex >= currentMaxIndex) {
-                // Reset to beginning when reaching the end
                 goTo(0);
               } else {
-                // Move to next slide, but ensure we don't exceed max index
                 const nextIndex = Math.min(currentIndex + 1, currentMaxIndex);
                 goTo(nextIndex);
               }
@@ -1353,7 +1334,6 @@
         function resumeAutoPlay() {
           isAutoPlaying = true;
         }
-        // Initial render with small delay to ensure DOM is ready
         setTimeout(() => {
           renderCarousel();
         }, 50);
@@ -1364,18 +1344,14 @@
         });
         function updateVisibleCount() {
           visibleCount = getVisibleCount();
-          // Clamp currentIndex if needed
           const maxIndex = getMaxIndex();
           if (currentIndex > maxIndex) currentIndex = maxIndex;
           renderCarousel();
         }
         function getMaxIndex() {
-          // Calculate the maximum index where we can still show complete cards only
           if (reviews.length <= visibleCount) {
-            return 0; // No scrolling needed if we can show all cards
+            return 0; 
           }
-          
-          // Use the responsive visible count which is more reliable
           const currentVisibleCount = getVisibleCount();
           return Math.max(0, reviews.length - currentVisibleCount);
         }
@@ -1506,7 +1482,6 @@
         const isLongText = reviewText.length > 180;
         const truncatedText = isLongText ? reviewText.substring(0, 180) + '...' : reviewText;
         
-        // Source logo SVGs
         const googleLogo = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
           <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
           <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -1555,7 +1530,6 @@
         `;
       }).join('');
       
-      // Define reviewUrl for grid and other layouts
       let reviewUrl;
       if (businessUrlLink) {
         reviewUrl = businessUrlLink;
@@ -1690,7 +1664,6 @@
       document.addEventListener('keydown', handleEscape);
     },
     
-    // Utility function to darken colors
     darkenColor: function(color, percent) {
       const num = parseInt(color.replace("#", ""), 16);
       const amt = Math.round(2.55 * percent);
@@ -1702,14 +1675,12 @@
         (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
     },
     
-    // HTML escape function
     escapeHtml: function(text) {
       const div = document.createElement('div');
       div.textContent = text;
       return div.innerHTML;
     },
     
-    // Enhanced fetch with retry logic
     fetchWithRetry: function(url, options, retries = CONFIG.RETRY_ATTEMPTS) {
       return new Promise((resolve, reject) => {
         const timeoutId = setTimeout(() => {
@@ -1748,7 +1719,6 @@
       });
     },
     
-    // Show error with retry option
     showError: function(container, error, config, retryCallback) {
       const errorHtml = `
         <div class="reviewhub-widget">
@@ -1770,7 +1740,6 @@
       }
     },
     
-    // Main widget initialization function
     initWidget: function(config) {
       let container = null;
       
@@ -1783,7 +1752,6 @@
           return;
         }
       } else {
-        // Auto-create container after the script tag
         const scripts = document.querySelectorAll(`script[data-widget-id="${config.widgetId}"]`);
         const scriptTag = scripts[scripts.length - 1];
         
@@ -1797,10 +1765,8 @@
         }
       }
 
-      // Add the container class for proper styling
       container.className = 'reviewhub-widget-container';
 
-      // Show loading state
       container.innerHTML = `
         <div class="reviewhub-widget" style="--widget-theme-color: ${config.themeColor || '#3B82F6'}; --widget-theme-color-dark: ${this.darkenColor(config.themeColor || '#3B82F6', 20)}">
           <div class="reviewhub-widget-loading">
@@ -1810,7 +1776,6 @@
         </div>
       `;
 
-      // Build API URL
       const params = new URLSearchParams();
       if (config.themeColor) params.append('themeColor', config.themeColor);
       if (config.layout) params.append('layout', config.layout);
@@ -1818,13 +1783,10 @@
       const queryString = params.toString();
       const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${config.widgetId}${queryString ? '?' + queryString : ''}`;
       console.log("API URL", apiUrl);
-      // Create retry function
       const retryLoad = () => {
         this.log('info', 'Retrying widget load', { widgetId: config.widgetId });
         this.initWidget(config);
       };
-
-      // Fetch widget data with retry logic
       this.fetchWithRetry(apiUrl)
         .then(data => {
           this.log('info', 'Widget data loaded successfully', { widgetId: config.widgetId, reviewCount: data.reviews?.length });
@@ -1837,7 +1799,6 @@
     }
   };
 
-  // Auto-initialize widgets from script tags
   function initializeWidgetsFromScripts() {
     const scriptTags = document.querySelectorAll('script[data-widget-id]');
     window.ReviewHub.log('info', `Found ${scriptTags.length} widget script(s)`);
@@ -1861,15 +1822,12 @@
     });
   }
 
-  // Initialize widgets when DOM is ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initializeWidgetsFromScripts);
   } else {
-    // DOM is already ready
     setTimeout(initializeWidgetsFromScripts, 0);
   }
 
-  // Handle any pending widgets (for async loading)
   if (window.ReviewHubPendingWidgets && Array.isArray(window.ReviewHubPendingWidgets)) {
     window.ReviewHubPendingWidgets.forEach(function(pendingConfig) {
       window.ReviewHub.initWidget(pendingConfig);
