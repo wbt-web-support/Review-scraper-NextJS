@@ -26,7 +26,6 @@ export default async function handler(
       return res.status(401).json({ message: 'Unauthorized: Not authenticated.' });
     }
     const userId_string = session.user.id as string;
-    const isAdmin = session.user.isAdmin === true;
     const { id: businessUrlId_param } = req.query;
     if (typeof businessUrlId_param !== 'string' || !businessUrlId_param) {
       return res.status(400).json({ message: 'Bad Request: Business URL ID parameter is missing or not a string.' });
