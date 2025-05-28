@@ -183,6 +183,11 @@
           width: 100% !important;
           padding: 0 !important;
           position: relative !important;
+          background: transparent !important;
+        }
+        
+        .reviewhub-carousel-container {
+          background: transparent !important;
         }
         
         .reviewhub-widget-content.layout-masonry {
@@ -627,6 +632,7 @@
           overflow: hidden !important;
           padding: 0 70px !important;
           box-sizing: border-box !important;
+          background: transparent !important;
         }
         
         .reviewhub-carousel-viewport {
