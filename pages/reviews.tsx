@@ -258,14 +258,18 @@ const Reviews = () => {
 
           {isBusinessUrlsLoading ? (
             <div className="animate-pulse flex h-10 bg-gray-200 rounded"></div>
-          ) : filteredBusinessUrls.length > 0 ? (
+          ) : allBusinessUrls.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500">No businesses found. Add a business to start viewing reviews.</p>
+            </div>
+          ) : (
             <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between mb-6">
               <div className="w-full sm:w-auto sm:min-w-[250px]">
                 <Label htmlFor="business-combobox" className="mb-1 block">Select Business</Label>
                 <Combobox
                   options={filteredBusinessUrls.map((url) => ({
                     value: url._id,
-                    label: `${url.name} (${url.source.charAt(0).toUpperCase() + url.source.slice(1)})`,
+                    label: `${url.name ? url.name : "Unnamed Business"} (${url.source.charAt(0).toUpperCase() + url.source.slice(1)})`,
                   }))}
                   value={selectedBusinessUrl}
                   onChange={(val) => {
@@ -308,10 +312,6 @@ const Reviews = () => {
                   </>
                 )}
               </div>
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <p className="text-gray-500">No businesses found. Add a business to start viewing reviews.</p>
             </div>
           )}
 
