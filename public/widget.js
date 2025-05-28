@@ -1098,8 +1098,8 @@
                   flex-direction: column;
                   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
                 ">
-                  <button class="reviewhub-badge-modal-close" style="position: absolute; top: 18px; right: 18px; background: none; border: none; font-size: 2rem; color: #888; cursor: pointer;">&times;</button>
-                  <h2 style="font-size: 1.3rem; font-weight: bold; margin-bottom: 10px;">What our customers say</h2>
+                  <button class="reviewhub-badge-modal-close" style="position: absolute; top: -13px; right: -1px; background: none; border: none; font-size: 2rem; color: #888; cursor: pointer;">&times;</button>
+                  <h2 style="font-size: 1.3rem; font-weight: bold; margin-bottom: 39px;">What our customers say</h2>
                   <div style="background: #f9fafb; border-radius: 10px; padding: 16px; margin-bottom: 18px; border: 1px solid #e5e7eb;">
                     <div style="display: flex; align-items: center; margin-bottom: 6px;">
                       <img src="${googleLogoUrl}" alt="Google" style="width: 24px; height: 24px; margin-right: 8px;" />
