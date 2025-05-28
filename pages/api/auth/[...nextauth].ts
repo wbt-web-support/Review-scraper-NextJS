@@ -10,6 +10,7 @@ interface AuthorizeUserResponse {
   name?: string | null;
   username?: string | null;
   fullName?: string | null;
+  isAdmin?: boolean;
 }
 
 export const authOptions: NextAuthOptions = {
@@ -39,6 +40,7 @@ export const authOptions: NextAuthOptions = {
               name: userFromDb.fullName || userFromDb.username,
               username: userFromDb.username,
               fullName: userFromDb.fullName,
+              isAdmin: userFromDb.isAdmin,
           };
         } catch (dbError) {
           console.error("[NextAuth Authorize] Database error during authorization:", dbError);
@@ -58,6 +60,7 @@ export const authOptions: NextAuthOptions = {
         token.email = user.email;
         token.username = user.username;
         token.fullName = user.fullName;
+        token.isAdmin = user.isAdmin;
       }
       return token;
     },
@@ -68,6 +71,7 @@ export const authOptions: NextAuthOptions = {
         session.user.email = token.email;
         session.user.username = token.username;
         session.user.fullName = token.fullName;
+        session.user.isAdmin = token.isAdmin;
       }
       return session;
     }

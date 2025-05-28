@@ -12,6 +12,7 @@ export interface IUser extends Document {
   verificationExpires?: Date | null;
   resetPasswordToken?: string | null;
   resetPasswordExpire?: Date | null;
+  isAdmin?: boolean;
 }
 
 const UserSchema: Schema<IUser> = new Schema({
@@ -25,6 +26,7 @@ const UserSchema: Schema<IUser> = new Schema({
   verificationExpires: { type: Date, default: null },
   resetPasswordToken: { type: String, default: null },
   resetPasswordExpire: { type: Date, default: null },
+  isAdmin: { type: Boolean, default: false },
 });
 
 const UserModel: Model<IUser> = mongoose.models.User || mongoose.model<IUser>('User', UserSchema, 'users');

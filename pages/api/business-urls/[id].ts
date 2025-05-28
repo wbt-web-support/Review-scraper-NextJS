@@ -26,6 +26,7 @@ export default async function handler(
       return res.status(401).json({ message: 'Unauthorized: Not authenticated.' });
     }
     const userId_string = session.user.id as string;
+    const isAdmin = session.user.isAdmin === true;
     const { id: businessUrlId_param } = req.query;
     if (typeof businessUrlId_param !== 'string' || !businessUrlId_param) {
       return res.status(400).json({ message: 'Bad Request: Business URL ID parameter is missing or not a string.' });
@@ -49,10 +50,6 @@ export default async function handler(
       if (!businessUrl) {
         return res.status(404).json({ message: 'Not Found: Business URL not found.' });
       }
-      if (!businessUrl.userId || businessUrl.userId.toString() !== userId_string) {
-        return res.status(403).json({ message: 'Forbidden: You do not have permission to delete this resource.' });
-      }
-      
       await storage.deleteBusinessUrl(businessUrlId_param);
       return res.status(200).json({ message: 'Business URL deleted successfully.' });
     } else {

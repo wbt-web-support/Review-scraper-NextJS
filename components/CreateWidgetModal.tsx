@@ -212,10 +212,9 @@ const _processFormSubmit = (data: FormValues) => {
 
   const handleBusinessUrlSelectChange = (value: string) => {
     form.setValue("businessUrlId", value, { shouldValidate: true, shouldDirty: true });
-    
-    // Auto-update widget name with selected business name
+    // Only auto-update widget name if the name field is empty
     const selectedBusiness = businessUrls.find(b => b._id === value);
-    if (selectedBusiness) {
+    if (selectedBusiness && !form.getValues("name")) {
       form.setValue("name", selectedBusiness.name, { shouldValidate: true, shouldDirty: true });
     }
   };
