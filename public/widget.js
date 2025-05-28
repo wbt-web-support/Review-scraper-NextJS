@@ -199,6 +199,11 @@
           display: grid !important;
           grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)) !important;
           gap: 12px !important;
+          background: transparent !important;
+        }
+        
+        .reviewhub-masonry-container {
+          background: transparent !important;
         }
         
         .reviewhub-widget-content.layout-badge {

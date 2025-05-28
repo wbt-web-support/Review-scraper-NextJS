@@ -268,8 +268,12 @@ const Reviews = () => {
                     label: `${url.name} (${url.source.charAt(0).toUpperCase() + url.source.slice(1)})`,
                   }))}
                   value={selectedBusinessUrl}
-                  onChange={setSelectedBusinessUrl}
+                  onChange={(val) => {
+                    setSelectedBusinessUrl(val);
+                    setSearchText(""); // Clear search on select
+                  }}
                   placeholder="Search business by name..."
+                  onInputChange={setSearchText}
                 />
               </div>
 

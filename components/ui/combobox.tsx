@@ -13,9 +13,10 @@ interface ComboboxProps {
   onChange: (value: string) => void;
   placeholder?: string;
   className?: string;
+  onInputChange?: (value: string) => void;
 }
 
-export function Combobox({ options, value, onChange, placeholder = "Select...", className }: ComboboxProps) {
+export function Combobox({ options, value, onChange, placeholder = "Select...", className, onInputChange }: ComboboxProps) {
   const selected = options.find((o) => o.value === value) || null;
 
   return (
@@ -27,6 +28,7 @@ export function Combobox({ options, value, onChange, placeholder = "Select...", 
               className="w-full border-none py-2 pl-3 pr-10 text-sm leading-5 text-gray-900 focus:ring-0"
               displayValue={(option: ComboboxOption) => option?.label || ""}
               placeholder={placeholder}
+              onChange={e => onInputChange?.(e.target.value)}
             />
             <HCombobox.Button className="absolute inset-y-0 right-0 flex items-center pr-2">
               <ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
