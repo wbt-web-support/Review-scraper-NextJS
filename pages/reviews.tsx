@@ -25,6 +25,8 @@ import {
   CommandEmpty,
 } from "../components/ui/command";
 import { Combobox, ComboboxOption } from "../components/ui/combobox";
+import { Trash2 } from "lucide-react";
+import { Loader, RefreshCcw } from "lucide-react";
 
 interface IBusinessUrl {
   _id: string;
@@ -281,22 +283,22 @@ const Reviews = () => {
                     >
                       {scrapeReviewsMutation.isPending ? (
                         <>
-                          <i className="fas fa-spinner fa-spin mr-2 text-gray-800"></i>
-                          Scraping...
+                          <Loader className="mr-2 animate-spin text-gray-800" />
+                          Recrawling...
                         </>
                       ) : (
                         <>
-                          <i className="fas fa-sync-alt mr-2 text-gray-800"></i>
-                          Refresh Reviews
+                          <RefreshCcw className="mr-2 text-gray-800" />
+                          Recrawl Reviews
                         </>
                       )}
                     </Button>
                     <Button
                       onClick={() => handleDeleteClick(filteredBusinessUrls.find(b => b._id === selectedBusinessUrl)!)}
                       variant="destructive"
-                      className="bg-red-600 hover:bg-red-700"
+                      className="bg-red-600 hover:bg-red-700 text-white  cursor-pointer" 
                     >
-                      <i className="fas fa-trash-alt mr-2"></i>
+                      <Trash2 className="mr-2 text-white" />
                       Delete Business
                     </Button>
                   </>
