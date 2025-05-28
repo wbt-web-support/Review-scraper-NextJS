@@ -105,7 +105,6 @@
           background: #ffffff !important;
         }
         
-        /* Header section matching WidgetPreview */
         .reviewhub-widget-header {
           display: flex !important;
           align-items: center !important;
@@ -172,7 +171,6 @@
           text-decoration: underline !important;
         }
         
-        /* Layout-specific styles */
         .reviewhub-widget-content.layout-grid {
           display: grid !important;
           grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)) !important;
@@ -754,7 +752,6 @@
           background: #d1d5db !important;
         }
         
-                 /* Extra Large Desktop (1680px+) - 5 cards */
          @media (min-width: 1680px) {
            .layout-carousel .reviewhub-review-item {
              width: 300px !important;
@@ -768,7 +765,6 @@
            }
          }
         
-                 /* Large Desktop (1440px - 1679px) - 4 cards */
          @media (max-width: 1679px) and (min-width: 1440px) {
            .layout-carousel .reviewhub-review-item {
              width: 320px !important;
@@ -782,7 +778,6 @@
            }
          }
         
-                 /* Medium Desktop (1200px - 1439px) - 4 cards */
          @media (max-width: 1439px) and (min-width: 1200px) {
            .layout-carousel .reviewhub-review-item {
              width: 300px !important;
@@ -796,7 +791,6 @@
            }
          }
         
-                 /* Small Desktop (992px - 1199px) - 3 cards */
          @media (max-width: 1199px) and (min-width: 992px) {
            .layout-carousel .reviewhub-review-item {
              width: 320px !important;
@@ -810,7 +804,6 @@
            }
          }
         
-                 /* Tablet Landscape (768px - 991px) - 2 cards */
          @media (max-width: 991px) and (min-width: 768px) {
            .layout-carousel .reviewhub-review-item {
              width: 340px !important;
@@ -824,7 +817,6 @@
            }
          }
         
-                 /* Tablet Portrait (576px - 767px) - 2 cards */
          @media (max-width: 767px) and (min-width: 576px) {
            .layout-carousel .reviewhub-review-item {
              width: 300px !important;
@@ -855,7 +847,6 @@
            }
          }
         
-                 /* Mobile (below 576px) - 1 card */
          @media (max-width: 575px) {
            .layout-carousel .reviewhub-review-item {
              width: calc(100vw - 100px) !important;
@@ -886,7 +877,6 @@
            }
          }
         
-                 /* Extra Small Mobile (below 320px) */
          @media (max-width: 319px) {
            .layout-carousel .reviewhub-review-item {
              width: calc(100vw - 80px) !important;
@@ -916,9 +906,9 @@
     generateStars: function(rating) {
       const fullStars = Math.floor(rating);
       const decimal = rating % 1;
-      const hasHalfStar = decimal >= 0.3 && decimal < 0.8; // More generous range for half stars
-      const shouldRoundUp = decimal >= 0.8; // Round up to full star if >= 0.8
-      
+      const hasHalfStar = decimal >= 0.3 && decimal < 0.8; 
+        const shouldRoundUp = decimal >= 0.8; // Round up to full star if >= 0.8
+        
       let stars = '';
       
       // Add full stars
@@ -1564,6 +1554,18 @@
           </div>
         `;
       }).join('');
+      
+      // Define reviewUrl for grid and other layouts
+      let reviewUrl;
+      if (businessUrlLink) {
+        reviewUrl = businessUrlLink;
+      } else if (widgetSettings.businessUrl?.url) {
+        reviewUrl = widgetSettings.businessUrl.url;
+      } else if (businessName) {
+        reviewUrl = `https://www.google.com/maps/search/${encodeURIComponent(businessName)}+reviews`;
+      } else {
+        reviewUrl = 'https://www.google.com/maps';
+      }
       
       const widgetHtml = `
         <div class="reviewhub-widget">
