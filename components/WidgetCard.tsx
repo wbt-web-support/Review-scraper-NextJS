@@ -41,9 +41,10 @@ interface WidgetCardProps {
   onDelete?: () => void;
   _onEdit?: (widgetId: string) => void;
   isDeleting?: boolean;
+  hideBusinessName?: boolean;
 }
 
-const WidgetCard = ({ widget, onDelete, _onEdit, isDeleting }: WidgetCardProps) => {
+const WidgetCard = ({ widget, onDelete, _onEdit, isDeleting, hideBusinessName }: WidgetCardProps) => {
   const [isCodeModalOpen, setIsCodeModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
@@ -111,29 +112,34 @@ const WidgetCard = ({ widget, onDelete, _onEdit, isDeleting }: WidgetCardProps) 
   return (
     <>
       <div
-        className={`bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden widget-card transition-all duration-300 hover:shadow-xl ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}
+        className={`relative bg-white rounded-xl shadow-md p-5 flex flex-col gap-3 hover:shadow-lg transition-all duration-300 ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}
         onClick={() => setIsCodeModalOpen(true)}
         style={{ cursor: 'pointer' }}
       >
-        <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
-          <div className="flex items-center min-w-0">
-            {/* <div 
-              className={`w-9 h-9 rounded-lg ${getSourceBgClass()} flex items-center justify-center ${getSourceTextClass()} flex-shrink-0`}
-              title={getSourceTooltip()}
+        {/* Top Row: Layout Type & Actions */}
+        <div className="flex justify-between items-start mb-2">
+          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold">
+            {getLayoutIcon(widget.type)}
+            {getLayoutDisplayName(widget.type)}
+          </span>
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 border border-blue-100"
+              onClick={e => {
+                e.stopPropagation();
+                setIsCodeModalOpen(true);
+              }}
+              title="Get embed code"
             >
-              {getSourceIcon()}
-            </div> */}
-            <Building2/>
-            <h3 className="ml-3 font-semibold text-gray-800 truncate" title={widget.name}>
-              {widget.name}
-            </h3>
-          </div>
-          <div className="flex items-center gap-2">
+              <Code className="h-4 w-4" />
+            </Button>
             {onDelete && (
               <Button
                 variant="ghost"
-                size="sm"
-                className="w-8 h-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 flex items-center justify-center border border-red-200"
+                size="icon"
+                className="text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-100"
                 onClick={e => {
                   e.stopPropagation();
                   setIsDeleteModalOpen(true);
@@ -143,7 +149,7 @@ const WidgetCard = ({ widget, onDelete, _onEdit, isDeleting }: WidgetCardProps) 
               >
                 <svg 
                   xmlns="http://www.w3.org/2000/svg" 
-                  className="h-5 w-5" 
+                  className="h-4 w-4" 
                   fill="none" 
                   viewBox="0 0 24 24" 
                   stroke="currentColor"
@@ -155,86 +161,31 @@ const WidgetCard = ({ widget, onDelete, _onEdit, isDeleting }: WidgetCardProps) 
                     d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" 
                   />
                 </svg>
-                <span className="sr-only">Delete widget</span>
               </Button>
             )}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-8 h-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50 flex items-center justify-center border border-blue-200"
-              onClick={e => {
-                e.stopPropagation();
-                setIsCodeModalOpen(true);
-              }}
-              title="Get embed code"
-            >
-              <Code className="h-4 w-4" />
-              <span className="sr-only">Get embed code</span>
-            </Button>
           </div>
         </div>
-        
-        <div className="px-5 py-4">
-          <div className="flex items-center mb-3">
-            <div className="flex text-warning-500">
-              {Array.from({ length: 5 }).map((_, index) => {
-                if (index < Math.floor(ratingToDisplay)) {
-                  return <i key={index} className="fas fa-star"></i>;
-                } else if (index === Math.floor(ratingToDisplay) && ratingToDisplay % 1 >= 0.4) {
-                  return <i key={index} className="fas fa-star-half-alt"></i>;
-                } else {
-                  return <i key={index} className="far fa-star"></i>;
-                }
-              })}
-            </div>
-            <div className="flex items-center ml-2">
-              <div className={`w-4 h-4 rounded flex items-center justify-center bg-blue-100 text-blue-600 mr-1.5`}>
-                {getLayoutIcon(widget.type)}
-              </div>
-              <span className="text-sm font-medium text-gray-700 truncate" title={getLayoutDisplayName(widget.type)}>
-                {getLayoutDisplayName(widget.type)}
-              </span>
-            </div>
-          </div>
-          
-          <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center gap-3">
-              <div>
-                <span>Created: </span>
-                <span className="font-medium text-gray-700">{createdDate}</span>
-              </div>
-              {widget.businessUrl?.source && (
-                <div className="flex items-center gap-1">
-                  <div className={`w-4 h-4 rounded ${getSourceBgClass()} flex items-center justify-center ${getSourceTextClass()}`}>
-                    {widget.businessUrl.source === 'google' ? <Chrome className="h-3 w-3" /> : <Facebook className="h-3 w-3" />}
-                  </div>
-                  <span className={`text-xs font-medium ${getSourceTextClass()}`}>
-                    {widget.businessUrl.source === 'google' ? 'Google' : 'Facebook'}
-                  </span>
-                </div>
-              )}
-            </div>
-            <div>
-              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${widget.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
-                {widget.isActive ? 'Active' : 'Inactive'}
-              </span>
-            </div>
-          </div>
-          
-          {/* Total Reviews Count */}
-          {widget.totalReviewCount !== undefined && (
-            <div className="mt-3 pt-3 border-t border-gray-100">
-              <div className="flex items-center justify-center gap-2">
-                <i className="fas fa-star text-warning-500 text-sm"></i>
-                <span className="text-sm font-medium text-gray-700">
-                  {widget.totalReviewCount} {widget.totalReviewCount === 1 ? 'Review' : 'Reviews'} Total
-                </span>
-              </div>
-            </div>
+        {/* Status & Platform */}
+        <div className="flex items-center gap-3 mb-1">
+          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${widget.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+            {widget.isActive ? 'Active' : 'Inactive'}
+          </span>
+          {widget.businessUrl?.source && (
+            <span className="flex items-center gap-1 text-xs text-gray-500">
+              <span className={`w-4 h-4 rounded flex items-center justify-center ${getSourceBgClass()} ${getSourceTextClass()}`}>{widget.businessUrl.source === 'google' ? <Chrome className="h-3 w-3" /> : <Facebook className="h-3 w-3" />}</span>
+              {widget.businessUrl.source.charAt(0).toUpperCase() + widget.businessUrl.source.slice(1)}
+            </span>
           )}
         </div>
+        {/* Review Count & Date */}
+        <div className="flex justify-between items-center text-xs text-gray-500 mt-2">
+          <span className="flex items-center gap-1">
+            <i className="fas fa-star text-yellow-400 text-sm"></i>
+            {widget.totalReviewCount} Reviews
+          </span>
+          <span>Created: {createdDate}</span>
+        </div>
       </div>
-
       {/* Delete Confirmation Modal */}
       <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
         <DialogContent>
@@ -274,7 +225,6 @@ const WidgetCard = ({ widget, onDelete, _onEdit, isDeleting }: WidgetCardProps) 
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
       {isCodeModalOpen && (
         <WidgetCodeModal
           isOpen={isCodeModalOpen}

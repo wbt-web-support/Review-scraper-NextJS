@@ -123,6 +123,17 @@ const Widgets = () => {
     );
   }, [filteredWidgets, searchQuery]);
 
+  // Group widgets by business name
+  const groupedWidgets = useMemo(() => {
+    const map = new Map<string, IWidget[]>();
+    for (const widget of searchedWidgets) {
+      const businessName = widget.businessUrl?.name || widget.name;
+      if (!map.has(businessName)) map.set(businessName, []);
+      map.get(businessName)!.push(widget);
+    }
+    return Array.from(map.entries()); // [businessName, widgets[]]
+  }, [searchedWidgets]);
+
   const handleWidgetSavedAndShowCode = (createdWidget: IWidget) => {
     setIsCreateModalOpen(false);
     setNewlyCreatedWidget(createdWidget);
@@ -199,7 +210,7 @@ const Widgets = () => {
                     ></div>
                   ))}
                 </div>
-              ) : searchedWidgets.length > 0 ? (
+              ) : groupedWidgets.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                   <div className="bg-white  rounded-xl shadow-sm border border-gray-100 overflow-hidden widget-card flex flex-col">
                     <div className="flex-1 flex flex-col items-center justify-center p-8">
@@ -222,18 +233,38 @@ const Widgets = () => {
                       </Button>
                     </div>
                   </div>
-                  {searchedWidgets.map((widget: IWidget) => (
-                    <WidgetCard
-                      key={widget._id}
-                      widget={widget}
-                      onDelete={() => {
-                        deleteMutation.mutate(widget._id);
-                      }}
-                      isDeleting={
-                        deleteMutation.isPending &&
-                        deleteMutation.variables === widget._id
-                      }
-                    />
+                  {groupedWidgets.map(([businessName, widgets]) => (
+                    <div key={businessName} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden widget-card flex flex-col">
+                      <div className="px-5 pt-4 pb-2 border-b border-gray-200">
+                        <h3 className="font-semibold text-gray-800 truncate" title={businessName}>
+                          {businessName}
+                        </h3>
+                      </div>
+                      <Tabs defaultValue={widgets[0].type} className="w-full">
+                        <TabsList className="flex flex-wrap gap-2 px-5 pt-2">
+                          {widgets.map(widget => (
+                            <TabsTrigger key={widget._id} value={widget.type} className="capitalize">
+                              {widget.type}
+                            </TabsTrigger>
+                          ))}
+                        </TabsList>
+                        {widgets.map(widget => (
+                          <TabsContent key={widget._id} value={widget.type} className="p-0">
+                            <WidgetCard
+                              widget={widget}
+                              onDelete={() => {
+                                deleteMutation.mutate(widget._id);
+                              }}
+                              isDeleting={
+                                deleteMutation.isPending &&
+                                deleteMutation.variables === widget._id
+                              }
+                              hideBusinessName={true}
+                            />
+                          </TabsContent>
+                        ))}
+                      </Tabs>
+                    </div>
                   ))}
                 </div>
               ) : (
