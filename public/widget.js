@@ -1258,29 +1258,6 @@
             <div class="reviewhub-widget-content layout-carousel">
               ${carouselHtml}
             </div>
-            <div style="text-align: center; padding: 16px;">
-              <a href="${reviewUrl}" 
-                 target="_blank" 
-                 rel="noopener noreferrer" 
-                 style="
-                   display: inline-block;
-                   margin-top: 12px;
-                   padding: 8px 18px;
-                   background: #2563eb;
-                   color: #fff;
-                   border-radius: 8px;
-                   font-weight: 600;
-                   font-size: 1rem;
-                   text-decoration: none;
-                   transition: background 0.2s ease-in-out;
-                   text-align: center;
-                   width: 100%;
-                 "
-                 onmouseover="this.style.background='#1d4ed8'"
-                 onmouseout="this.style.background='#2563eb'">
-                Write a review on Google
-              </a>
-            </div>
           </div>
         `;
         container.innerHTML = widgetHtml;
@@ -1546,29 +1523,6 @@
           <div class="reviewhub-widget-content layout-${widgetSettings.layout || 'grid'}">
             ${reviewsHtml || '<div class="reviewhub-widget-error"><div class="reviewhub-error-title">No reviews available</div></div>'}
           </div>
-          <div style="text-align: center; padding: 16px;">
-            <a href="${reviewUrl}" 
-               target="_blank" 
-               rel="noopener noreferrer" 
-               style="
-                 display: inline-block;
-                 margin-top: 12px;
-                 padding: 8px 18px;
-                 background: #2563eb;
-                 color: #fff;
-                 border-radius: 8px;
-                 font-weight: 600;
-                 font-size: 1rem;
-                 text-decoration: none;
-                 transition: background 0.2s ease-in-out;
-                 text-align: center;
-                 width: 100%;
-               "
-               onmouseover="this.style.background='#1d4ed8'"
-               onmouseout="this.style.background='#2563eb'">
-              Write a review on Google
-            </a>
-          </div>
         </div>
       `;
       
@@ -1602,11 +1556,29 @@
         <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
       </svg>`;
       
+      // Centered modal overlay and panel styles
       const modalHtml = `
-        <div class="reviewhub-modal-overlay">
-          <div class="reviewhub-modal">
-            <button class="reviewhub-modal-close">&times;</button>
-            <div class="reviewhub-modal-header">
+        <div class="reviewhub-modal-overlay" style="
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          padding: 20px !important;
+        ">
+          <div class="reviewhub-modal" style="
+            background: white !important;
+            border-radius: 12px !important;
+            max-width: 500px !important;
+            width: 100% !important;
+            max-height: 80vh !important;
+            overflow-y: auto !important;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+            position: relative !important;
+            font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif !important;
+            transform: none !important;
+            transition: none !important;
+          ">
+            <button class="reviewhub-modal-close" style="position: absolute !important; top: 16px !important; right: 16px !important; background: none !important; border: none !important; font-size: 24px !important; cursor: pointer !important; color: #6b7280 !important; padding: 4px !important; border-radius: 4px !important; transition: all 0.2s ease !important;">&times;</button>
+            <div class="reviewhub-modal-header" style="padding: 24px 48px 0 24px !important; border-bottom: 1px solid #e5e7eb !important; margin-bottom: 24px !important; background: white !important; z-index: 1 !important;">
               <div class="reviewhub-review-item">
                 <div class="reviewhub-review-header">
                   <div class="reviewhub-review-avatar">
@@ -1629,7 +1601,7 @@
                 </div>
               </div>
             </div>
-            <div class="reviewhub-modal-content">
+            <div class="reviewhub-modal-content" style="padding: 0 24px 24px 24px !important;">
               <div class="reviewhub-review-content">${this.escapeHtml(reviewText)}</div>
             </div>
           </div>
@@ -1643,10 +1615,7 @@
       const closeButton = modalElement.querySelector('.reviewhub-modal-close');
       
       const closeModal = () => {
-        modal.classList.add('closing');
-        setTimeout(() => {
-          document.body.removeChild(modalElement);
-        }, 300);
+        document.body.removeChild(modalElement);
       };
       
       closeButton.addEventListener('click', closeModal);
