@@ -169,7 +169,7 @@ const WidgetCodeModal = ({
 
             {/* New instructional block for multiple carousels/layouts */}
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
-              <h4 className="font-medium text-yellow-800 mb-2">If you are using 2 layout on any website, Here is the example code:</h4>
+              <h4 className="font-medium text-yellow-800 mb-2">Here&apos;s a sample code snippet for implementing two layouts on a website.</h4>
               <pre className="bg-gray-50 border rounded-lg p-3 text-xs overflow-x-auto mb-2"><code>{`<div id="carousel-header"></div>
 <script
   src="${domain}/widget.js"
