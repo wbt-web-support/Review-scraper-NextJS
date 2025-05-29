@@ -1646,7 +1646,6 @@
     
     initWidget: function(config) {
       let container = null;
-      
       this.log('info', 'Initializing widget', config);
       this.injectStyles();
       if (config.containerId) {
@@ -1656,21 +1655,10 @@
           return;
         }
       } else {
-        const scripts = document.querySelectorAll(`script[data-widget-id="${config.widgetId}"]`);
-        const scriptTag = scripts[scripts.length - 1];
-        
-        if (scriptTag) {
-          container = document.createElement('div');
-          container.id = `reviewhub-widget-${config.widgetId}`;
-          scriptTag.parentNode.insertBefore(container, scriptTag.nextSibling);
-        } else {
-          this.log('error', `Script tag not found for widget: ${config.widgetId}`);
-          return;
-        }
+        this.log('error', 'No data-container-id provided for widget. Widget will not be rendered.');
+        return;
       }
-
       container.className = 'reviewhub-widget-container';
-
       container.innerHTML = `
         <div class="reviewhub-widget" style="--widget-theme-color: ${config.themeColor || '#3B82F6'}; --widget-theme-color-dark: ${this.darkenColor(config.themeColor || '#3B82F6', 20)}">
           <div class="reviewhub-widget-loading">
@@ -1679,11 +1667,9 @@
           </div>
         </div>
       `;
-
       const params = new URLSearchParams();
       if (config.themeColor) params.append('themeColor', config.themeColor);
       if (config.layout) params.append('layout', config.layout);
-      
       const queryString = params.toString();
       const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${config.widgetId}${queryString ? '?' + queryString : ''}`;
       console.log("API URL", apiUrl);
@@ -1706,21 +1692,21 @@
   function initializeWidgetsFromScripts() {
     const scriptTags = document.querySelectorAll('script[data-widget-id]');
     window.ReviewHub.log('info', `Found ${scriptTags.length} widget script(s)`);
-    
     scriptTags.forEach(function(script) {
       const widgetId = script.getAttribute('data-widget-id');
       const themeColor = script.getAttribute('data-theme-color');
       const layout = script.getAttribute('data-layout');
       const name = script.getAttribute('data-name');
-      
+      const containerId = script.getAttribute('data-container-id');
       if (widgetId) {
         const config = {
           widgetId: widgetId,
           name: name,
           themeColor: themeColor,
-          layout: layout
+          layout: layout,
+          containerId: containerId || undefined,
+          _scriptTag: script // Pass the script tag for unique instance
         };
-        
         window.ReviewHub.initWidget(config);
       }
     });
