@@ -166,6 +166,33 @@ const WidgetCodeModal = ({
                 <li>The widget will automatically load and display your reviews</li>
               </ol>
             </div>
+
+            {/* New instructional block for multiple carousels/layouts */}
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
+              <h4 className="font-medium text-yellow-800 mb-2">If you are using 2 layout on any website, Here is the example code:</h4>
+              <pre className="bg-gray-50 border rounded-lg p-3 text-xs overflow-x-auto mb-2"><code>{`<div id="carousel-header"></div>
+<script
+  src="${domain}/widget.js"
+  data-widget-id="${actualWidgetId}"
+  data-theme-color="${widget.themeColor || '#3182CE'}"
+  data-layout="${widget.layout || 'carousel'}"
+  data-container-id="carousel-header">
+</script>
+
+<h1>Hiiiii</h1>
+
+<div id="carousel-footer"></div>
+<script
+  src="${domain}/widget.js"
+  data-widget-id="${actualWidgetId}"
+  data-theme-color="${widget.themeColor || '#3182CE'}"
+  data-layout="${widget.layout || 'carousel'}"
+  data-container-id="carousel-footer">
+</script>`}</code></pre>
+              <div className="text-yellow-700 text-xs mt-1">
+                <em>Use your actual business&#39;s <b>data-widget-id</b> in all script tags for that business.</em>
+              </div>
+            </div>
           </TabsContent>
 
           {isPreviewMode && previewWidgetProps && (
