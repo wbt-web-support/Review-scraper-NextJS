@@ -49,7 +49,8 @@ const WidgetCodeModal = ({
   // Use temp ID for preview, but show what the actual code will look like
   const actualWidgetId = widget._id === "temp-preview-widget" ? "YOUR_WIDGET_ID" : widget._id;
   
-  const javascriptCode = `<script src="${domain}/widget.js" data-widget-id="${actualWidgetId}"${widget.themeColor ? ` data-theme-color="${widget.themeColor.replace(/"/g, '&quot;')}"` : ''}${widget.layout ? ` data-layout="${widget.layout.replace(/"/g, '&quot;')}"` : ''}></script>`;
+  const javascriptCode = `<div id="widget-container"></div>
+<script src="${domain}/widget.js" data-widget-id="${actualWidgetId}"${widget.themeColor ? ` data-theme-color="${widget.themeColor.replace(/"/g, '&quot;')}"` : ''}${widget.layout ? ` data-layout="${widget.layout.replace(/"/g, '&quot;')}"` : ''} data-container-id="widget-container"></script>`;
 
   // Handle copy to clipboard
   const handleCopyCode = (codeType?: string) => {
