@@ -95,7 +95,7 @@ export const scrapeGoogleReviews = async (businessUrlId: string, maxReviewsParam
       if (!businessUrlDoc.url) throw new Error('Business URL is missing.');
   
   
-      const input = { startUrls: [{ url: businessUrlDoc.url }], maxReviews: maxReviewsParam || 500, language: "en" };
+      const input = { startUrls: [{ url: businessUrlDoc.url }], language: "en" };
       console.log(`Starting Apify actor: ${GOOGLE_REVIEWS_ACTOR_NAME} for business ID: ${businessUrlId}`);
       const run = await googleClient.actor(GOOGLE_REVIEWS_ACTOR_NAME).call(input);
       console.log(`Apify actor run for Google completed. Dataset ID: ${run.defaultDatasetId}`);
@@ -139,7 +139,7 @@ export const scrapeFacebookReviews = async (businessUrlId: string, maxReviewsPar
       if (businessUrlDoc.source !== 'facebook') throw new Error('Business URL source is not Facebook.');
       if (!businessUrlDoc.url) throw new Error('Business URL is missing.');
   
-      const input = { startUrls: [{ url: businessUrlDoc.url }], resultsLimit: maxReviewsParam || 500 };
+      const input = { startUrls: [{ url: businessUrlDoc.url }] };
       console.log(`Starting Apify actor: ${FACEBOOK_REVIEWS_ACTOR_NAME} for business ID: ${businessUrlId}`);
       const run = await facebookClient.actor(FACEBOOK_REVIEWS_ACTOR_NAME).call(input);
       console.log(`Apify actor run for Facebook completed. Dataset ID: ${run.defaultDatasetId}`);

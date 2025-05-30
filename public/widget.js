@@ -192,7 +192,38 @@
         }
         
         .reviewhub-carousel-container {
+          position: relative !important;
+          width: 100% !important;
+          overflow: hidden !important;
+          padding: 0 70px !important;
+          box-sizing: border-box !important;
           background: transparent !important;
+        }
+        
+        .reviewhub-carousel-dots {
+          display: none !important;
+          justify-content: center !important;
+          align-items: center !important;
+          gap: 8px !important;
+          margin-top: 16px !important;
+          padding: 0 !important;
+          list-style: none !important;
+        }
+        
+        .reviewhub-carousel-dot {
+          width: 8px !important;
+          height: 8px !important;
+          border-radius: 50% !important;
+          background: #e5e7eb !important;
+          cursor: pointer !important;
+          transition: all 0.3s ease !important;
+          padding: 0 !important;
+          border: none !important;
+        }
+        
+        .reviewhub-carousel-dot.active {
+          background: var(--widget-theme-color, #3B82F6) !important;
+          transform: scale(1.2) !important;
         }
         
         .reviewhub-widget-content.layout-masonry {
@@ -636,15 +667,6 @@
           font-family: inherit !important;
         }
         
-        .reviewhub-carousel-container {
-          position: relative !important;
-          width: 100% !important;
-          overflow: hidden !important;
-          padding: 0 70px !important;
-          box-sizing: border-box !important;
-          background: transparent !important;
-        }
-        
         .reviewhub-carousel-viewport {
           overflow: hidden !important;
           width: 100% !important;
@@ -656,27 +678,55 @@
           transition: transform 0.5s cubic-bezier(0.4,0,0.2,1) !important;
           will-change: transform !important;
           align-items: stretch !important;
-          margin: 0 !important;
+          margin: 0 auto !important;
           padding: 0 !important;
           transform-origin: left center !important;
+          justify-content: center !important;
         }
-        
         .layout-carousel .reviewhub-review-item {
           flex: 0 0 auto !important;
           width: 320px !important;
-          min-width: 320px !important;
-          max-width: 320px !important;
-          height: 280px !important;
+          height: 320px !important;
           margin: 0 12px !important;
           box-sizing: border-box !important;
+          display: flex !important;
+          flex-direction: column !important;
         }
-        
-        .layout-carousel .reviewhub-review-item:first-child {
-          margin-left: 0 !important;
+        @media (min-width: 576px) {
+          .layout-carousel .reviewhub-review-item {
+            width: 320px !important;
+            height: 320px !important;
+          }
         }
-        
-        .layout-carousel .reviewhub-review-item:last-child {
-          margin-right: 0 !important;
+        @media (min-width: 992px) {
+          .layout-carousel .reviewhub-review-item {
+            width: 340px !important;
+            height: 340px !important;
+          }
+        }
+        @media (min-width: 1440px) {
+          .layout-carousel .reviewhub-review-item {
+            width: 360px !important;
+            height: 360px !important;
+          }
+        }
+        @media (max-width: 767px) {
+          .reviewhub-carousel-container {
+            padding: 0 !important;
+          }
+          .reviewhub-carousel-viewport {
+            width: 100% !important;
+            overflow: hidden !important;
+          }
+          .reviewhub-carousel-track {
+            justify-content: flex-start !important;
+            width: 100% !important;
+          }
+          .layout-carousel .reviewhub-review-item {
+            width: 100% !important;
+            margin: 0 !important;
+            height: 320px !important;
+          }
         }
         
         .reviewhub-carousel-prev, .reviewhub-carousel-next {
@@ -723,98 +773,53 @@
           right: 15px !important;
         }
         
-        @media (min-width: 1680px) {
+        @media (min-width: 576px) {
           .layout-carousel .reviewhub-review-item {
-            width: 300px !important;
-            min-width: 300px !important;
-            max-width: 300px !important;
-            height: 300px !important;
-            margin: 0 12px !important;
-          }
-          .reviewhub-carousel-container {
-            padding: 0 80px !important;
+            width: calc((100% - 36px) / 2) !important;
+            min-width: calc((100% - 36px) / 2) !important;
+            max-width: calc((100% - 36px) / 2) !important;
           }
         }
         
-        @media (max-width: 1679px) and (min-width: 1440px) {
+        @media (min-width: 992px) {
           .layout-carousel .reviewhub-review-item {
-            width: 320px !important;
-            min-width: 320px !important;
-            max-width: 320px !important;
-            height: 300px !important;
-            margin: 0 12px !important;
-          }
-          .reviewhub-carousel-container {
-            padding: 0 80px !important;
+            width: calc((100% - 48px) / 3) !important;
+            min-width: calc((100% - 48px) / 3) !important;
+            max-width: calc((100% - 48px) / 3) !important;
           }
         }
         
-        @media (max-width: 1439px) and (min-width: 1200px) {
+        @media (min-width: 1440px) {
           .layout-carousel .reviewhub-review-item {
-            width: 300px !important;
-            min-width: 300px !important;
-            max-width: 300px !important;
-            height: 280px !important;
-            margin: 0 12px !important;
-          }
-          .reviewhub-carousel-container {
-            padding: 0 70px !important;
+            width: calc((100% - 60px) / 4) !important;
+            min-width: calc((100% - 60px) / 4) !important;
+            max-width: calc((100% - 60px) / 4) !important;
           }
         }
         
-        @media (max-width: 1199px) and (min-width: 992px) {
-          .layout-carousel .reviewhub-review-item {
-            width: 320px !important;
-            min-width: 320px !important;
-            max-width: 320px !important;
-            height: 280px !important;
-            margin: 0 12px !important;
-          }
+        @media (max-width: 767px) {
           .reviewhub-carousel-container {
-            padding: 0 70px !important;
+            padding: 0 20px !important;
           }
-        }
-        
-        @media (max-width: 991px) and (min-width: 768px) {
-          .layout-carousel .reviewhub-review-item {
-            width: 340px !important;
-            min-width: 340px !important;
-            max-width: 340px !important;
-            height: 280px !important;
-            margin: 0 12px !important;
-          }
-          .reviewhub-carousel-container {
-            padding: 0 60px !important;
-          }
-        }
-        
-        @media (max-width: 767px) and (min-width: 576px) {
-          .layout-carousel .reviewhub-review-item {
-            width: 300px !important;
-            min-width: 300px !important;
-            max-width: 300px !important;
-            height: 280px !important;
-            margin: 0 12px !important;
-          }
-          .layout-carousel .reviewhub-review-item:first-child {
-            margin-left: 0 !important;
-          }
-          .layout-carousel .reviewhub-review-item:last-child {
-            margin-right: 0 !important;
-          }
-          .reviewhub-carousel-container {
-            padding: 0 55px !important;
-          }
-          .reviewhub-carousel-prev, .reviewhub-carousel-next {
-            width: 38px !important;
-            height: 38px !important;
-            font-size: 16px !important;
-          }
-          .reviewhub-carousel-prev {
-            left: 12px !important;
-          }
+          .reviewhub-carousel-prev, 
           .reviewhub-carousel-next {
-            right: 12px !important;
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+          }
+          .reviewhub-carousel-dots {
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            margin-top: 12px !important;
+          }
+          .reviewhub-carousel-dot {
+            width: 6px !important;
+            height: 6px !important;
+          }
+          .layout-carousel .reviewhub-review-item {
+            margin: 0 !important;
           }
         }
         
@@ -1144,21 +1149,10 @@
         }
         function getVisibleCount() {
           const width = window.innerWidth;
-          
-          
           if (width < 576) return 1;
-          
-          if (width < 768) return 2;
-          
           if (width < 992) return 2;
-          
-          if (width < 1200) return 3;
-          
-          if (width < 1440) return 4;
-          
-          if (width < 1680) return 4;
-          
-          return 5;
+          if (width < 1440) return 3;
+          return 4;
         }
         let visibleCount = getVisibleCount();
         let currentIndex = 0;
@@ -1221,6 +1215,16 @@
               </div>
             </div>
             <button class="reviewhub-carousel-next" aria-label="Next">${chevronRight}</button>
+            <ul class="reviewhub-carousel-dots">
+              ${reviews.map((_, index) => `
+                <li>
+                  <button class="reviewhub-carousel-dot ${index === 0 ? 'active' : ''}" 
+                          data-index="${index}" 
+                          aria-label="Go to slide ${index + 1}">
+                  </button>
+                </li>
+              `).join('')}
+            </ul>
           </div>
         `;
         const widgetHtml = `
@@ -1235,6 +1239,21 @@
         const prevBtn = container.querySelector('.reviewhub-carousel-prev');
         const nextBtn = container.querySelector('.reviewhub-carousel-next');
         const carouselContainer = container.querySelector('.reviewhub-carousel-container');
+
+        function updateDots() {
+          const isMobile = window.innerWidth <= 767;
+          const dots = container.querySelectorAll('.reviewhub-carousel-dot');
+          
+          if (isMobile) {
+            dots.forEach((dot, index) => {
+              if (index === currentIndex) {
+                dot.classList.add('active');
+              } else {
+                dot.classList.remove('active');
+              }
+            });
+          }
+        }
 
         function renderCarousel() {
           const maxIndex = getMaxIndex();
@@ -1302,26 +1321,55 @@
         }
         function updateArrows() {
           const maxIndex = getMaxIndex();
-          prevBtn.style.display = 'flex';
-          nextBtn.style.display = 'flex';
-          if (currentIndex === 0) {
-            prevBtn.setAttribute('disabled', 'true');
-            prevBtn.style.opacity = '0.3';
-            prevBtn.style.pointerEvents = 'none';
-          } else {
-            prevBtn.removeAttribute('disabled');
-            prevBtn.style.opacity = '1';
-            prevBtn.style.pointerEvents = 'auto';
+          const isMobile = window.innerWidth <= 767;
+          let visibleCount = 1;
+          if (!isMobile && track.children.length > 0) {
+            const cardElement = track.children[0];
+            const cardWidth = cardElement.offsetWidth;
+            const containerWidth = carouselContainer.offsetWidth;
+            visibleCount = Math.floor(containerWidth / cardWidth);
           }
-          
-          if (currentIndex >= maxIndex) {
-            nextBtn.setAttribute('disabled', 'true');
-            nextBtn.style.opacity = '0.3';
+          // Hide arrows if not enough reviews to scroll
+          if ((isMobile && reviews.length <= 1) || (!isMobile && reviews.length <= visibleCount)) {
+            prevBtn.style.display = 'none';
+            nextBtn.style.display = 'none';
+            prevBtn.style.visibility = 'hidden';
+            nextBtn.style.visibility = 'hidden';
+            prevBtn.style.opacity = '0';
+            nextBtn.style.opacity = '0';
+            prevBtn.style.pointerEvents = 'none';
             nextBtn.style.pointerEvents = 'none';
           } else {
-            nextBtn.removeAttribute('disabled');
+            prevBtn.style.display = 'flex';
+            nextBtn.style.display = 'flex';
+            prevBtn.style.visibility = 'visible';
+            nextBtn.style.visibility = 'visible';
+            prevBtn.style.opacity = '1';
             nextBtn.style.opacity = '1';
+            prevBtn.style.pointerEvents = 'auto';
             nextBtn.style.pointerEvents = 'auto';
+
+            // Disable left arrow if at the first card
+            if (currentIndex === 0) {
+              prevBtn.setAttribute('disabled', 'true');
+              prevBtn.style.opacity = '0.3';
+              prevBtn.style.pointerEvents = 'none';
+            } else {
+              prevBtn.removeAttribute('disabled');
+              prevBtn.style.opacity = '1';
+              prevBtn.style.pointerEvents = 'auto';
+            }
+
+            // Disable right arrow if at the last possible card
+            if (currentIndex >= maxIndex) {
+              nextBtn.setAttribute('disabled', 'true');
+              nextBtn.style.opacity = '0.3';
+              nextBtn.style.pointerEvents = 'none';
+            } else {
+              nextBtn.removeAttribute('disabled');
+              nextBtn.style.opacity = '1';
+              nextBtn.style.pointerEvents = 'auto';
+            }
           }
         }
         function goTo(index, animate = true) {
@@ -1329,32 +1377,33 @@
           if (index < 0) index = 0;
           if (index > maxIndex) index = maxIndex;
           currentIndex = index;
-          
           if (track.children.length > 0) {
+            const isMobile = window.innerWidth <= 767;
+            let visibleCount = 1;
             const cardElement = track.children[0];
-            const cardWidth = cardElement.offsetWidth;
-            const width = window.innerWidth;
-            let margin = 12; 
-            if (width < 576) margin = 0;
-            else margin = 12;
-            const visibleCount = getVisibleCount();
-            let translateX = 0;
-            if (currentIndex > 0) {
-              if (visibleCount === 1) {
-                translateX = currentIndex * cardWidth;
-              } else {
-                const cardsToMove = Math.min(currentIndex, reviews.length - visibleCount);
-                if (cardsToMove > 0) {
-                  translateX = cardsToMove * (cardWidth + margin);
-                }
-              }
+            if (!isMobile) {
+              const cardWidth = cardElement.offsetWidth;
+              const containerWidth = carouselContainer.offsetWidth;
+              visibleCount = Math.floor(containerWidth / cardWidth);
             }
-            
+            let translateX = 0;
+            // Prevent scrolling if not enough reviews
+            if ((isMobile && reviews.length <= 1) || (!isMobile && reviews.length <= visibleCount)) {
+                translateX = 0;
+            } else if (isMobile) {
+                // On mobile, translate by card width (which is 100% of viewport)
+                translateX = currentIndex * cardElement.offsetWidth;
+            } else {
+                const cardWidth = cardElement.offsetWidth;
+                const margin = parseInt(window.getComputedStyle(cardElement).marginLeft) + parseInt(window.getComputedStyle(cardElement).marginRight);
+                const totalCardWidth = cardWidth + margin;
+                translateX = currentIndex * totalCardWidth;
+            }
             track.style.transition = animate ? 'transform 0.5s cubic-bezier(0.4,0,0.2,1)' : 'none';
             track.style.transform = `translateX(-${translateX}px)`;
           }
-          
           updateArrows();
+          updateDots();
         }
         prevBtn.addEventListener('click', () => {
           pauseAutoPlay();
@@ -1382,6 +1431,18 @@
         track.addEventListener('mouseleave', () => {
           resumeAutoPlay();
         });
+
+        // Add click handlers for dots
+        const dots = container.querySelectorAll('.reviewhub-carousel-dot');
+        dots.forEach(dot => {
+          dot.addEventListener('click', () => {
+            const index = parseInt(dot.getAttribute('data-index'));
+            pauseAutoPlay();
+            goTo(index);
+            setTimeout(() => resumeAutoPlay(), 2000);
+          });
+        });
+
         this.attachEventListeners(container, reviews);
         return;
       }
