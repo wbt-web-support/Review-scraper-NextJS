@@ -195,7 +195,7 @@
           position: relative !important;
           width: 100% !important;
           overflow: hidden !important;
-          padding: 0 70px !important;
+          padding: 0 50px !important;
           box-sizing: border-box !important;
           background: transparent !important;
         }
@@ -247,7 +247,6 @@
         .reviewhub-review-item {
           background: #ffffff !important;
           border-radius: 12px !important;
-          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
           border: 1px solid #e5e7eb !important;
           padding: 24px !important;
           transition: all 0.3s ease !important;
@@ -281,10 +280,7 @@
           flex: 1 !important;
         }
         
-        .reviewhub-review-item:hover {
-          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
-          transform: translateY(-2px) !important;
-        }
+      
         
         .reviewhub-review-header {
           display: flex !important;
@@ -303,9 +299,7 @@
           transition: all 0.3s ease !important;
         }
         
-        .reviewhub-review-avatar:hover {
-          transform: scale(1.05) !important;
-        }
+  
         
         .reviewhub-review-avatar img {
           width: 100% !important;
@@ -338,7 +332,6 @@
           display: flex !important;
           align-items: center !important;
           justify-content: space-between !important;
-          margin-bottom: 8px !important;
         }
         
         .reviewhub-review-author {
@@ -369,6 +362,10 @@
         
         .reviewhub-review-text {
           flex-grow: 1 !important;
+          display: flex !important; /* Added for flex context */
+          flex-direction: column !important; /* Ensure content flows top-to-bottom */
+          justify-content: space-between; /* Pushes content to top, read more to bottom if present */
+          min-height: 50px; /* Ensure a minimum height for very short reviews */
         }
         
         .reviewhub-review-content {
@@ -414,9 +411,7 @@
           transition: all 0.3s ease !important;
         }
         
-        .reviewhub-source-badge:hover {
-          transform: scale(1.1) !important;
-        }
+
         
         .reviewhub-source-badge.google {
           background: #ffffff !important;
@@ -671,139 +666,88 @@
           overflow: hidden !important;
           width: 100% !important;
           position: relative !important;
+          border-radius: 12px !important;
         }
         
         .reviewhub-carousel-track {
           display: flex !important;
-          transition: transform 0.5s cubic-bezier(0.4,0,0.2,1) !important;
+          transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
           will-change: transform !important;
           align-items: stretch !important;
-          margin: 0 auto !important;
+          margin: 0 !important;
           padding: 0 !important;
           transform-origin: left center !important;
-          justify-content: center !important;
+          gap: 16px !important;
+          cursor: grab !important;
         }
+        
+        .reviewhub-carousel-track:active {
+          cursor: grabbing !important;
+        }
+        
         .layout-carousel .reviewhub-review-item {
           flex: 0 0 auto !important;
-          width: 320px !important;
-          height: 320px !important;
-          margin: 0 12px !important;
+          /* width and min-height will be set by JS or more specific media queries */
+          height: auto !important; /* Allow JS to control height */
           box-sizing: border-box !important;
           display: flex !important;
           flex-direction: column !important;
+          scroll-snap-align: start !important;
+          user-select: none !important;
         }
+        
         @media (min-width: 576px) {
           .layout-carousel .reviewhub-review-item {
-            width: 320px !important;
-            height: 320px !important;
+            width: 300px !important;
+            /* min-height: 300px !important; */ /* Removed */
           }
         }
+        
+        @media (min-width: 768px) {
+          .layout-carousel .reviewhub-review-item {
+            width: 320px !important;
+            /* min-height: 320px !important; */ /* Removed */
+          }
+        }
+        
         @media (min-width: 992px) {
           .layout-carousel .reviewhub-review-item {
             width: 340px !important;
-            height: 340px !important;
+            /* min-height: 340px !important; */ /* Removed */
           }
         }
-        @media (min-width: 1440px) {
+        
+        @media (min-width: 1200px) {
           .layout-carousel .reviewhub-review-item {
             width: 360px !important;
-            height: 360px !important;
+            /* min-height: 360px !important; */ /* Removed */
           }
         }
+        
         @media (max-width: 767px) {
           .reviewhub-carousel-container {
-            padding: 0 !important;
+            padding: 0 0px !important;
           }
+          
           .reviewhub-carousel-viewport {
             width: 100% !important;
             overflow: hidden !important;
           }
+          
           .reviewhub-carousel-track {
-            justify-content: flex-start !important;
-            width: 100% !important;
+            gap: 12px !important;
           }
+          
           .layout-carousel .reviewhub-review-item {
-            width: 100% !important;
-            margin: 0 !important;
-            height: 320px !important;
+            width: calc(100vw - 80px) !important;
+            max-width: 320px !important;
+            min-width: 280px !important;
+            /* min-height: 280px !important; */ /* Removed */
           }
-        }
-        
-        .reviewhub-carousel-prev, .reviewhub-carousel-next {
-          position: absolute !important;
-          top: 50% !important;
-          transform: translateY(-50%) !important;
-          width: 44px !important;
-          height: 44px !important;
-          background: rgba(255, 255, 255, 0.95) !important;
-          border: 1px solid #e5e7eb !important;
-          border-radius: 50% !important;
-          color: #6b7280 !important;
-          font-size: 18px !important;
-          cursor: pointer !important;
-          z-index: 10 !important;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
-          transition: all 0.2s ease !important;
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          user-select: none !important;
-          margin: 0 !important;
-          padding: 0 !important;
-          backdrop-filter: blur(4px) !important;
-        }
-        
-        .reviewhub-carousel-prev:hover:not([disabled]), .reviewhub-carousel-next:hover:not([disabled]) {
-          background: var(--widget-theme-color, #3B82F6) !important;
-          color: #fff !important;
-          border-color: var(--widget-theme-color, #3B82F6) !important;
-        }
-        
-        .reviewhub-carousel-prev[disabled], .reviewhub-carousel-next[disabled] {
-          opacity: 0.3 !important;
-          cursor: not-allowed !important;
-          pointer-events: none !important;
-        }
-        
-        .reviewhub-carousel-prev {
-          left: 15px !important;
-        }
-        
-        .reviewhub-carousel-next {
-          right: 15px !important;
-        }
-        
-        @media (min-width: 576px) {
-          .layout-carousel .reviewhub-review-item {
-            width: calc((100% - 36px) / 2) !important;
-            min-width: calc((100% - 36px) / 2) !important;
-            max-width: calc((100% - 36px) / 2) !important;
-          }
-        }
-        
-        @media (min-width: 992px) {
-          .layout-carousel .reviewhub-review-item {
-            width: calc((100% - 48px) / 3) !important;
-            min-width: calc((100% - 48px) / 3) !important;
-            max-width: calc((100% - 48px) / 3) !important;
-          }
-        }
-        
-        @media (min-width: 1440px) {
-          .layout-carousel .reviewhub-review-item {
-            width: calc((100% - 60px) / 4) !important;
-            min-width: calc((100% - 60px) / 4) !important;
-            max-width: calc((100% - 60px) / 4) !important;
-          }
-        }
-        
-        @media (max-width: 767px) {
-          .reviewhub-carousel-container {
-            padding: 0 20px !important;
-          }
+           /* Show dots and hide arrows on mobile by default, JS will manage visibility if enough items */
           .reviewhub-carousel-prev, 
           .reviewhub-carousel-next {
-            display: none !important;
+            display: none !important; 
             visibility: hidden !important;
             opacity: 0 !important;
             pointer-events: none !important;
@@ -818,62 +762,100 @@
             width: 6px !important;
             height: 6px !important;
           }
-          .layout-carousel .reviewhub-review-item {
-            margin: 0 !important;
-          }
+        }
+        
+        .reviewhub-carousel-prev, .reviewhub-carousel-next {
+          position: absolute !important;
+          top: 50% !important;
+          transform: translateY(-50%) !important;
+          width: 40px !important;
+          height: 40px !important;
+          background: rgba(255, 255, 255, 0.9) !important;
+          border: 1px solid #e0e0e0 !important;
+          border-radius: 50% !important;
+          color: #333 !important;
+          font-size: 18px !important; /* Adjusted for better icon visibility */
+          cursor: pointer !important;
+          z-index: 10 !important;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.1) !important;
+          transition: all 0.25s ease !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          user-select: none !important;
+          padding: 0 !important; /* Ensure no extra padding interferes with centering */
+          backdrop-filter: blur(3px) !important;
+        }
+        
+        .reviewhub-carousel-prev:hover:not([disabled]), .reviewhub-carousel-next:hover:not([disabled]) {
+          background: var(--widget-theme-color, #3B82F6) !important;
+          color: #fff !important;
+          border-color: var(--widget-theme-color, #3B82F6) !important;
+          transform: translateY(-50%) scale(1.08) !important;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+        }
+        
+        .reviewhub-carousel-prev[disabled], .reviewhub-carousel-next[disabled] {
+          opacity: 0.4 !important;
+          cursor: not-allowed !important;
+          /* pointer-events: none; /* Already managed by JS logic effectively */
+        }
+        
+        .reviewhub-carousel-prev {
+          left: 10px !important; /* Slightly more space from edge */
+        }
+        
+        .reviewhub-carousel-next {
+          right: 10px !important; /* Slightly more space from edge */
         }
         
         @media (max-width: 575px) {
-          .layout-carousel .reviewhub-review-item {
-            width: calc(100vw - 100px) !important;
-            min-width: calc(100vw - 100px) !important;
-            max-width: 320px !important;
-            height: 280px !important;
-            margin: 0 !important;
-          }
-          .layout-carousel .reviewhub-review-item:first-child {
-            margin-left: 0 !important;
-          }
-          .layout-carousel .reviewhub-review-item:last-child {
-            margin-right: 0 !important;
-          }
           .reviewhub-carousel-container {
-            padding: 0 45px !important;
+            padding: 0 0px !important;
           }
+          
           .reviewhub-carousel-prev, .reviewhub-carousel-next {
             width: 36px !important;
-            height: 36px !important;
+            height: 36px !importanT;
             font-size: 14px !important;
           }
+          
           .reviewhub-carousel-prev {
             left: 8px !important;
           }
+          
           .reviewhub-carousel-next {
             right: 8px !important;
+          }
+          
+          .layout-carousel .reviewhub-review-item {
+            width: calc(100vw - 120px) !important;
+            max-width: 300px !important;
+            min-width: 260px !important;
+            /* min-height: 260px !important; */ /* Removed */
           }
         }
         
         @media (max-width: 319px) {
           .layout-carousel .reviewhub-review-item {
-            width: calc(100vw - 80px) !important;
-            min-width: calc(100vw - 80px) !important;
+            width: calc(100vw - 100px) !important;
+            min-width: calc(100vw - 100px) !important;
             max-width: 240px !important;
-            height: 260px !important;
-            margin: 0 4px !important;
+            /* min-height: 240px !important; */ /* Removed */
           }
           .reviewhub-carousel-container {
-            padding: 0 35px !important;
+            padding: 0 0px !important;
           }
           .reviewhub-carousel-prev, .reviewhub-carousel-next {
-            width: 28px !important;
-            height: 28px !important;
-            font-size: 10px !important;
+            width: 32px !important;
+            height: 32px !important;
+            font-size: 12px !important;
           }
           .reviewhub-carousel-prev {
-            left: 4px !important;
+            left: 6px !important;
           }
           .reviewhub-carousel-next {
-            right: 4px !important;
+            right: 6px !important;
           }
         }
       `;
@@ -1150,15 +1132,21 @@
         function getVisibleCount() {
           const width = window.innerWidth;
           if (width < 576) return 1;
+          if (width < 768) return 1;
           if (width < 992) return 2;
-          if (width < 1440) return 3;
+          if (width < 1200) return 3;
           return 4;
         }
+        
         let visibleCount = getVisibleCount();
         let currentIndex = 0;
         let autoPlayInterval = null;
         let isAutoPlaying = true;
-        const AUTO_PLAY_DELAY = 4000; 
+        let isDragging = false;
+        let startX = 0;
+        let currentX = 0;
+        let dragThreshold = 50;
+        const AUTO_PLAY_DELAY = 4000;
         const totalReviews = typeof totalReviewCount === 'number' ? totalReviewCount : reviews.length;
         const platformName = widgetSettings.businessUrl?.source === 'facebook' ? 'Facebook' : 'Google';
         
@@ -1261,8 +1249,9 @@
             currentIndex = maxIndex;
           }
           
-          updateArrows();
-          goTo(currentIndex, false);
+          this.adjustCardHeights(); // Call using this context
+          updateArrowsForLoop();
+          goToWithLoop(currentIndex, false);
           startAutoPlay();
         }
         
@@ -1271,17 +1260,68 @@
           const currentVisibleCount = getVisibleCount();
           const maxIndex = getMaxIndex();
           if (reviews.length <= currentVisibleCount || maxIndex === 0) return;
+          
           autoPlayInterval = setInterval(() => {
             if (isAutoPlaying) {
               const currentMaxIndex = getMaxIndex();
-              if (currentIndex >= currentMaxIndex) {
-                goTo(0);
-              } else {
-                const nextIndex = Math.min(currentIndex + 1, currentMaxIndex);
-                goTo(nextIndex);
-              }
+              // Smooth infinite loop: when reaching the end, go to next item (which will be 0)
+              const nextIndex = (currentIndex + 1) % (currentMaxIndex + 1);
+              goToWithLoop(nextIndex);
             }
           }, AUTO_PLAY_DELAY);
+        }
+        
+        function goToWithLoop(index, animate = true) {
+          const maxIndex = getMaxIndex();
+          const totalSlides = maxIndex + 1;
+          
+          // Handle infinite loop logic
+          if (index >= totalSlides) {
+            // Going forward past the end - loop to beginning
+            currentIndex = 0;
+          } else if (index < 0) {
+            // Going backward past the beginning - loop to end
+            currentIndex = maxIndex;
+          } else {
+            currentIndex = index;
+          }
+          
+          if (track.children.length > 0) {
+            const firstCard = track.children[0];
+            const cardWidth = firstCard.offsetWidth;
+            const gap = 16;
+            
+            let translateX = 0;
+            if (reviews.length > visibleCount) {
+              translateX = currentIndex * (cardWidth + gap);
+            }
+            
+            track.style.transition = animate ? 'transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none';
+            track.style.transform = `translateX(-${translateX}px)`;
+          }
+          
+          updateArrowsForLoop();
+          updateDots();
+        }
+        
+        function updateArrowsForLoop() {
+          // For infinite loop, arrows are always enabled (except when not enough content)
+          if (reviews.length <= visibleCount) {
+            prevBtn.style.display = 'none';
+            nextBtn.style.display = 'none';
+          } else {
+            prevBtn.style.display = 'flex';
+            nextBtn.style.display = 'flex';
+            
+            // Always enable arrows for infinite loop
+            prevBtn.removeAttribute('disabled');
+            prevBtn.style.opacity = '1';
+            prevBtn.style.pointerEvents = 'auto';
+            
+            nextBtn.removeAttribute('disabled');
+            nextBtn.style.opacity = '1';
+            nextBtn.style.pointerEvents = 'auto';
+          }
         }
         
         function stopAutoPlay() {
@@ -1298,20 +1338,25 @@
         function resumeAutoPlay() {
           isAutoPlaying = true;
         }
+        // Initial call to render
         setTimeout(() => {
-          renderCarousel();
+          renderCarousel.call(this); // Ensure `this` context for renderCarousel
+          addTouchSupport(); 
         }, 50);
+        
         window.addEventListener('resize', () => {
-          updateVisibleCount();
+          updateVisibleCount.call(this); // Ensure `this` context for updateVisibleCount
           stopAutoPlay();
-          renderCarousel();
+          // renderCarousel is called by updateVisibleCount, which now also has `this` context
         });
+
         function updateVisibleCount() {
           visibleCount = getVisibleCount();
           const maxIndex = getMaxIndex();
           if (currentIndex > maxIndex) currentIndex = maxIndex;
-          renderCarousel();
+          renderCarousel.call(this); // Ensure `this` context
         }
+
         function getMaxIndex() {
           if (reviews.length <= visibleCount) {
             return 0; 
@@ -1322,34 +1367,16 @@
         function updateArrows() {
           const maxIndex = getMaxIndex();
           const isMobile = window.innerWidth <= 767;
-          let visibleCount = 1;
-          if (!isMobile && track.children.length > 0) {
-            const cardElement = track.children[0];
-            const cardWidth = cardElement.offsetWidth;
-            const containerWidth = carouselContainer.offsetWidth;
-            visibleCount = Math.floor(containerWidth / cardWidth);
-          }
+          
           // Hide arrows if not enough reviews to scroll
-          if ((isMobile && reviews.length <= 1) || (!isMobile && reviews.length <= visibleCount)) {
+          if (reviews.length <= visibleCount) {
             prevBtn.style.display = 'none';
             nextBtn.style.display = 'none';
-            prevBtn.style.visibility = 'hidden';
-            nextBtn.style.visibility = 'hidden';
-            prevBtn.style.opacity = '0';
-            nextBtn.style.opacity = '0';
-            prevBtn.style.pointerEvents = 'none';
-            nextBtn.style.pointerEvents = 'none';
           } else {
             prevBtn.style.display = 'flex';
             nextBtn.style.display = 'flex';
-            prevBtn.style.visibility = 'visible';
-            nextBtn.style.visibility = 'visible';
-            prevBtn.style.opacity = '1';
-            nextBtn.style.opacity = '1';
-            prevBtn.style.pointerEvents = 'auto';
-            nextBtn.style.pointerEvents = 'auto';
-
-            // Disable left arrow if at the first card
+            
+            // Update arrow states
             if (currentIndex === 0) {
               prevBtn.setAttribute('disabled', 'true');
               prevBtn.style.opacity = '0.3';
@@ -1359,8 +1386,7 @@
               prevBtn.style.opacity = '1';
               prevBtn.style.pointerEvents = 'auto';
             }
-
-            // Disable right arrow if at the last possible card
+            
             if (currentIndex >= maxIndex) {
               nextBtn.setAttribute('disabled', 'true');
               nextBtn.style.opacity = '0.3';
@@ -1377,43 +1403,113 @@
           if (index < 0) index = 0;
           if (index > maxIndex) index = maxIndex;
           currentIndex = index;
+          
           if (track.children.length > 0) {
             const isMobile = window.innerWidth <= 767;
-            let visibleCount = 1;
-            const cardElement = track.children[0];
-            if (!isMobile) {
-              const cardWidth = cardElement.offsetWidth;
-              const containerWidth = carouselContainer.offsetWidth;
-              visibleCount = Math.floor(containerWidth / cardWidth);
-            }
+            const firstCard = track.children[0];
+            const cardWidth = firstCard.offsetWidth;
+            const gap = 16; // CSS gap value
+            
+            // Calculate translation based on current index
             let translateX = 0;
-            // Prevent scrolling if not enough reviews
-            if ((isMobile && reviews.length <= 1) || (!isMobile && reviews.length <= visibleCount)) {
-                translateX = 0;
-            } else if (isMobile) {
-                // On mobile, translate by card width (which is 100% of viewport)
-                translateX = currentIndex * cardElement.offsetWidth;
-            } else {
-                const cardWidth = cardElement.offsetWidth;
-                const margin = parseInt(window.getComputedStyle(cardElement).marginLeft) + parseInt(window.getComputedStyle(cardElement).marginRight);
-                const totalCardWidth = cardWidth + margin;
-                translateX = currentIndex * totalCardWidth;
+            if (reviews.length > visibleCount) {
+              if (isMobile) {
+                translateX = currentIndex * (cardWidth + gap);
+              } else {
+                translateX = currentIndex * (cardWidth + gap);
+              }
             }
-            track.style.transition = animate ? 'transform 0.5s cubic-bezier(0.4,0,0.2,1)' : 'none';
+            
+            track.style.transition = animate ? 'transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none';
             track.style.transform = `translateX(-${translateX}px)`;
           }
+          
           updateArrows();
           updateDots();
         }
+        
+        // Add touch/drag support
+        function addTouchSupport() {
+          // Mouse events
+          track.addEventListener('mousedown', handleStart);
+          track.addEventListener('mousemove', handleMove);
+          track.addEventListener('mouseup', handleEnd);
+          track.addEventListener('mouseleave', handleEnd);
+          
+          // Touch events
+          track.addEventListener('touchstart', handleStart, { passive: true });
+          track.addEventListener('touchmove', handleMove, { passive: false });
+          track.addEventListener('touchend', handleEnd);
+          
+          function handleStart(e) {
+            isDragging = true;
+            startX = getClientX(e);
+            currentX = startX;
+            track.style.cursor = 'grabbing';
+            pauseAutoPlay();
+          }
+          
+          function handleMove(e) {
+            if (!isDragging) return;
+            
+            e.preventDefault();
+            currentX = getClientX(e);
+            const deltaX = currentX - startX;
+            
+            // Provide visual feedback during drag
+            const currentTransform = track.style.transform;
+            const currentTranslateX = getCurrentTranslateX();
+            track.style.transition = 'none';
+            track.style.transform = `translateX(${currentTranslateX - deltaX}px)`;
+          }
+          
+          function handleEnd(e) {
+            if (!isDragging) return;
+            
+            isDragging = false;
+            track.style.cursor = 'grab';
+            
+            const deltaX = currentX - startX;
+            
+            // Determine if user dragged enough to trigger slide
+            if (Math.abs(deltaX) > dragThreshold) {
+              if (deltaX > 0) {
+                // Dragged right, go to previous (with loop)
+                goToWithLoop(currentIndex - 1);
+              } else if (deltaX < 0) {
+                // Dragged left, go to next (with loop)
+                goToWithLoop(currentIndex + 1);
+              } else {
+                // Snap back to current position
+                goToWithLoop(currentIndex);
+              }
+            } else {
+              // Snap back to current position
+              goToWithLoop(currentIndex);
+            }
+            
+            setTimeout(() => resumeAutoPlay(), 2000);
+          }
+          
+          function getClientX(e) {
+            return e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+          }
+          
+          function getCurrentTranslateX() {
+            const transform = track.style.transform;
+            const match = transform.match(/translateX\((-?\d+(?:\.\d+)?)px\)/);
+            return match ? parseFloat(match[1]) : 0;
+          }
+        }
         prevBtn.addEventListener('click', () => {
           pauseAutoPlay();
-          goTo(currentIndex - 1);
+          goToWithLoop(currentIndex - 1);
           setTimeout(() => resumeAutoPlay(), 2000);
         });
         
         nextBtn.addEventListener('click', () => {
           pauseAutoPlay();
-          goTo(currentIndex + 1);
+          goToWithLoop(currentIndex + 1);
           setTimeout(() => resumeAutoPlay(), 2000);
         });
         goTo(currentIndex, false);
@@ -1438,7 +1534,7 @@
           dot.addEventListener('click', () => {
             const index = parseInt(dot.getAttribute('data-index'));
             pauseAutoPlay();
-            goTo(index);
+            goToWithLoop(index);
             setTimeout(() => resumeAutoPlay(), 2000);
           });
         });
@@ -1543,10 +1639,10 @@
       const sourceClass = review.source === 'google' ? 'google' : 'facebook';
       const googleLogo = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
         <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-      </svg>`;
+      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+    </svg>`;
       
       const facebookLogo = `<svg width="14" height="14" viewBox="0 0 24 24" fill="#1877F2">
         <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
@@ -1747,6 +1843,30 @@
           this.log('error', 'Failed to load widget data', { widgetId: config.widgetId, error: error.message });
           this.showError(container, error, config, retryLoad);
         });
+    },
+    adjustCardHeights: function() { 
+      const track = document.querySelector('.reviewhub-carousel-track');
+      if (!track || !track.children.length) return;
+      
+      let maxHeight = 0;
+      const reviewItems = track.querySelectorAll('.reviewhub-review-item');
+      
+      reviewItems.forEach(item => {
+        item.style.height = 'auto';
+      });
+      
+      reviewItems.forEach(item => {
+        const itemHeight = item.offsetHeight;
+        if (itemHeight > maxHeight) {
+          maxHeight = itemHeight;
+        }
+      });
+      
+      if (maxHeight > 0) {
+        reviewItems.forEach(item => {
+          item.style.height = `${maxHeight}px`;
+        });
+      }
     }
   };
 
