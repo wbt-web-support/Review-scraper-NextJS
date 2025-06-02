@@ -255,7 +255,6 @@
           display: flex !important;
           flex-direction: column !important;
           gap: 16px !important;
-          height: 100% !important;
         }
         
         .layout-grid .reviewhub-review-item {
@@ -369,13 +368,16 @@
         }
         
         .reviewhub-review-content {
-          color: #374151 !important;
-          line-height: 1.6 !important;
-          font-size: 16px !important;
-          margin-bottom: 12px !important;
-          font-weight: 400 !important;
-          text-align: left !important;
-        }
+    color: #374151 !important;
+    line-height: 1.6 !important;
+    font-size: 16px !important;
+    margin-bottom: 12px !important;
+    font-weight: 400 !important;
+    text-align: left !important;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
         
         .reviewhub-read-more {
           color: var(--widget-theme-color, #3B82F6) !important;
@@ -594,6 +596,7 @@
           align-items: stretch !important;
           justify-content: flex-start !important;
           padding: 0 !important;
+          
         }
         
         .reviewhub-modal {
@@ -608,6 +611,7 @@
           font-family: "Roboto", -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif !important;
           transform: translateX(0) !important;
           transition: transform 0.3s ease-in-out !important;
+          height: auto !important;
         }
         
         .reviewhub-modal.closing {
@@ -719,7 +723,7 @@
         
         @media (min-width: 1200px) {
           .layout-carousel .reviewhub-review-item {
-            width: 360px !important;
+            width: 350px !important;
             /* min-height: 360px !important; */ /* Removed */
           }
         }
@@ -856,6 +860,174 @@
           }
           .reviewhub-carousel-next {
             right: 6px !important;
+          }
+        }
+        
+        /* Restart Card Styles */
+        .reviewhub-carousel-restart-card {
+          flex: 0 0 auto !important;
+          background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%) !important;
+          border: 2px dashed #cbd5e1 !important;
+          border-radius: 12px !important;
+          padding: 32px 24px !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          text-align: center !important;
+          min-height: 280px !important;
+          box-sizing: border-box !important;
+          transition: all 0.3s ease !important;
+          position: relative !important;
+          overflow: hidden !important;
+        }
+        
+        .reviewhub-carousel-restart-card::before {
+          content: '' !important;
+          position: absolute !important;
+          top: 0 !important;
+          left: 0 !important;
+          right: 0 !important;
+          bottom: 0 !important;
+          background: linear-gradient(45deg, transparent 40%, rgba(255,255,255,0.3) 50%, transparent 60%) !important;
+          transform: translateX(-100%) !important;
+          transition: transform 0.6s ease !important;
+        }
+        
+        .reviewhub-carousel-restart-card:hover::before {
+          transform: translateX(100%) !important;
+        }
+        
+        .reviewhub-restart-content {
+          position: relative !important;
+          z-index: 2 !important;
+          display: flex !important;
+          flex-direction: column !important;
+          align-items: center !important;
+          gap: 16px !important;
+        }
+        
+        .reviewhub-restart-icon {
+          width: 80px !important;
+          height: 80px !important;
+          background: linear-gradient(135deg, var(--widget-theme-color, #3B82F6) 0%, var(--widget-theme-color-dark, #2563eb) 100%) !important;
+          border-radius: 50% !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          color: white !important;
+          box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3) !important;
+          transition: all 0.3s ease !important;
+          animation: reviewhub-pulse 2s infinite !important;
+        }
+        
+        .reviewhub-carousel-restart-card:hover .reviewhub-restart-icon {
+          transform: scale(1.1) !important;
+          box-shadow: 0 12px 35px rgba(59, 130, 246, 0.4) !important;
+        }
+        
+        .reviewhub-restart-title {
+          font-size: 20px !important;
+          font-weight: 700 !important;
+          color: #1f2937 !important;
+          margin: 0 !important;
+          line-height: 1.3 !important;
+        }
+        
+        .reviewhub-restart-subtitle {
+          font-size: 14px !important;
+          color: #6b7280 !important;
+          margin: 0 !important;
+          line-height: 1.4 !important;
+        }
+        
+        .reviewhub-restart-button {
+          background: var(--widget-theme-color, #3B82F6) !important;
+          color: white !important;
+          border: none !important;
+          padding: 12px 24px !important;
+          border-radius: 25px !important;
+          font-size: 16px !important;
+          font-weight: 600 !important;
+          cursor: pointer !important;
+          transition: all 0.3s ease !important;
+          box-shadow: 0 4px 15px rgba(59, 130, 246, 0.2) !important;
+          min-width: 140px !important;
+          font-family: inherit !important;
+          outline: none !important;
+        }
+        
+        .reviewhub-restart-button:hover {
+          background: var(--widget-theme-color-dark, #2563eb) !important;
+          transform: translateY(-2px) !important;
+          box-shadow: 0 6px 20px rgba(59, 130, 246, 0.3) !important;
+        }
+        
+        .reviewhub-restart-button:active {
+          transform: translateY(0) !important;
+          box-shadow: 0 2px 10px rgba(59, 130, 246, 0.2) !important;
+        }
+        
+        @keyframes reviewhub-pulse {
+          0%, 100% {
+            opacity: 1;
+          }
+          50% {
+            opacity: 0.8;
+          }
+        }
+        
+        /* Mobile specific styles for restart card */
+        @media (max-width: 767px) {
+          .reviewhub-carousel-restart-card {
+            width: calc(100vw - 80px) !important;
+            max-width: 320px !important;
+            min-width: 280px !important;
+            min-height: 260px !important;
+            padding: 24px 20px !important;
+          }
+          
+          .reviewhub-restart-icon {
+            width: 60px !important;
+            height: 60px !important;
+          }
+          
+          .reviewhub-restart-icon svg {
+            width: 32px !important;
+            height: 32px !important;
+          }
+          
+          .reviewhub-restart-title {
+            font-size: 18px !important;
+          }
+          
+          .reviewhub-restart-subtitle {
+            font-size: 13px !important;
+          }
+          
+          .reviewhub-restart-button {
+            font-size: 14px !important;
+            padding: 10px 20px !important;
+            min-width: 120px !important;
+          }
+        }
+        
+        @media (max-width: 575px) {
+          .reviewhub-carousel-restart-card {
+            width: calc(100vw - 120px) !important;
+            max-width: 300px !important;
+            min-width: 260px !important;
+            min-height: 240px !important;
+            padding: 20px 16px !important;
+          }
+        }
+        
+        @media (max-width: 319px) {
+          .reviewhub-carousel-restart-card {
+            width: calc(100vw - 100px) !important;
+            min-width: calc(100vw - 100px) !important;
+            max-width: 240px !important;
+            min-height: 220px !important;
+            padding: 18px 14px !important;
           }
         }
       `;
@@ -1200,6 +1372,19 @@
             <div class="reviewhub-carousel-viewport">
               <div class="reviewhub-carousel-track">
                 ${reviewsHtml}
+                <div class="reviewhub-carousel-restart-card" style="display: none;">
+                  <div class="reviewhub-restart-content">
+                    <div class="reviewhub-restart-icon">
+                      <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M1 4v6h6M23 20v-6h-6" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </div>
+                    <h3 class="reviewhub-restart-title">See More Reviews</h3>
+                    <p class="reviewhub-restart-subtitle">You've reached the end</p>
+                    <button class="reviewhub-restart-button">Start Again</button>
+                  </div>
+                </div>
               </div>
             </div>
             <button class="reviewhub-carousel-next" aria-label="Next">${chevronRight}</button>
@@ -1227,6 +1412,8 @@
         const prevBtn = container.querySelector('.reviewhub-carousel-prev');
         const nextBtn = container.querySelector('.reviewhub-carousel-next');
         const carouselContainer = container.querySelector('.reviewhub-carousel-container');
+        const restartCard = container.querySelector('.reviewhub-carousel-restart-card');
+        const restartButton = container.querySelector('.reviewhub-restart-button');
 
         function updateDots() {
           const isMobile = window.innerWidth <= 767;
@@ -1243,6 +1430,22 @@
           }
         }
 
+        function updateRestartCardVisibility() {
+          const isMobile = window.innerWidth <= 767;
+          const maxIndex = getMaxIndex();
+          
+          if (isMobile && restartCard) {
+            // Show restart card when user reaches the last review on mobile
+            if (currentIndex >= maxIndex && reviews.length > 1) {
+              restartCard.style.display = 'flex';
+            } else {
+              restartCard.style.display = 'none';
+            }
+          } else if (restartCard) {
+            restartCard.style.display = 'none';
+          }
+        }
+
         function renderCarousel() {
           const maxIndex = getMaxIndex();
           if (currentIndex > maxIndex) {
@@ -1251,6 +1454,7 @@
           
           this.adjustCardHeights(); // Call using this context
           updateArrowsForLoop();
+          updateRestartCardVisibility();
           goToWithLoop(currentIndex, false);
           startAutoPlay();
         }
@@ -1302,6 +1506,7 @@
           
           updateArrowsForLoop();
           updateDots();
+          updateRestartCardVisibility();
         }
         
         function updateArrowsForLoop() {
@@ -1322,6 +1527,15 @@
             nextBtn.style.opacity = '1';
             nextBtn.style.pointerEvents = 'auto';
           }
+        }
+        
+        // Add restart button event listener
+        if (restartButton) {
+          restartButton.addEventListener('click', () => {
+            pauseAutoPlay();
+            goToWithLoop(0);
+            setTimeout(() => resumeAutoPlay(), 1000);
+          });
         }
         
         function stopAutoPlay() {
