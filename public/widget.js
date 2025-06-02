@@ -1096,7 +1096,8 @@
             <div style="
               background: #fff;
               border-radius: 16px;
-              box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+              box-shadow: 0px 0px 6px #00000040;
+              margin: 10px;
               padding: 15px;
               display: flex;
               flex-direction: column;
