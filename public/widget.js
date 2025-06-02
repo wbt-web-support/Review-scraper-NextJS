@@ -342,6 +342,7 @@
           overflow: hidden !important;
           text-overflow: ellipsis !important;
           white-space: nowrap !important;
+          text-transform: capitalize !important;
         }
         
         .reviewhub-review-rating {
@@ -883,22 +884,7 @@
           overflow: hidden !important;
         }
         
-        .reviewhub-carousel-restart-card::before {
-          content: '' !important;
-          position: absolute !important;
-          top: 0 !important;
-          left: 0 !important;
-          right: 0 !important;
-          bottom: 0 !important;
-          background: linear-gradient(45deg, transparent 40%, rgba(255,255,255,0.3) 50%, transparent 60%) !important;
-          transform: translateX(-100%) !important;
-          transition: transform 0.6s ease !important;
-        }
-        
-        .reviewhub-carousel-restart-card:hover::before {
-          transform: translateX(100%) !important;
-        }
-        
+    
         .reviewhub-restart-content {
           position: relative !important;
           z-index: 2 !important;
@@ -906,6 +892,7 @@
           flex-direction: column !important;
           align-items: center !important;
           gap: 0px !important;
+          height: 100% !important;
         }
     
           
@@ -925,32 +912,25 @@
         }
         
         .reviewhub-restart-button {
-          background: var(--widget-theme-color, #3B82F6) !important;
-          color: white !important;
-          border: none !important;
-          padding: 6px 12px !important;
-          border-radius: 16px !important;
-          font-size: 11px !important;
-          font-weight: 600 !important;
-          cursor: pointer !important;
-          transition: all 0.3s ease !important;
-          box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2) !important;
-          min-width: 80px !important;
-          font-family: inherit !important;
-          outline: none !important;
+            color: #1f2937;
+            border: none !important;
+            background: transparent !important;
+            border-radius: 16px !important;
+            font-weight: 600 !important;
+            cursor: pointer !important;
+            height: 100%;
+            transition: all 0.3s ease !important;
+            font-family: inherit !important;
+            outline: none !important;
         }
-        
+                
         .reviewhub-restart-button:hover {
-          background: var(--widget-theme-color-dark, #2563eb) !important;
-          transform: translateY(-1px) !important;
-          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3) !important;
+            background: transparent !important;
+            transform: translateY(-1px) !important;
+            box-shadow: none !important;
         }
         
-        .reviewhub-restart-button:active {
-          transform: translateY(0) !important;
-          box-shadow: 0 2px 6px rgba(59, 130, 246, 0.2) !important;
-        }
-        
+       
         @keyframes reviewhub-pulse {
           0%, 100% {
             opacity: 1;
@@ -963,10 +943,10 @@
         /* Mobile specific styles for restart card */
         @media (max-width: 767px) {
           .reviewhub-carousel-restart-card {
-            width: 100px !important;
-            max-width: 100px !important;
-            min-width: 100px !important;
-            min-height: 70px !important;
+            width: 50px !important;
+            max-width: 50px !important;
+            min-width: 50px !important;
+            min-height: 50px !important;
             padding: 8px 6px !important;
           }
           
@@ -979,28 +959,28 @@
           }
           
           .reviewhub-restart-button {
-            font-size: 10px !important;
+            font-size: 12px !important;
             padding: 5px 10px !important;
             min-width: 70px !important;
           }
         }
         
         @media (max-width: 575px) {
-          .reviewhub-carousel-restart-card {
-            width: 90px !important;
-            max-width: 90px !important;
-            min-width: 90px !important;
-            min-height: 60px !important;
+       .reviewhub-carousel-restart-card {
+            width: 50px !important;
+            max-width: 50px !important;
+            min-width: 50px !important;
+            min-height: 50px !important;
             padding: 6px 4px !important;
-          }
+        }
         }
         
         @media (max-width: 319px) {
           .reviewhub-carousel-restart-card {
-            width: 80px !important;
-            min-width: 80px !important;
-            max-width: 80px !important;
-            min-height: 55px !important;
+            width: 50px !important;
+            min-width: 50px !important;
+            max-width: 50px !important;
+            min-height: 50px !important;
             padding: 6px 4px !important;
           }
         }
@@ -1346,7 +1326,7 @@
             <div class="reviewhub-carousel-viewport">
               <div class="reviewhub-carousel-track">
                 ${reviewsHtml}
-                <div class="reviewhub-carousel-restart-card" style="display: none;">
+                <div class="reviewhub-carousel-restart-card" style="display: none !important;">
                   <div class="reviewhub-restart-content">
                    
                      <button class="reviewhub-restart-button">Start Again</button>
