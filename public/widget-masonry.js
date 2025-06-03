@@ -104,16 +104,32 @@
     },
     
     generateStars: function(rating) {
+      // Uses Font Awesome 5 (same as widget-new.js)
       let starsHtml = '';
       for (let i = 1; i <= 5; i++) {
         if (rating >= i) {
-          starsHtml += '<span class="rh-masonry-star rh-masonry-star-full">★</span>';
+          starsHtml += '<i class="rh-fas rh-fa-star"></i>'; // Full star
         } else if (rating >= i - 0.7 && rating < i - 0.2) {
-          starsHtml += '<span class="rh-masonry-star rh-masonry-star-half">★</span>';
+          starsHtml += '<i class="rh-fas rh-fa-star-half-alt"></i>'; // Half star
         } else if (rating >= i - 0.2) {
-          starsHtml += '<span class="rh-masonry-star rh-masonry-star-full">★</span>';
+          starsHtml += '<i class="rh-fas rh-fa-star"></i>';
         } else {
-          starsHtml += '<span class="rh-masonry-star rh-masonry-star-empty">☆</span>';
+          starsHtml += '<i class="rh-far rh-fa-star"></i>'; // Empty star
+        }
+      }
+      // Safety check if logic produced more than 5 stars due to rounding/half star complexities
+      const starElementsCount = (starsHtml.match(/<i/g) || []).length;
+      if (starElementsCount > 5) {
+        starsHtml = ''; // Reset
+        const roundedRating = Math.round(rating * 2) / 2; // Round to nearest 0.5
+        for (let i = 1; i <= 5; i++) {
+          if (roundedRating >= i) {
+            starsHtml += '<i class="rh-fas rh-fa-star"></i>';
+          } else if (roundedRating >= i - 0.5) {
+            starsHtml += '<i class="rh-fas rh-fa-star-half-alt"></i>';
+          } else {
+            starsHtml += '<i class="rh-far rh-fa-star"></i>';
+          }
         }
       }
       return starsHtml;
@@ -121,6 +137,17 @@
 
     injectStyles: function() {
       if (document.getElementById('reviewhub-masonry-widget-styles')) return;
+
+      // Font Awesome for stars and icons (same as widget-new.js)
+      if (!document.querySelector('link[href*="font-awesome"]')) {
+        const fontAwesome = document.createElement('link');
+        fontAwesome.rel = 'stylesheet';
+        fontAwesome.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css';
+        fontAwesome.integrity = 'sha512-1ycn6IcaQQ40/MKBW2W4Rhis/DbILU74C1vSrLJxCq57o941Ym01SwNsOMqvEBFlcgUa6xLiPY/NS5R+E6ztJQ==';
+        fontAwesome.crossOrigin = 'anonymous';
+        fontAwesome.referrerPolicy = 'no-referrer';
+        document.head.appendChild(fontAwesome);
+      }
 
       // Google Fonts (Inter for modern typography)
       if (!document.querySelector('link[href*="fonts.googleapis.com/css2?family=Inter"]')) {
@@ -143,6 +170,10 @@
       style.id = 'reviewhub-masonry-widget-styles';
       style.textContent = `
         /* Global styles */
+        i {
+          font-style: normal;
+        }
+
         .reviewhub-masonry-widget-container {
           font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
           box-sizing: border-box;
@@ -158,6 +189,13 @@
         .reviewhub-masonry-widget-container * {
           box-sizing: border-box;
         }
+
+        /* Font Awesome class prefixes */
+        .rh-fas { font-family: 'Font Awesome 5 Free'; font-weight: 900; }
+        .rh-far { font-family: 'Font Awesome 5 Free'; font-weight: 400; }
+        .rh-fa-star::before { content: "\\f005"; }
+        .rh-fa-star-half-alt::before { content: "\\f5c0"; }
+        .rh-fa-check-circle::before { content: "\\f058"; }
 
         /* Loading state */
         .reviewhub-masonry-loading {
@@ -320,11 +358,11 @@
         }
 
         .rh-masonry-card-rating {
-          color: #F59E0B;
+          color: rgb(245, 202, 11);
           font-size: 0.9rem;
           margin-bottom: 12px;
           display: flex;
-          gap: 1px;
+          gap: 2px;
         }
 
         .rh-masonry-star {
@@ -376,19 +414,18 @@
           position: absolute;
           top: 12px;
           right: 12px;
-          width: 20px;
-          height: 20px;
-          border-radius: 3px;
+          width: 26px;
+          height: 26px;
+          border-radius: 4px;
           background: white;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
           display: flex;
           align-items: center;
           justify-content: center;
         }
 
         .rh-masonry-source-logo {
-          width: 14px;
-          height: 14px;
+          width: 20px;
+          height: 20px;
         }
 
         /* Modal styles - similar to other widgets */
@@ -524,7 +561,7 @@
         }
 
         .reviewhub-masonry-modal-rating {
-          color: #F59E0B;
+          color: rgb(245, 202, 11);
           font-size: 1.1rem;
           margin-bottom: 0;
           display: flex;
@@ -756,7 +793,7 @@
         return;
       }
 
-      const googleLogoUrl = 'https://assetsforscraper.b-cdn.net/Google-logo.png';
+      const googleLogoSvg = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%234285f4' d='M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z'/%3E%3Cpath fill='%2334a853' d='M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z'/%3E%3Cpath fill='%23fbbc05' d='M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z'/%3E%3Cpath fill='%23ea4335' d='M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z'/%3E%3C/svg%3E`;
       
       const reviewCardsHtml = reviews.map((review, index) => {
         const author = this.escapeHtml(review.author || 'Anonymous');
@@ -772,7 +809,7 @@
         return `
           <div class="rh-masonry-review-card">
             <div class="rh-masonry-source-badge">
-              <img src="${googleLogoUrl}" alt="Google" class="rh-masonry-source-logo">
+              <img src="${googleLogoSvg}" alt="Google" class="rh-masonry-source-logo">
             </div>
             
             <div class="rh-masonry-card-header">
@@ -785,7 +822,7 @@
               <div class="rh-masonry-card-author-details">
                 <div class="rh-masonry-card-author-line">
                   <h4 class="rh-masonry-card-author-name">${author}</h4>
-                  ${isVerified ? '<span class="rh-masonry-verified-badge">✓</span>' : ''}
+                  ${isVerified ? '<span class="rh-masonry-verified-badge"><i class="rh-fas rh-fa-check-circle"></i></span>' : ''}
                 </div>
                 ${widgetSettings.showDates !== false && date ? `
                   <div class="rh-masonry-card-review-meta">
@@ -861,7 +898,7 @@
                     <div class="reviewhub-masonry-modal-author-details">
                         <div class="reviewhub-masonry-modal-author-line">
                             <h3 class="reviewhub-masonry-modal-author-name">${author}</h3>
-                            ${isVerified ? '<span class="reviewhub-masonry-modal-verified-badge">✓</span>' : ''}
+                            ${isVerified ? '<span class="reviewhub-masonry-modal-verified-badge"><i class="rh-fas rh-fa-check-circle"></i></span>' : ''}
                         </div>
                          ${showDatesSetting && date ? `
                            <p class="reviewhub-masonry-modal-review-meta">
