@@ -25,7 +25,8 @@
     CAROUSEL_SETTINGS: {
       DESKTOP_MIN_REVIEWS_FOR_NAV: 5,
       autoplay: true,
-      MOBILE_BREAKPOINT: 768,
+      MOBILE_BREAKPOINT: 580,
+      FOLDABLE_BREAKPOINT: 768,
       TABLET_BREAKPOINT: 1024,
       LAPTOP_BREAKPOINT: 1366,
       DESKTOP_BREAKPOINT: 1920,
@@ -34,8 +35,9 @@
         wideScreen: 6,    // 2K+ monitors (2560px+)
         desktop: 5,       // Large desktop (1920px+)
         laptop: 4,        // Laptop (1366px+)
-        tablet: 3,        // Tablet (768px - 1365px)
-        mobile: 1         // Mobile (< 768px)
+        tablet: 3,        // Tablet (1024px - 1365px)
+        foldable: 2,      // Foldable devices (900px - 1023px)
+        mobile: 1         // Mobile (< 900px)
       }
     }
   };
@@ -678,6 +680,12 @@
           .rh-review-card { padding: 20px; }
         }
 
+        @media (max-width: ${CONFIG.CAROUSEL_SETTINGS.FOLDABLE_BREAKPOINT}px) {
+          .rh-carousel-slide { padding: 0 8px; }
+          .rh-review-card { padding: 18px; }
+          .rh-card-content { -webkit-line-clamp: 3; }
+        }
+
         @media (max-width: ${CONFIG.CAROUSEL_SETTINGS.MOBILE_BREAKPOINT}px) {
           .rh-carousel-arrow { display: none; }
           .rh-carousel-slide { padding: 0 8px; }
@@ -830,7 +838,7 @@
       // Set default values for autoplay and loop if not provided
       const defaultWidgetSettings = {
         autoplay: true,
-        autoplayDelay: 1000,
+        autoplayDelay: 4000,
         loop: true,
         showProfilePictures: true,
         showRatings: true,
@@ -958,6 +966,8 @@
                 num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.laptop;
             } else if (screenWidth >= CONFIG.CAROUSEL_SETTINGS.TABLET_BREAKPOINT) {
                 num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.tablet;
+            } else if (screenWidth >= CONFIG.CAROUSEL_SETTINGS.FOLDABLE_BREAKPOINT) {
+                num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.foldable;
             } else {
                 num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.mobile;
             }
@@ -967,7 +977,9 @@
                 num = widgetSettings.cardsToShowDesktop;
             } else if (screenWidth >= CONFIG.CAROUSEL_SETTINGS.TABLET_BREAKPOINT && screenWidth < CONFIG.CAROUSEL_SETTINGS.LAPTOP_BREAKPOINT && widgetSettings.cardsToShowTablet) {
                 num = widgetSettings.cardsToShowTablet;
-            } else if (screenWidth < CONFIG.CAROUSEL_SETTINGS.TABLET_BREAKPOINT && widgetSettings.cardsToShowMobile) {
+            } else if (screenWidth >= CONFIG.CAROUSEL_SETTINGS.FOLDABLE_BREAKPOINT && screenWidth < CONFIG.CAROUSEL_SETTINGS.TABLET_BREAKPOINT && widgetSettings.cardsToShowFoldable) {
+                num = widgetSettings.cardsToShowFoldable;
+            } else if (screenWidth < CONFIG.CAROUSEL_SETTINGS.FOLDABLE_BREAKPOINT && widgetSettings.cardsToShowMobile) {
                 num = widgetSettings.cardsToShowMobile;
             }
             
@@ -1486,6 +1498,7 @@
            // This allows overriding API settings via script tag attributes.
            if(config.cardsToShowDesktop) data.widgetSettings.cardsToShowDesktop = parseInt(config.cardsToShowDesktop, 10);
            if(config.cardsToShowTablet) data.widgetSettings.cardsToShowTablet = parseInt(config.cardsToShowTablet, 10);
+           if(config.cardsToShowFoldable) data.widgetSettings.cardsToShowFoldable = parseInt(config.cardsToShowFoldable, 10);
            if(config.cardsToShowMobile) data.widgetSettings.cardsToShowMobile = parseInt(config.cardsToShowMobile, 10);
            if(config.autoplay !== undefined) data.widgetSettings.autoplay = config.autoplay === 'true' || config.autoplay === true;
            if(config.autoplayDelay) data.widgetSettings.autoplayDelay = parseInt(config.autoplayDelay, 10);
@@ -1532,6 +1545,7 @@
         layout: script.getAttribute('data-layout') || undefined,
         cardsToShowDesktop: script.getAttribute('data-cards-desktop') || undefined,
         cardsToShowTablet: script.getAttribute('data-cards-tablet') || undefined,
+        cardsToShowFoldable: script.getAttribute('data-cards-foldable') || undefined,
         cardsToShowMobile: script.getAttribute('data-cards-mobile') || undefined,
         autoplay: script.getAttribute('data-autoplay') || undefined,
         autoplayDelay: script.getAttribute('data-autoplay-delay') || undefined,
@@ -1570,3 +1584,4 @@
   }
 
 })(); 
+
