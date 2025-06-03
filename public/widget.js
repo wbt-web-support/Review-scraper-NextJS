@@ -1879,7 +1879,7 @@
       });
       const handleEscape = (e) => {
         if (e.key === 'Escape') {
-          closeModal();
+          closeModal();0
           document.removeEventListener('keydown', handleEscape);
         }
       };
