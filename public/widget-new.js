@@ -20,7 +20,7 @@
       return 'https://reviews.webuildtrades.com/'; // Default API domain
     })(),
     RETRY_ATTEMPTS: 3,
-    RETRY_DELAY: 1000,
+    RETRY_DELAY: 3000,
     TIMEOUT: 10000,
     CAROUSEL_SETTINGS: {
       DESKTOP_MIN_REVIEWS_FOR_NAV: 5,
