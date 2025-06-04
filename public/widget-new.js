@@ -371,7 +371,7 @@
 
        .rh-google-logo-corner {
             position: absolute;
-            top: 12px;
+            bottom: 12px;
             right: 12px;
             width: 30px;
             height: 30px;

@@ -486,7 +486,7 @@
 
         .rh-masonry-source-badge {
           position: absolute;
-          top: 12px;
+          bottom: 12px;
           right: 12px;
           width: 26px;
           height: 26px;

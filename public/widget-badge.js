@@ -467,7 +467,7 @@
           flex-direction: column;
           align-items: center;
           gap: 12px;
-          margin-top: 12px;
+          margin-bottom: 12px;
           width: 100%;
         }
 

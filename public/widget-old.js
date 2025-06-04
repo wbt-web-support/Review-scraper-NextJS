@@ -1180,7 +1180,7 @@
                        rel="noopener noreferrer" 
                        style="
                          display: inline-block;
-                         margin-top: 12px;
+                         margin-bottom: 12px;
                          padding: 8px 18px;
                          background: #2563eb;
                          color: #fff;
