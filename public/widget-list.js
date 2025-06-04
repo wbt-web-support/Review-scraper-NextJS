@@ -205,8 +205,51 @@
       style.id = 'reviewhub-list-widget-styles';
       style.textContent = `
         /* Global styles */
-        i {
-          font-style: normal;
+        .reviewhub-list-widget-container h1,
+        .reviewhub-list-widget-container h2,
+        .reviewhub-list-widget-container h3,
+        .reviewhub-list-widget-container h4,
+        .reviewhub-list-widget-container h5,
+        .reviewhub-list-widget-container h6 {
+          margin: 0 !important;
+          padding: 0 !important;
+          font-weight: inherit !important;
+          font-size: inherit !important;
+          line-height: inherit !important;
+          color: inherit !important;
+        }
+        
+        .reviewhub-list-widget-container p {
+          margin: 0 !important;
+          padding: 0 !important;
+          font-size: inherit !important;
+          line-height: inherit !important;
+          color: inherit !important;
+        }
+        
+        .reviewhub-list-widget-container button {
+          background: none !important;
+          border: none !important;
+          padding: 0 !important;
+          margin: 0 !important;
+          font-family: inherit !important;
+          font-size: inherit !important;
+          line-height: inherit !important;
+          color: inherit !important;
+          cursor: pointer !important;
+        }
+        
+        .reviewhub-list-widget-container a {
+          color: inherit !important;
+          text-decoration: none !important;
+          background: none !important;
+          border: none !important;
+          padding: 0 !important;
+          margin: 0 !important;
+        }
+        
+        .reviewhub-list-widget-container i {
+          font-style: normal !important;
         }
 
         .reviewhub-list-widget-container {

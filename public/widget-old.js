@@ -67,6 +67,53 @@
       const style = document.createElement('style');
       style.id = 'reviewhub-widget-styles';
       style.textContent = `
+        .reviewhub-widget-container h1,
+        .reviewhub-widget-container h2,
+        .reviewhub-widget-container h3,
+        .reviewhub-widget-container h4,
+        .reviewhub-widget-container h5,
+        .reviewhub-widget-container h6 {
+          margin: 0 !important;
+          padding: 0 !important;
+          font-weight: inherit !important;
+          font-size: inherit !important;
+          line-height: inherit !important;
+          color: inherit !important;
+        }
+        
+        .reviewhub-widget-container p {
+          margin: 0 !important;
+          padding: 0 !important;
+          font-size: inherit !important;
+          line-height: inherit !important;
+          color: inherit !important;
+        }
+        
+        .reviewhub-widget-container button {
+          background: none !important;
+          border: none !important;
+          padding: 0 !important;
+          margin: 0 !important;
+          font-family: inherit !important;
+          font-size: inherit !important;
+          line-height: inherit !important;
+          color: inherit !important;
+          cursor: pointer !important;
+        }
+        
+        .reviewhub-widget-container a {
+          color: inherit !important;
+          text-decoration: none !important;
+          background: none !important;
+          border: none !important;
+          padding: 0 !important;
+          margin: 0 !important;
+        }
+        
+        .reviewhub-widget-container i {
+          font-style: normal !important;
+        }
+        
         .reviewhub-widget-container {
           font-family: "Roboto", -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif !important;
           line-height: 1.6 !important;
