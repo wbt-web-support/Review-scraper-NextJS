@@ -135,6 +135,55 @@
       return starsHtml;
     },
 
+    generateRecommendationStatus: function(review) {
+      // For Facebook reviews, show recommendation status instead of stars
+      const recommendationStatus = review.recommendationStatus || '';
+      if (recommendationStatus === 'recommended') {
+        return '<div class="rh-masonry-recommendation-status rh-masonry-recommended"><i class="rh-fas rh-fa-thumbs-up"></i> Recommended</div>';
+      } else if (recommendationStatus === 'not_recommended') {
+        return '<div class="rh-masonry-recommendation-status rh-masonry-not-recommended"><i class="rh-fas rh-fa-thumbs-down"></i> Not Recommended</div>';
+      }
+      return '';
+    },
+
+    detectReviewSource: function(review, widgetSettings) {
+      // Check review source or widget settings to determine platform
+      if (review.source) {
+        return review.source.toLowerCase();
+      }
+      if (widgetSettings && widgetSettings.businessUrl && widgetSettings.businessUrl.source) {
+        return widgetSettings.businessUrl.source.toLowerCase();
+      }
+      if (widgetSettings && widgetSettings.platformName) {
+        return widgetSettings.platformName.toLowerCase();
+      }
+      // Default to google if unable to determine
+      return 'google';
+    },
+
+    getPlatformLogo: function(source) {
+      if (source === 'facebook') {
+        return `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%231877F2' d='M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z'/%3E%3C/svg%3E`;
+      } else {
+        // Google logo
+        return `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%234285f4' d='M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z'/%3E%3Cpath fill='%2334a853' d='M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z'/%3E%3Cpath fill='%23fbbc05' d='M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z'/%3E%3Cpath fill='%23ea4335' d='M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z'/%3E%3C/svg%3E`;
+      }
+    },
+
+    getPlatformThemeColor: function(source, userThemeColor) {
+      // If user provided a theme color, use it
+      if (userThemeColor && userThemeColor !== '#3B82F6') {
+        return userThemeColor;
+      }
+      
+      // Use platform-specific colors
+      if (source === 'facebook') {
+        return '#1877F2'; // Facebook blue
+      } else {
+        return '#4285F4'; // Google blue
+      }
+    },
+
     injectStyles: function() {
       if (document.getElementById('reviewhub-masonry-widget-styles')) return;
 
@@ -196,6 +245,8 @@
         .rh-fa-star::before { content: "\\f005"; }
         .rh-fa-star-half-alt::before { content: "\\f5c0"; }
         .rh-fa-check-circle::before { content: "\\f058"; }
+        .rh-fa-thumbs-up::before { content: "\\f164"; }
+        .rh-fa-thumbs-down::before { content: "\\f165"; }
 
         /* Loading state */
         .reviewhub-masonry-loading {
@@ -363,6 +414,29 @@
           margin-bottom: 12px;
           display: flex;
           gap: 2px;
+        }
+
+        /* Facebook recommendation status styles */
+        .rh-masonry-recommendation-status {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 0.85rem;
+          font-weight: 600;
+          margin-bottom: 12px;
+          padding: 4px 0;
+        }
+
+        .rh-masonry-recommended {
+          color: #16A34A;
+        }
+
+        .rh-masonry-not-recommended {
+          color: #DC2626;
+        }
+
+        .rh-masonry-recommendation-status i {
+          font-size: 0.9rem;
         }
 
         .rh-masonry-star {
@@ -782,7 +856,13 @@
     renderWidget: function(container, data, config) {
       this.log('info', 'Rendering masonry widget', { data, config });
       const { widgetSettings, reviews, businessName, businessUrlLink, totalReviewCount } = data;
-      const themeColor = config.themeColor || widgetSettings.themeColor || '#3B82F6';
+      
+      // Detect platform from first review or widget settings
+      const platformSource = reviews.length > 0 ? this.detectReviewSource(reviews[0], widgetSettings) : 'google';
+      
+      // Get appropriate theme color
+      const userThemeColor = config.themeColor || widgetSettings.themeColor;
+      const themeColor = this.getPlatformThemeColor(platformSource, userThemeColor);
       
       container.style.setProperty('--masonry-theme-color', themeColor);
       container.style.setProperty('--masonry-theme-color-dark', this.darkenColor(themeColor, 15));
@@ -792,8 +872,6 @@
         container.innerHTML = '<div class="reviewhub-masonry-error"><div class="reviewhub-masonry-error-title">No reviews to display.</div><div class="reviewhub-masonry-error-message">Check back later or add some reviews!</div></div>';
         return;
       }
-
-      const googleLogoSvg = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%234285f4' d='M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z'/%3E%3Cpath fill='%2334a853' d='M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z'/%3E%3Cpath fill='%23fbbc05' d='M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z'/%3E%3Cpath fill='%23ea4335' d='M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z'/%3E%3C/svg%3E`;
       
       const reviewCardsHtml = reviews.map((review, index) => {
         const author = this.escapeHtml(review.author || 'Anonymous');
@@ -806,10 +884,25 @@
         const isVerified = true;
         const isLongText = content.length > 200;
 
+        // Detect individual review source
+        const reviewSource = this.detectReviewSource(review, widgetSettings);
+        const reviewPlatformLogo = this.getPlatformLogo(reviewSource);
+        const reviewPlatformName = reviewSource === 'facebook' ? 'Facebook' : 'Google';
+
+        // Generate rating display based on platform
+        let ratingDisplay = '';
+        if (widgetSettings.showRatings !== false) {
+          if (reviewSource === 'facebook') {
+            ratingDisplay = this.generateRecommendationStatus(review);
+          } else if (rating > 0) {
+            ratingDisplay = `<div class="rh-masonry-card-rating">${stars}</div>`;
+          }
+        }
+
         return `
           <div class="rh-masonry-review-card">
             <div class="rh-masonry-source-badge">
-              <img src="${googleLogoSvg}" alt="Google" class="rh-masonry-source-logo">
+              <img src="${reviewPlatformLogo}" alt="${reviewPlatformName}" class="rh-masonry-source-logo">
             </div>
             
             <div class="rh-masonry-card-header">
@@ -831,7 +924,7 @@
               </div>
             </div>
             
-            ${widgetSettings.showRatings !== false && rating > 0 ? `<div class="rh-masonry-card-rating">${stars}</div>` : ''}
+            ${ratingDisplay}
             
             <div class="rh-masonry-card-content">${content}</div>
             ${isLongText ? `<button class="rh-masonry-read-more" data-review-index="${index}">Read More</button>` : ''}
@@ -876,6 +969,7 @@
         const stars = this.generateStars(rating);
         const content = this.escapeHtml(review.content || review.text || '');
         const displayContent = content.replace(/\n/g, '<br>');
+        const source = this.detectReviewSource(review, widgetSettings);
         const isVerified = true;
 
         const modalOverlay = document.createElement('div');
@@ -884,6 +978,16 @@
         const showAvatarsSetting = widgetSettings.showProfilePictures !== false;
         const showDatesSetting = widgetSettings.showDates !== false;
         const showRatingsSetting = widgetSettings.showRatings !== false;
+
+        // Generate rating display for modal based on platform
+        let modalRatingDisplay = '';
+        if (showRatingsSetting) {
+          if (source === 'facebook') {
+            modalRatingDisplay = this.generateRecommendationStatus(review);
+          } else if (rating > 0) {
+            modalRatingDisplay = `<div class="reviewhub-masonry-modal-rating">${stars}</div>`;
+          }
+        }
 
         const modalHTML = `
             <div class="reviewhub-masonry-modal">
@@ -904,7 +1008,7 @@
                            <p class="reviewhub-masonry-modal-review-meta">
                              ${date}
                            </p>` : ''}
-                         ${showRatingsSetting && rating > 0 ? `<div class="reviewhub-masonry-modal-rating">${stars}</div>` : ''}
+                         ${modalRatingDisplay}
                     </div>
                 </div>
                 <div class="reviewhub-masonry-modal-content">

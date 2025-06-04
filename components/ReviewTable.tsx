@@ -140,7 +140,7 @@ const ReviewTable = ({  reviews, isLoading = false, emptyState, error }: ReviewT
   };
 
   return (
-    <div className="bg-white  rounded-xl shadow-md border border-slate-200  overflow-hidden">
+    <div className="bg-white  rounded-xl border  overflow-hidden">
       {/* review-widget-slide-in class removed as its definition is unknown, add if needed */}
       <div className="overflow-x-auto"> {/* Removed hide-scrollbar, manage with global CSS if needed */}
         <Table>
@@ -196,9 +196,9 @@ const ReviewTable = ({  reviews, isLoading = false, emptyState, error }: ReviewT
                           const isFacebook = getReviewSource(review) === 'facebook';
                           if (profilePic) {
                             if (isFacebook) {
-                              // Use <img> for Facebook
+                              // Use regular <img> for Facebook to avoid Next.js Image issues
                               return (
-                                <Image
+                                <img
                                   src={profilePic}
                                   alt={`${review.author || 'Anonymous'}'s profile`}
                                   className="w-full h-full object-cover rounded-full"

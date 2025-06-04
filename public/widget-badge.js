@@ -121,6 +121,55 @@
       return starsHtml;
     },
 
+    generateRecommendationStatus: function(review) {
+      // For Facebook reviews, show recommendation status instead of stars
+      const recommendationStatus = review.recommendationStatus || '';
+      if (recommendationStatus === 'recommended') {
+        return '<div class="rh-badge-recommendation-status rh-badge-recommended"><i class="rh-fas rh-fa-thumbs-up"></i> Recommended</div>';
+      } else if (recommendationStatus === 'not_recommended') {
+        return '<div class="rh-badge-recommendation-status rh-badge-not-recommended"><i class="rh-fas rh-fa-thumbs-down"></i> Not Recommended</div>';
+      }
+      return '';
+    },
+
+    detectReviewSource: function(review, widgetSettings) {
+      // Check review source or widget settings to determine platform
+      if (review.source) {
+        return review.source.toLowerCase();
+      }
+      if (widgetSettings && widgetSettings.businessUrl && widgetSettings.businessUrl.source) {
+        return widgetSettings.businessUrl.source.toLowerCase();
+      }
+      if (widgetSettings && widgetSettings.platformName) {
+        return widgetSettings.platformName.toLowerCase();
+      }
+      // Default to google if unable to determine
+      return 'google';
+    },
+
+    getPlatformLogo: function(source) {
+      if (source === 'facebook') {
+        return `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%231877F2' d='M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z'/%3E%3C/svg%3E`;
+      } else {
+        // Google logo
+        return `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%234285f4' d='M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z'/%3E%3Cpath fill='%2334a853' d='M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z'/%3E%3Cpath fill='%23fbbc05' d='M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z'/%3E%3Cpath fill='%23ea4335' d='M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z'/%3E%3C/svg%3E`;
+      }
+    },
+
+    getPlatformThemeColor: function(source, userThemeColor) {
+      // If user provided a theme color, use it
+      if (userThemeColor && userThemeColor !== '#3B82F6') {
+        return userThemeColor;
+      }
+      
+      // Use platform-specific colors
+      if (source === 'facebook') {
+        return '#1877F2'; // Facebook blue
+      } else {
+        return '#4285F4'; // Google blue
+      }
+    },
+
     injectStyles: function() {
       if (document.getElementById('reviewhub-badge-widget-styles')) return;
 
@@ -182,6 +231,8 @@
         .rh-fa-star::before { content: "\\f005"; }
         .rh-fa-star-half-alt::before { content: "\\f5c0"; }
         .rh-fa-check-circle::before { content: "\\f058"; }
+        .rh-fa-thumbs-up::before { content: "\\f164"; }
+        .rh-fa-thumbs-down::before { content: "\\f165"; }
 
         /* Loading state */
         .reviewhub-badge-loading {
@@ -320,6 +371,31 @@
           line-height: 1;
           display: flex;
           gap: 2px;
+        }
+
+        /* Facebook recommendation status styles */
+        .rh-badge-recommendation-status {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          font-size: 1rem;
+          font-weight: 600;
+          letter-spacing: 0.5px;
+          line-height: 1;
+          padding: 4px 0;
+        }
+
+        .rh-badge-recommended {
+          color: #16A34A;
+        }
+
+        .rh-badge-not-recommended {
+          color: #DC2626;
+        }
+
+        .rh-badge-recommendation-status i {
+          font-size: 1.1rem;
         }
 
         .reviewhub-badge-actions {
@@ -768,7 +844,15 @@
     renderWidget: function(container, data, config) {
       this.log('info', 'Rendering badge widget', { data, config });
       const { widgetSettings, reviews, businessName, businessUrlLink, totalReviewCount } = data;
-      const themeColor = config.themeColor || widgetSettings.themeColor || '#3B82F6';
+      
+      // Detect platform from first review or widget settings
+      const platformSource = reviews.length > 0 ? this.detectReviewSource(reviews[0], widgetSettings) : 'google';
+      const platformLogo = this.getPlatformLogo(platformSource);
+      const platformName = platformSource === 'facebook' ? 'Facebook' : 'Google';
+      
+      // Get appropriate theme color
+      const userThemeColor = config.themeColor || widgetSettings.themeColor;
+      const themeColor = this.getPlatformThemeColor(platformSource, userThemeColor);
       
       container.style.setProperty('--badge-theme-color', themeColor);
       container.style.setProperty('--badge-theme-color-dark', this.darkenColor(themeColor, 15));
@@ -779,10 +863,23 @@
         return;
       }
 
-      const avgRating = reviews.length > 0 ? (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length).toFixed(1) : '5.0';
-      const reviewCount = totalReviewCount || reviews.length;
+      // Calculate average rating or recommendation percentage for Facebook
+      let avgRating, reviewCount, displayText;
+      reviewCount = totalReviewCount || reviews.length;
+      
+      if (platformSource === 'facebook') {
+        // For Facebook, calculate percentage of recommended reviews
+        const recommendedReviews = reviews.filter(r => r.recommendationStatus === 'recommended').length;
+        const percentage = reviews.length > 0 ? Math.round((recommendedReviews / reviews.length) * 100) : 100;
+        avgRating = `${percentage}%`;
+        displayText = 'Recommended';
+      } else {
+        // For Google, use traditional star rating
+        avgRating = reviews.length > 0 ? (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length).toFixed(1) : '5.0';
+        displayText = 'Rating';
+      }
+      
       const reviewText = reviewCount === 1 ? 'Review' : 'Reviews';
-      const platformName = widgetSettings.platformName || "Google";
       
       // Determine review URL
       let reviewUrl;
@@ -791,20 +888,29 @@
       } else if (widgetSettings.businessUrl?.url) {
         reviewUrl = widgetSettings.businessUrl.url;
       } else if (businessName) {
-        reviewUrl = `https://www.google.com/maps/search/${encodeURIComponent(businessName)}+reviews`;
+        const searchBase = platformSource === 'facebook' ? 'https://www.facebook.com/search/top?q=' : 'https://www.google.com/maps/search/';
+        reviewUrl = `${searchBase}${encodeURIComponent(businessName)}+reviews`;
       } else {
-        reviewUrl = 'https://www.google.com/maps';
+        reviewUrl = platformSource === 'facebook' ? 'https://www.facebook.com' : 'https://www.google.com/maps';
       }
 
-      // Use inline Google SVG like widget-new.js
-      const googleLogoSvg = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%234285f4' d='M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z'/%3E%3Cpath fill='%2334a853' d='M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z'/%3E%3Cpath fill='%23fbbc05' d='M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z'/%3E%3Cpath fill='%23ea4335' d='M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z'/%3E%3C/svg%3E`;
-      const stars = this.generateStars(parseFloat(avgRating));
+      // Generate rating/recommendation display
+      let ratingDisplay = '';
+      if (platformSource === 'facebook') {
+        ratingDisplay = `<span class="reviewhub-badge-rating-number">${avgRating}</span>`;
+      } else {
+        const stars = this.generateStars(parseFloat(avgRating));
+        ratingDisplay = `
+          <span class="reviewhub-badge-rating-number">${avgRating}</span>
+          <span class="reviewhub-badge-stars">${stars}</span>
+        `;
+      }
 
       const badgeHtml = `
         <div class="reviewhub-badge-widget">
           <div class="reviewhub-badge-header">
             <div class="reviewhub-badge-logo">
-              <img src="${googleLogoSvg}" alt="${platformName}" style="width: 32px; height: 32px; border-radius: 6px;" />
+              <img src="${platformLogo}" alt="${platformName}" style="width: 32px; height: 32px; border-radius: 6px;" />
             </div>
             <h3 class="reviewhub-badge-title">${platformName} Reviews</h3>
           </div>
@@ -812,8 +918,7 @@
           <div class="reviewhub-badge-divider"></div>
           
           <div class="reviewhub-badge-rating-container">
-            <span class="reviewhub-badge-rating-number">${avgRating}</span>
-            <span class="reviewhub-badge-stars">${stars}</span>
+            ${ratingDisplay}
           </div>
           
           <div class="reviewhub-badge-actions">
@@ -843,11 +948,31 @@
 
     showReviewsModal: function(data, config) {
       const { widgetSettings, reviews, businessName, businessUrlLink, totalReviewCount } = data;
-      const avgRating = reviews.length > 0 ? (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length).toFixed(1) : '5.0';
-      const reviewCount = totalReviewCount || reviews.length;
-      const platformName = widgetSettings.platformName || "Google";
-      const googleLogoSvg = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%234285f4' d='M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z'/%3E%3Cpath fill='%2334a853' d='M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z'/%3E%3Cpath fill='%23fbbc05' d='M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z'/%3E%3Cpath fill='%23ea4335' d='M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z'/%3E%3C/svg%3E`;
-      const stars = this.generateStars(parseFloat(avgRating));
+      
+      // Detect platform from first review or widget settings
+      const platformSource = reviews.length > 0 ? this.detectReviewSource(reviews[0], widgetSettings) : 'google';
+      const platformLogo = this.getPlatformLogo(platformSource);
+      const platformName = platformSource === 'facebook' ? 'Facebook' : 'Google';
+      
+      // Calculate appropriate rating display for modal summary
+      let avgRating, reviewCount, summaryRatingDisplay;
+      reviewCount = totalReviewCount || reviews.length;
+      
+      if (platformSource === 'facebook') {
+        // For Facebook, calculate percentage of recommended reviews
+        const recommendedReviews = reviews.filter(r => r.recommendationStatus === 'recommended').length;
+        const percentage = reviews.length > 0 ? Math.round((recommendedReviews / reviews.length) * 100) : 100;
+        avgRating = `${percentage}%`;
+        summaryRatingDisplay = `<span class="reviewhub-badge-modal-summary-number">${avgRating}</span>`;
+      } else {
+        // For Google, use traditional star rating
+        avgRating = reviews.length > 0 ? (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length).toFixed(1) : '5.0';
+        const stars = this.generateStars(parseFloat(avgRating));
+        summaryRatingDisplay = `
+          <span class="reviewhub-badge-modal-summary-number">${avgRating}</span>
+          <span class="reviewhub-badge-modal-summary-stars">${stars}</span>
+        `;
+      }
 
       // Determine review URL
       let reviewUrl;
@@ -856,15 +981,29 @@
       } else if (widgetSettings.businessUrl?.url) {
         reviewUrl = widgetSettings.businessUrl.url;
       } else if (businessName) {
-        reviewUrl = `https://www.google.com/maps/search/${encodeURIComponent(businessName)}+reviews`;
+        const searchBase = platformSource === 'facebook' ? 'https://www.facebook.com/search/top?q=' : 'https://www.google.com/maps/search/';
+        reviewUrl = `${searchBase}${encodeURIComponent(businessName)}+reviews`;
       } else {
-        reviewUrl = 'https://www.google.com/maps';
+        reviewUrl = platformSource === 'facebook' ? 'https://www.facebook.com' : 'https://www.google.com/maps';
       }
 
       const reviewsHtml = reviews.map((review) => {
         const formattedDate = this.formatDate(review.postedAt);
-        const reviewStars = this.generateStars(review.rating || 0);
         const initials = this.getInitials(review.author);
+        
+        // Detect individual review source
+        const reviewSource = this.detectReviewSource(review, widgetSettings);
+        const reviewPlatformLogo = this.getPlatformLogo(reviewSource);
+        const reviewPlatformName = reviewSource === 'facebook' ? 'Facebook' : 'Google';
+        
+        // Generate rating display based on platform
+        let reviewRatingDisplay = '';
+        if (reviewSource === 'facebook') {
+          reviewRatingDisplay = this.generateRecommendationStatus(review);
+        } else {
+          const reviewStars = this.generateStars(review.rating || 0);
+          reviewRatingDisplay = `<div class="reviewhub-badge-modal-review-rating">${reviewStars}</div>`;
+        }
         
         return `
           <div class="reviewhub-badge-modal-review">
@@ -878,11 +1017,11 @@
                 <div class="reviewhub-badge-modal-review-date">${formattedDate}</div>
               </div>
             </div>
-            <div class="reviewhub-badge-modal-review-rating">${reviewStars}</div>
+            ${reviewRatingDisplay}
             <div class="reviewhub-badge-modal-review-content">${this.escapeHtml(review.content)}</div>
             <div class="reviewhub-badge-modal-review-source">
-              <img src="${googleLogoSvg}" alt="${platformName}" class="reviewhub-badge-modal-review-source-logo" />
-              Posted on ${platformName}
+              <img src="${reviewPlatformLogo}" alt="${reviewPlatformName}" class="reviewhub-badge-modal-review-source-logo" />
+              Posted on ${reviewPlatformName}
             </div>
           </div>
         `;
@@ -897,12 +1036,11 @@
             
             <div class="reviewhub-badge-modal-summary">
               <div class="reviewhub-badge-modal-summary-header">
-                <img src="${googleLogoSvg}" alt="${platformName}" class="reviewhub-badge-modal-summary-logo" />
+                <img src="${platformLogo}" alt="${platformName}" class="reviewhub-badge-modal-summary-logo" />
                 <h3 class="reviewhub-badge-modal-summary-title">${platformName} Reviews</h3>
               </div>
               <div class="reviewhub-badge-modal-summary-rating">
-                <span class="reviewhub-badge-modal-summary-number">${avgRating}</span>
-                <span class="reviewhub-badge-modal-summary-stars">${stars}</span>
+                ${summaryRatingDisplay}
                 <span class="reviewhub-badge-modal-summary-count">(${reviewCount})</span>
               </div>
               <a href="${reviewUrl}" 
