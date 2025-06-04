@@ -233,8 +233,7 @@
         .reviewhub-v2-widget-container h6 {
           margin: 0 !important;
           padding: 0 !important;
-          font-weight: inherit !important;
-          font-size: inherit !important;
+          font-size: 16px !important;
           line-height: inherit !important;
           color: inherit !important;
         }
@@ -253,7 +252,7 @@
           padding: 0 !important;
           margin: 0 !important;
           font-family: inherit !important;
-          font-size: inherit !important;
+          font-size: 16px !important;
           line-height: inherit !important;
           color: inherit !important;
           cursor: pointer !important;
@@ -552,10 +551,12 @@
           transition: color 0.2s ease;
           text-decoration: none;
         }
+
         .rh-read-more:hover {
-          color: #2563EB;
-          text-decoration: underline;
-        }
+    color: #2563EB;
+    text-decoration: underline;
+    box-shadow: none !important;
+}
         
         /* Navigation Arrows - Modern Design */
         .rh-carousel-arrow {
@@ -1768,19 +1769,18 @@
     }
     window.ReviewHubV2._autoInitialized = true;
     
-    const scriptTags = document.querySelectorAll('script[data-widget-id]:not([data-reviewhub-processed])');
+    const scriptTags = document.querySelectorAll('script[data-reviewhub-widget-id]:not([data-reviewhub-processed])');
     window.ReviewHubV2.log('info', `Found ${scriptTags.length} V2 widget script tag(s) for auto-initialization.`);
     scriptTags.forEach(script => {
       // Mark script as processed to prevent duplicate processing
       script.setAttribute('data-reviewhub-processed', 'true');
       
       const config = {
-        widgetId: script.getAttribute('data-widget-id'),
+        widgetId: script.getAttribute('data-reviewhub-widget-id'),
         containerId: script.getAttribute('data-container-id') || null,
         themeColor: script.getAttribute('data-theme-color') || undefined,
         layout: script.getAttribute('data-layout') || undefined,
         cardsToShowDesktop: script.getAttribute('data-cards-desktop') || undefined,
-        cardsToShowTablet: script.getAttribute('data-cards-tablet') || undefined,
         cardsToShowFoldable: script.getAttribute('data-cards-foldable') || undefined,
         cardsToShowMobile: script.getAttribute('data-cards-mobile') || undefined,
         autoplay: script.getAttribute('data-autoplay') || undefined,

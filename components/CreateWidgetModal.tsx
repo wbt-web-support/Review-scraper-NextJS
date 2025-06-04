@@ -231,9 +231,12 @@ useEffect(() => {
   const widgetId = mode === 'edit' && widget ? widget._id : "YOUR_WIDGET_ID";
   
   const generateEmbedCode = (layout: string) => {
+    // Use different attribute for carousel to avoid conflicts with other widgets
+    const widgetIdAttribute = layout === 'carousel' ? 'data-reviewhub-widget-id' : 'data-widget-id';
+    
     return `<div id="reviewhub-widget"></div>
 <script src="${domain}/widget.js" 
-        data-widget-id="${widgetId}"
+        ${widgetIdAttribute}="${widgetId}"
         data-layout="${layout}"
         data-container-id="reviewhub-widget">
 </script>`;
@@ -747,7 +750,7 @@ useEffect(() => {
                           <pre className="bg-gray-50 text-gray-800 rounded-lg p-3 text-xs overflow-x-auto border">
 <code>{`<div id="homepage-reviews"></div>
 <script src="${domain}/widget.js" 
-        data-widget-id="${widgetId}"
+        ${selectedLayout === 'carousel' ? 'data-reviewhub-widget-id' : 'data-widget-id'}="${widgetId}"
         data-layout="${selectedLayout}"
         data-container-id="homepage-reviews">
 </script>`}</code>
@@ -778,6 +781,7 @@ useEffect(() => {
                             <ul className="text-blue-700 text-xs mt-1 space-y-1 list-disc list-inside">
                               <li>Each widget must have a unique <code className="bg-blue-200 px-1 rounded">data-container-id</code></li>
                               <li>The container div ID must match the <code className="bg-blue-200 px-1 rounded">data-container-id</code></li>
+                              <li>Carousel widgets use <code className="bg-blue-200 px-1 rounded">data-reviewhub-widget-id</code>, other layouts use <code className="bg-blue-200 px-1 rounded">data-widget-id</code></li>
                               <li>You can use the same widget ID for multiple instances or different ones for different content</li>
                               <li>Mix and match different layouts (grid, list, badge, etc.) on the same page</li>
                             </ul>

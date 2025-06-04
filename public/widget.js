@@ -333,14 +333,35 @@
 
   // Auto-initialize widgets from script tags
   function initializeWidgetsFromScripts() {
-    const scriptTags = document.querySelectorAll('script[data-widget-id][src*="widget.js"]');
+    // Find scripts with either attribute type
+    const allScriptTags = document.querySelectorAll('script[src*="widget.js"]');
+    const scriptTags = Array.from(allScriptTags).filter(script => 
+      script.getAttribute('data-widget-id') || script.getAttribute('data-reviewhub-widget-id')
+    );
+    
     window.ReviewHubMain.log('info', `Found ${scriptTags.length} widget script tag(s) for auto-initialization.`);
     scriptTags.forEach(script => {
+      // Get layout first to determine which attribute to use
+      const layout = script.getAttribute('data-layout') || CONFIG.DEFAULT_LAYOUT;
+      
+      // For carousel, prefer data-reviewhub-widget-id, for others prefer data-widget-id
+      let widgetId;
+      if (layout === 'carousel') {
+        widgetId = script.getAttribute('data-reviewhub-widget-id') || script.getAttribute('data-widget-id');
+      } else {
+        widgetId = script.getAttribute('data-widget-id') || script.getAttribute('data-reviewhub-widget-id');
+      }
+      
+      if (!widgetId) {
+        window.ReviewHubMain.log('warn', 'Script tag found but no widget ID attribute present', { layout });
+        return;
+      }
+      
       const config = {
-        widgetId: script.getAttribute('data-widget-id'),
+        widgetId: widgetId,
         containerId: script.getAttribute('data-container-id') || null,
         themeColor: script.getAttribute('data-theme-color') || undefined,
-        layout: script.getAttribute('data-layout') || CONFIG.DEFAULT_LAYOUT,
+        layout: layout,
         
         // Pass through all data attributes for specific widgets
         cardsToShowDesktop: script.getAttribute('data-cards-desktop') || undefined,
