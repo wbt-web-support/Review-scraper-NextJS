@@ -33,7 +33,7 @@
       WIDE_SCREEN_BREAKPOINT: 2560,
       DEFAULT_VISIBLE_CARDS: {
         wideScreen: 6,    // 2K+ monitors (2560px+)
-        desktop: 5,       // Large desktop (1920px+)
+        desktop: 4,       // Large desktop (1920px+)
         laptop: 4,        // Laptop (1366px+)
         tablet: 3,        // Tablet (1024px - 1365px)
         foldable: 2,      // Foldable devices (900px - 1023px)
@@ -379,6 +379,7 @@
         }
         .rh-carousel-track.rh-dragging {
           cursor: grabbing;
+          transition: none;
         }
         .rh-carousel-slide {
           flex: 0 0 auto;
@@ -1084,12 +1085,14 @@
         let visibleSlides = 1; // Default to 1, will be calculated
         let slideWidth = 0;
         let isDragging = false,
+            isPointerDown = false,
             startPos = 0,
             currentTranslate = 0,
             prevTranslate = 0,
             animationID;
         let totalDots = 0;
         let dragThreshold = 50; // Minimum pixels to drag to change slide
+        let dragStartThreshold = 10; // Minimum pixels to move before considering it a drag
 
         const calculateVisibleSlides = () => {
             const screenWidth = window.innerWidth;
@@ -1375,26 +1378,38 @@
             setTimeout(startAutoPlay, (widgetSettings.autoplayDelay || 5000) * 1.5);
         });
 
-        // Touch/Drag simplified
+        // Touch/Drag functionality with improved click detection
         const getPositionX = (event) => event.type.includes('mouse') ? event.pageX : event.touches[0].clientX;
 
         const touchStart = (event) => {
-            isDragging = true;
+            isPointerDown = true;
+            isDragging = false; // Don't set dragging immediately
             startPos = getPositionX(event);
-            prevTranslate = -currentIndex * slideWidth; // Capture based on current index and slideWidth
+            prevTranslate = -currentIndex * slideWidth;
             track.style.transition = 'none';
-            animationID = requestAnimationFrame(dragAnimation);
             stopAutoPlay();
         };
 
         const touchMove = (event) => {
-            if (isDragging) {
-                const currentPosition = getPositionX(event);
-                currentTranslate = prevTranslate + currentPosition - startPos;
-                // Optional: prevent vertical scroll if horizontal drag is significant
-                if (Math.abs(currentPosition - startPos) > 10 && event.cancelable) {
-                    // event.preventDefault(); // Can cause issues if not careful
+            if (!isPointerDown) return;
+            
+            const currentPosition = getPositionX(event);
+            const deltaX = currentPosition - startPos;
+            
+            // Only start dragging if we've moved beyond the threshold
+            if (!isDragging && Math.abs(deltaX) > dragStartThreshold) {
+                isDragging = true;
+                track.classList.add('rh-dragging');
+                animationID = requestAnimationFrame(dragAnimation);
+                
+                // Prevent default behavior only when we're actually dragging
+                if (event.cancelable) {
+                    event.preventDefault();
                 }
+            }
+            
+            if (isDragging) {
+                currentTranslate = prevTranslate + deltaX;
             }
         };
 
@@ -1405,22 +1420,38 @@
             }
         }
         
-        const touchEnd = () => {
-            if (!isDragging) return;
-            isDragging = false;
-            cancelAnimationFrame(animationID);
+        const touchEnd = (event) => {
+            if (!isPointerDown) return;
+            
+            isPointerDown = false;
+            
+            if (isDragging) {
+                isDragging = false;
+                track.classList.remove('rh-dragging');
+                cancelAnimationFrame(animationID);
 
-            const movedBy = currentTranslate - prevTranslate;
-            let direction = 0;
-            if (movedBy < -dragThreshold) direction = 1; // Swiped left
-            if (movedBy > dragThreshold) direction = -1; // Swiped right
+                const movedBy = currentTranslate - prevTranslate;
+                let direction = 0;
+                if (movedBy < -dragThreshold) direction = 1; // Swiped left
+                if (movedBy > dragThreshold) direction = -1; // Swiped right
 
-            if (direction !== 0) {
-                changeSlide(direction);
+                if (direction !== 0) {
+                    changeSlide(direction);
+                } else {
+                    // Snap back to current slide if not moved enough
+                    updateCarouselPosition(); 
+                }
+                
+                // Prevent click events from firing after drag
+                track.style.pointerEvents = 'none';
+                setTimeout(() => {
+                    track.style.pointerEvents = 'auto';
+                }, 100);
             } else {
-                // Snap back to current slide if not moved enough
-                updateCarouselPosition(); 
+                // If we didn't drag, restore transition for smooth snapping
+                track.style.transition = 'transform 0.45s cubic-bezier(0.65, 0, 0.35, 1)';
             }
+            
             setTimeout(startAutoPlay, (widgetSettings.autoplayDelay || 5000) * 1.5);
         };
         
@@ -1428,11 +1459,30 @@
         track.addEventListener('touchstart', touchStart, { passive: true });
 
         document.addEventListener('mousemove', touchMove); // Listen on document for wider drag area
-        document.addEventListener('touchmove', touchMove, { passive: true });
+        document.addEventListener('touchmove', touchMove, { passive: false }); // Need to be able to preventDefault
 
         document.addEventListener('mouseup', touchEnd);
         document.addEventListener('touchend', touchEnd);
-        document.addEventListener('mouseleave', () => {if(isDragging) touchEnd();}); // If mouse leaves document
+        document.addEventListener('mouseleave', (e) => {
+            // Only end drag if mouse leaves the document entirely
+            if (e.target === document.documentElement) {
+                touchEnd(e);
+            }
+        });
+
+        // Prevent context menu on long press for mobile
+        track.addEventListener('contextmenu', (e) => {
+            if (isDragging) {
+                e.preventDefault();
+            }
+        });
+        
+        // Prevent text selection during drag
+        track.addEventListener('selectstart', (e) => {
+            if (isDragging) {
+                e.preventDefault();
+            }
+        });
 
         let autoPlayInterval;
         const startAutoPlay = () => {
@@ -1581,18 +1631,29 @@
       };
 
       this.log('info', 'Initializing widget V2', config);
+      
+      // Prevent duplicate initializations - create a unique identifier for this widget instance
+      const widgetInstanceId = config.containerId ? 
+        `${config.widgetId}-${config.containerId}` : 
+        `${config.widgetId}-script-${config._scriptTag ? Array.from(document.scripts).indexOf(config._scriptTag) : Date.now()}`;
+      
+      // Check if this widget instance has already been initialized
+      this._initializedWidgets = this._initializedWidgets || new Set();
+      if (this._initializedWidgets.has(widgetInstanceId)) {
+        this.log('warn', `Widget instance ${widgetInstanceId} already initialized, skipping.`);
+        return;
+      }
+      this._initializedWidgets.add(widgetInstanceId);
+      
       this.injectStyles();
 
       if (config.containerId) {
         container = document.getElementById(config.containerId);
         if (!container) {
           this.log('error', `Container element #${config.containerId} not found.`);
-          // Optionally create a temporary error message in body if no container
-          const errDiv = document.createElement('div');
-          errDiv.className = 'reviewhub-v2-widget-container'; // Use a base class
-          this.showError(errDiv, new Error(`Container #${config.containerId} not found.`), config, null);
-          document.body.insertAdjacentElement('beforeend', errDiv); // Add to end of body
-          return;
+          // Remove from initialized set since we failed
+          this._initializedWidgets.delete(widgetInstanceId);
+          return; // Don't create fallback containers when containerId is explicitly specified
         }
       } else if (config._scriptTag) { // If initialized from script tag without explicit container
           container = document.createElement('div');
@@ -1600,8 +1661,14 @@
           this.log('info', `No containerId, created one after script tag: ${config._scriptTag.src}`);
       } else {
         this.log('error', 'No containerId provided and cannot infer container. Widget will not render.');
+        // Remove from initialized set since we failed
+        this._initializedWidgets.delete(widgetInstanceId);
         return; // Cannot proceed without a container
       }
+      
+      // Add a data attribute to mark this container as initialized
+      container.setAttribute('data-reviewhub-widget-id', config.widgetId);
+      container.setAttribute('data-reviewhub-instance-id', widgetInstanceId);
       
       container.className = 'reviewhub-v2-widget-container'; // Base class for all widgets
       container.innerHTML = `
@@ -1636,6 +1703,8 @@
         this.log('info', 'Retrying widget load V2', { widgetId: config.widgetId });
         // Clear container and re-init. Be careful of infinite loops if API always fails.
         container.innerHTML = ''; // Clear previous error/loading
+        // Remove from initialized set to allow retry
+        this._initializedWidgets.delete(widgetInstanceId);
         this.initWidget(config); 
       };
 
@@ -1674,6 +1743,12 @@
       // Handle string shorthand for widgetId
       const config = typeof userConfig === 'string' ? { widgetId: userConfig } : userConfig;
       
+      // Add some basic validation
+      if (!config || !config.widgetId) {
+        this.log('error', 'Invalid config provided to init method', config);
+        return;
+      }
+      
       // If script is still loading, defer initialization
       if (document.readyState === 'loading') {
           window.ReviewHubV2._pendingInitializations = window.ReviewHubV2._pendingInitializations || [];
@@ -1686,9 +1761,19 @@
 
   // Auto-initialize widgets from script tags
   function initializeWidgetsFromScripts() {
-    const scriptTags = document.querySelectorAll('script[data-widget-id]');
+    // Prevent multiple executions
+    if (window.ReviewHubV2._autoInitialized) {
+      window.ReviewHubV2.log('info', 'Auto-initialization already completed, skipping.');
+      return;
+    }
+    window.ReviewHubV2._autoInitialized = true;
+    
+    const scriptTags = document.querySelectorAll('script[data-widget-id]:not([data-reviewhub-processed])');
     window.ReviewHubV2.log('info', `Found ${scriptTags.length} V2 widget script tag(s) for auto-initialization.`);
     scriptTags.forEach(script => {
+      // Mark script as processed to prevent duplicate processing
+      script.setAttribute('data-reviewhub-processed', 'true');
+      
       const config = {
         widgetId: script.getAttribute('data-widget-id'),
         containerId: script.getAttribute('data-container-id') || null,
@@ -1709,15 +1794,24 @@
       // Filter out undefined values from config
       Object.keys(config).forEach(key => config[key] === undefined && delete config[key]);
       
+      // Only add _scriptTag if there's no containerId specified
+      if (config.containerId) {
+        delete config._scriptTag;
+        window.ReviewHubV2.log('info', `Using specified container: ${config.containerId} for widget: ${config.widgetId}`);
+      } else {
+        window.ReviewHubV2.log('info', `No container specified, will create container after script tag for widget: ${config.widgetId}`);
+      }
+      
       window.ReviewHubV2.initWidget(config);
     });
   }
   
   // Handle pending initializations if DOM was already ready
   function processPendingInitializations() {
-      if (window.ReviewHubV2._pendingInitializations) {
+      if (window.ReviewHubV2._pendingInitializations && window.ReviewHubV2._pendingInitializations.length > 0) {
+          window.ReviewHubV2.log('info', `Processing ${window.ReviewHubV2._pendingInitializations.length} pending widget initializations.`);
           window.ReviewHubV2._pendingInitializations.forEach(config => window.ReviewHubV2.initWidget(config));
-          delete window.ReviewHubV2._pendingInitializations; // Clear after processing
+          window.ReviewHubV2._pendingInitializations = []; // Clear after processing
       }
   }
 
