@@ -232,7 +232,7 @@ useEffect(() => {
   
   const generateEmbedCode = (layout: string) => {
     return `<div id="reviewhub-widget"></div>
-<script src="${domain}/widget-main.js" 
+<script src="${domain}/widget.js" 
         data-widget-id="${widgetId}"
         data-layout="${layout}"
         data-container-id="reviewhub-widget">
@@ -481,7 +481,7 @@ useEffect(() => {
                   </h3>
                   <div className="space-y-6 flex gap-4">
                     {/* Theme Color */}
-                    <div>
+                    <div className="hidden">
                       <Label className="text-sm font-medium text-gray-700 mb-3 block">
                         Theme Color
                       </Label>
@@ -722,6 +722,69 @@ useEffect(() => {
                     <pre className="bg-gray-900 text-gray-100 rounded-xl p-4 text-sm overflow-x-auto border border-gray-200">
                       <code>{generateEmbedCode(selectedLayout)}</code>
                     </pre>
+                  </div>
+                </div>
+
+                {/* Multiple Widgets Instructions */}
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                      <Grid3X3 className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-blue-900 mb-2">Using Multiple Widgets on the Same Page</h4>
+                      <p className="text-blue-700 text-sm mb-4">
+                        Want to display multiple review widgets on the same page? Each widget needs a unique container ID.
+                        Here's how to set it up:
+                      </p>
+                      
+                      <div className="space-y-4">
+                        <div className="bg-white rounded-lg border border-blue-200 p-4">
+                          <h5 className="font-medium text-blue-900 mb-2 flex items-center gap-2">
+                            <span className="w-5 h-5 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold">1</span>
+                            First Widget (Homepage Reviews)
+                          </h5>
+                          <pre className="bg-gray-50 text-gray-800 rounded-lg p-3 text-xs overflow-x-auto border">
+<code>{`<div id="homepage-reviews"></div>
+<script src="${domain}/widget.js" 
+        data-widget-id="${widgetId}"
+        data-layout="${selectedLayout}"
+        data-container-id="homepage-reviews">
+</script>`}</code>
+                          </pre>
+                        </div>
+
+                        <div className="bg-white rounded-lg border border-blue-200 p-4">
+                          <h5 className="font-medium text-blue-900 mb-2 flex items-center gap-2">
+                            <span className="w-5 h-5 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold">2</span>
+                            Second Widget (Footer Reviews)
+                          </h5>
+                          <pre className="bg-gray-50 text-gray-800 rounded-lg p-3 text-xs overflow-x-auto border">
+<code>{`<div id="footer-reviews"></div>
+<script src="${domain}/widget.js" 
+        data-widget-id="ANOTHER_WIDGET_ID"
+        data-layout="badge"
+        data-container-id="footer-reviews">
+</script>`}</code>
+                          </pre>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 p-3 bg-blue-100 rounded-lg border border-blue-200">
+                        <div className="flex items-start gap-2">
+                          <Settings className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-blue-800 text-sm font-medium">Key Points:</p>
+                            <ul className="text-blue-700 text-xs mt-1 space-y-1 list-disc list-inside">
+                              <li>Each widget must have a unique <code className="bg-blue-200 px-1 rounded">data-container-id</code></li>
+                              <li>The container div ID must match the <code className="bg-blue-200 px-1 rounded">data-container-id</code></li>
+                              <li>You can use the same widget ID for multiple instances or different ones for different content</li>
+                              <li>Mix and match different layouts (grid, list, badge, etc.) on the same page</li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 

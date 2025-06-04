@@ -171,17 +171,50 @@
     },
 
     getPlatformThemeColor: function(source, userThemeColor) {
-      // If user provided a theme color, use it
-      if (userThemeColor && userThemeColor !== '#3B82F6') {
+      // Always use user-provided theme color if available
+      if (userThemeColor) {
         return userThemeColor;
       }
       
-      // Use platform-specific colors
+      // Use platform-specific colors only as fallback
       if (source === 'facebook') {
         return '#1877F2'; // Facebook blue
       } else {
         return '#4285F4'; // Google blue
       }
+    },
+
+    filterReviews: function(reviews, widgetSettings) {
+      if (!reviews || reviews.length === 0) return reviews;
+      
+      return reviews.filter(review => {
+        const reviewSource = this.detectReviewSource(review, widgetSettings);
+        
+        if (reviewSource === 'facebook') {
+          // Filter Facebook reviews based on reviewFilterDisplay setting
+          const reviewFilterDisplay = widgetSettings.reviewFilterDisplay;
+          if (reviewFilterDisplay) {
+            if (reviewFilterDisplay === 'recommended' && review.recommendationStatus !== 'recommended') {
+              return false;
+            }
+            if (reviewFilterDisplay === 'not_recommended' && review.recommendationStatus !== 'not_recommended') {
+              return false;
+            }
+            // If reviewFilterDisplay is 'all' or undefined, show all reviews
+          }
+        } else {
+          // Filter Google reviews based on minRating setting
+          const minRating = widgetSettings.minRating;
+          if (minRating && typeof minRating === 'number') {
+            const reviewRating = parseFloat(review.rating) || 0;
+            if (reviewRating < minRating) {
+              return false;
+            }
+          }
+        }
+        
+        return true;
+      });
     },
 
     injectStyles: function() {
@@ -848,8 +881,11 @@
       this.log('info', 'Rendering grid widget', { data, config });
       const { widgetSettings, reviews, businessName, businessUrlLink, totalReviewCount } = data;
       
+      // Filter reviews based on widget settings
+      const filteredReviews = this.filterReviews(reviews, widgetSettings);
+      
       // Detect platform from first review or widget settings
-      const platformSource = reviews.length > 0 ? this.detectReviewSource(reviews[0], widgetSettings) : 'google';
+      const platformSource = filteredReviews.length > 0 ? this.detectReviewSource(filteredReviews[0], widgetSettings) : 'google';
       const platformLogo = this.getPlatformLogo(platformSource);
       const platformName = platformSource === 'facebook' ? 'Facebook' : 'Google';
       
@@ -861,12 +897,12 @@
       container.style.setProperty('--grid-theme-color-dark', this.darkenColor(themeColor, 15));
       container.style.setProperty('--grid-theme-color-light', this.lightenColor(themeColor, 90));
 
-      if (!reviews || reviews.length === 0) {
+      if (!filteredReviews || filteredReviews.length === 0) {
         container.innerHTML = '<div class="reviewhub-grid-error"><div class="reviewhub-grid-error-title">No reviews to display.</div><div class="reviewhub-grid-error-message">Check back later or add some reviews!</div></div>';
         return;
       }
       
-      const reviewCardsHtml = reviews.map((review, index) => {
+      const reviewCardsHtml = filteredReviews.map((review, index) => {
         const author = this.escapeHtml(review.author || 'Anonymous');
         const initials = this.getInitials(review.author);
         const profilePicture = review.profilePicture;
@@ -936,7 +972,7 @@
       `;
 
       container.innerHTML = gridHtml;
-      this.attachModalEventListeners(container, reviews, data, config);
+      this.attachModalEventListeners(container, filteredReviews, data, config);
     },
 
     attachModalEventListeners: function(container, reviews, allData, config) {

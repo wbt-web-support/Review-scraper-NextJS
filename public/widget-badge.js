@@ -297,28 +297,92 @@
 
         /* Badge Widget Styles */
         .reviewhub-badge-widget {
-          background: linear-gradient(135deg, #FFFFFF 0%, #FAFBFC 100%);
-          border-radius: 16px;
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
+          background: #FFFFFF;
+          border-radius: 12px;
+          box-shadow: 0 2px 5px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
           margin: 10px;
-          padding: 20px;
+          padding: 16px 20px;
           display: flex;
           flex-direction: column;
-          align-items: center;
-          border: 1px solid #F1F5F9;
-          min-width: 220px;
-          max-width: 320px;
+          align-items: flex-start;
+          border: 1px solid #E5E7EB;
+          min-width: 210px;
+          max-width: 210px;
           font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-          transition: all 0.3s ease;
+          transition: all 0.2s ease;
           position: relative;
-          overflow: hidden;
+          cursor: pointer;
         }
 
         .reviewhub-badge-widget:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12), 0 4px 10px rgba(0, 0, 0, 0.08);
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 6px rgba(0, 0, 0, 0.08);
         }
 
+        .reviewhub-badge-compact-header {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 8px;
+          width: 100%;
+          justify-content: center;
+        }
+
+        .reviewhub-badge-compact-logo {
+          width: 24px;
+          height: 24px;
+          border-radius: 4px;
+          flex-shrink: 0;
+        }
+
+        .reviewhub-badge-compact-title {
+          font-weight: 500;
+          font-size: 0.9rem;
+          color: #374151;
+          margin: 0;
+        }
+
+        .reviewhub-badge-compact-rating {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 10px;
+          width: 100%;
+          justify-content: center;
+        }
+
+        .reviewhub-badge-compact-stars {
+          color: #F59E0B;
+          font-size: 1.1rem;
+          letter-spacing: 1px;
+          line-height: 1;
+          display: flex;
+          gap: 1px;
+        }
+
+        .reviewhub-badge-compact-text {
+          font-size: 0.85rem;
+          font-weight: 600;
+          color: #111827;
+          line-height: 1.2;
+          text-align: center;
+        }
+
+        .reviewhub-badge-compact-number {
+          font-size: 1.2rem;
+          font-weight: 700;
+          color: #111827;
+          line-height: 1;
+        }
+
+        .reviewhub-badge-compact-label {
+          font-size: 0.8rem;
+          font-weight: 500;
+          color: #6B7280;
+          margin-top: 2px;
+        }
+
+        /* Legacy styles - keeping for backwards compatibility but unused in compact design */
         .reviewhub-badge-header {
           display: flex;
           align-items: center;
@@ -693,10 +757,35 @@
         /* Mobile responsive */
         @media (max-width: 640px) {
           .reviewhub-badge-widget {
-            min-width: 200px;
-            max-width: 280px;
-            padding: 16px;
+            min-width: 210px;
+            max-width: 210px;
+            padding: 14px 16px;
             margin: 8px;
+          }
+
+          .reviewhub-badge-compact-header {
+            margin-bottom: 8px;
+          }
+
+          .reviewhub-badge-compact-logo {
+            width: 20px;
+            height: 20px;
+          }
+
+          .reviewhub-badge-compact-title {
+            font-size: 0.85rem;
+          }
+
+          .reviewhub-badge-compact-stars {
+            font-size: 1rem;
+          }
+
+          .reviewhub-badge-compact-text {
+            font-size: 0.8rem;
+          }
+
+          .reviewhub-badge-compact-number {
+            font-size: 1.1rem;
           }
 
           .reviewhub-badge-modal-panel {
@@ -876,59 +965,55 @@
       } else {
         // For Google, use traditional star rating
         avgRating = reviews.length > 0 ? (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length).toFixed(1) : '5.0';
-        displayText = 'Rating';
+        displayText = 'Stars';
       }
       
-      const reviewText = reviewCount === 1 ? 'Review' : 'Reviews';
+      const reviewText = reviewCount === 1 ? 'review' : 'reviews';
       
-      // Determine review URL
-      let reviewUrl;
-      if (businessUrlLink) {
-        reviewUrl = businessUrlLink;
-      } else if (widgetSettings.businessUrl?.url) {
-        reviewUrl = widgetSettings.businessUrl.url;
-      } else if (businessName) {
-        const searchBase = platformSource === 'facebook' ? 'https://www.facebook.com/search/top?q=' : 'https://www.google.com/maps/search/';
-        reviewUrl = `${searchBase}${encodeURIComponent(businessName)}+reviews`;
-      } else {
-        reviewUrl = platformSource === 'facebook' ? 'https://www.facebook.com' : 'https://www.google.com/maps';
-      }
-
       // Generate rating/recommendation display
       let ratingDisplay = '';
       if (platformSource === 'facebook') {
-        ratingDisplay = `<span class="reviewhub-badge-rating-number">${avgRating}</span>`;
+        // Calculate recommendation status description
+        const recommendedCount = reviews.filter(r => r.recommendationStatus === 'recommended').length;
+        const notRecommendedCount = reviews.filter(r => r.recommendationStatus === 'not_recommended').length;
+        const recommendedPercentage = reviews.length > 0 ? (recommendedCount / reviews.length) * 100 : 100;
+        
+        let statusDescription = '';
+        if (recommendedPercentage >= 80) {
+          statusDescription = 'Mostly Recommended';
+        } else if (recommendedPercentage >= 60) {
+          statusDescription = 'Generally Recommended';
+        } else if (recommendedPercentage >= 40) {
+          statusDescription = 'Mixed Reviews';
+        } else if (recommendedPercentage >= 20) {
+          statusDescription = 'Generally Not Recommended';
+        } else {
+          statusDescription = 'Mostly Not Recommended';
+        }
+        
+        ratingDisplay = `
+          <div class="reviewhub-badge-compact-rating">
+            <span class="reviewhub-badge-compact-number">${avgRating}</span>
+            <span class="reviewhub-badge-compact-text">${reviewCount} ${reviewText} | ${statusDescription}</span>
+          </div>
+        `;
       } else {
         const stars = this.generateStars(parseFloat(avgRating));
         ratingDisplay = `
-          <span class="reviewhub-badge-rating-number">${avgRating}</span>
-          <span class="reviewhub-badge-stars">${stars}</span>
+          <div class="reviewhub-badge-compact-rating">
+            <div class="reviewhub-badge-compact-stars">${stars}</div>
+            <span class="reviewhub-badge-compact-text">${avgRating} ${displayText} | ${reviewCount} ${reviewText}</span>
+          </div>
         `;
       }
 
       const badgeHtml = `
-        <div class="reviewhub-badge-widget">
-          <div class="reviewhub-badge-header">
-            <div class="reviewhub-badge-logo">
-              <img src="${platformLogo}" alt="${platformName}" style="width: 32px; height: 32px; border-radius: 6px;" />
-            </div>
-            <h3 class="reviewhub-badge-title">${platformName} Reviews</h3>
+        <div class="reviewhub-badge-widget reviewhub-badge-modal-btn" role="button" tabindex="0" aria-label="View ${reviewCount} reviews">
+          <div class="reviewhub-badge-compact-header">
+            <img src="${platformLogo}" alt="${platformName}" class="reviewhub-badge-compact-logo" />
+            <span class="reviewhub-badge-compact-title">${platformName} Reviews</span>
           </div>
-          
-          <div class="reviewhub-badge-divider"></div>
-          
-          <div class="reviewhub-badge-rating-container">
-            ${ratingDisplay}
-          </div>
-          
-          <div class="reviewhub-badge-actions">
-            <button class="reviewhub-badge-review-link reviewhub-badge-modal-btn">
-              📖 Read our ${reviewCount} ${reviewText}
-            </button>
-            <a href="${reviewUrl}" target="_blank" rel="noopener noreferrer" class="reviewhub-badge-write-review">
-              Write a Review
-            </a>
-          </div>
+          ${ratingDisplay}
         </div>
       `;
 
@@ -940,9 +1025,18 @@
       const modalBtn = container.querySelector('.reviewhub-badge-modal-btn');
       if (!modalBtn) return;
 
-      modalBtn.addEventListener('click', (e) => {
+      const openModal = (e) => {
         e.preventDefault();
         this.showReviewsModal(data, config);
+      };
+
+      modalBtn.addEventListener('click', openModal);
+      
+      // Add keyboard support for accessibility
+      modalBtn.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          openModal(e);
+        }
       });
     },
 
