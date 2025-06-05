@@ -636,7 +636,7 @@
             width: 10px; /* Slightly larger for better visibility */
             height: 10px;
             border-radius: 50%;
-            background-color: #CBD5E1; /* Better default color */
+            background-color: #CBD5E1 !important; /* Better default color */
             border: none;
             padding: 0;
             cursor: pointer;
@@ -645,14 +645,14 @@
             display: block;
         }
         .rh-carousel-dots li button.rh-active {
-            background-color: #3B82F6;
+            background-color: #424b59 !important;
             transform: scale(1.3); /* Slightly more prominent */
             opacity: 1;
             box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3); /* Add shadow for active state */
         }
         .rh-carousel-dots li button.rh-near-active {
             opacity: 0.8;
-            background-color: #94A3B8;
+            background-color: #94A3B8 !important;
             transform: scale(1.1);
         }
         .rh-carousel-dots li button.rh-far {
@@ -812,6 +812,7 @@
 
         /* Responsive adjustments */
         @media (max-width: ${CONFIG.CAROUSEL_SETTINGS.LAPTOP_BREAKPOINT}px) {
+          .rh-carousel-arrow { display: block !important; }
           .rh-carousel-arrow.rh-prev { left: -15px; }
           .rh-carousel-arrow.rh-next { right: -15px; }
         }
@@ -834,7 +835,15 @@
         }
 
         @media (max-width: ${CONFIG.CAROUSEL_SETTINGS.MOBILE_BREAKPOINT}px) {
-          .rh-carousel-arrow { display: none; }
+          .rh-carousel-arrow { 
+            display: flex; /* Show arrows on mobile */
+            width: 28px; /* Smaller for mobile */
+            height: 28px;
+            font-size: 0.7rem; /* Smaller icon */
+          }
+          .rh-carousel-arrow.rh-prev { left: -5px; } /* Closer to edge on mobile */
+          .rh-carousel-arrow.rh-next { right: -5px; }
+          
           .rh-carousel-slide { padding: 0 8px; }
           .rh-review-card { 
             padding: 18px; 
