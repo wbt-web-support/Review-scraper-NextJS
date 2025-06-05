@@ -284,6 +284,7 @@
           line-height: inherit !important;
           color: inherit !important;
           cursor: pointer !important;
+          margin-top: 10px !important;
         }
         
         .reviewhub-grid-widget-container a {

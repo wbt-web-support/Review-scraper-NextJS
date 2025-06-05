@@ -241,21 +241,22 @@
         .reviewhub-v2-widget-container p {
           margin: 0 !important;
           padding: 0 !important;
-          font-size: inherit !important;
+          font-size: 16px !important;
           line-height: inherit !important;
           color: inherit !important;
         }
         
         .reviewhub-v2-widget-container button {
-          background: none !important;
+          background: transparent !important;
           border: none !important;
           padding: 0 !important;
           margin: 0 !important;
           font-family: inherit !important;
-          font-size: 16px !important;
+          font-size: 14px !important;
           line-height: inherit !important;
           color: inherit !important;
           cursor: pointer !important;
+          margin-top: 10px !important;
         }
         
         .reviewhub-v2-widget-container a {
@@ -363,7 +364,7 @@
           position: relative;
           width: 100%;
           padding: 0;
-          margin-bottom: 24px;
+          margin-bottom: 50px; /* Increased to accommodate dots */
         }
         .rh-carousel-track-container { 
             overflow: hidden;
@@ -401,6 +402,7 @@
           transition: all 0.3s ease;
           position: relative;
           overflow: hidden;
+          min-height: 320px; /* Ensure minimum height for content */
         }
     
         .rh-review-card:hover {
@@ -425,6 +427,7 @@
           align-items: center;
           gap: 14px; 
           margin-bottom: 12px;
+          flex-shrink: 0; /* Prevent header from shrinking */
         //   margin-top: 8px;
         }
         
@@ -461,6 +464,7 @@
             display: flex;
             align-items: center;
             margin-bottom: 4px;
+            gap: 8px;
         }
         .rh-card-author-name {
           font-weight: 600;
@@ -494,9 +498,10 @@
         .rh-card-rating {
           color:rgb(245, 202, 11);
           font-size: 0.9rem; 
-        //   margin-bottom: 12px;
+          margin-bottom: 12px; /* Add margin back for proper spacing */
           display: flex;
           gap: 1px;
+          flex-shrink: 0; /* Prevent rating from shrinking */
         }
 
         /* Facebook recommendation status styles */
@@ -508,6 +513,7 @@
           font-weight: 600;
           margin-bottom: 12px;
           padding: 4px 0;
+          flex-shrink: 0; /* Prevent recommendation status from shrinking */
         }
 
         .rh-recommended {
@@ -526,17 +532,21 @@
             flex-grow: 1;
             display: flex;
             flex-direction: column;
+            min-height: 0; /* Allow shrinking */
+            overflow: hidden;
         }
         .rh-card-content {
           font-size: 0.9rem; 
           line-height: 1.6;
           color: #374151;
-          margin-bottom: 16px;
-          -webkit-line-clamp: 4;
-          overflow: hidden;
+          margin-bottom: 12px;
           display: -webkit-box;
+          -webkit-line-clamp: 4;
           -webkit-box-orient: vertical;
+          overflow: hidden;
           flex-grow: 1;
+          word-wrap: break-word;
+          hyphens: auto;
         }
         .rh-read-more {
           font-size: 0.85rem;
@@ -547,9 +557,11 @@
           padding: 0;
           cursor: pointer;
           text-align: left;
-          margin-top: auto;
+          margin-top: 8px; /* Fixed margin instead of auto */
           transition: color 0.2s ease;
           text-decoration: none;
+          flex-shrink: 0; /* Prevent button from shrinking */
+          align-self: flex-start; /* Align to start instead of stretching */
         }
 
         .rh-read-more:hover {
@@ -603,48 +615,60 @@
         /* Navigation Dots - Modern Design with Sliding Window */
         .rh-carousel-dots {
             position: absolute;
-            bottom: -20px;
+            bottom: -30px; /* Increased spacing from carousel */
             left: 50%;
             transform: translateX(-50%);
             display: flex;
-            gap: 8px; 
+            gap: 10px; /* Increased gap for better visibility */
             list-style: none;
             padding: 0;
             margin: 0;
             z-index: 5;
+            justify-content: center;
+            align-items: center;
+        }
+        .rh-carousel-dots li {
+            list-style: none;
+            margin: 0;
+            padding: 0;
         }
         .rh-carousel-dots li button {
-            width: 8px;
-            height: 8px;
+            width: 10px; /* Slightly larger for better visibility */
+            height: 10px;
             border-radius: 50%;
-            background-color: #D1D5DB; 
+            background-color: #CBD5E1; /* Better default color */
             border: none;
             padding: 0;
             cursor: pointer;
             transition: all 0.3s ease;
-            opacity: 0.4;
+            opacity: 0.6;
+            display: block;
         }
         .rh-carousel-dots li button.rh-active {
             background-color: #3B82F6;
-            transform: scale(1.25);
+            transform: scale(1.3); /* Slightly more prominent */
             opacity: 1;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3); /* Add shadow for active state */
         }
         .rh-carousel-dots li button.rh-near-active {
-            opacity: 0.7;
-            background-color: #9CA3AF;
+            opacity: 0.8;
+            background-color: #94A3B8;
+            transform: scale(1.1);
         }
         .rh-carousel-dots li button.rh-far {
-            opacity: 0.3;
-            background-color: #D1D5DB;
+            opacity: 0.4;
+            background-color: #CBD5E1;
         }
         .rh-carousel-dots li button:hover {
             opacity: 1;
             background-color: #6B7280;
-            transform: scale(1.1);
+            transform: scale(1.2);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
         }
         .rh-carousel-dots li button.rh-active:hover {
             background-color: #2563EB;
-            transform: scale(1.25);
+            transform: scale(1.3);
+            box-shadow: 0 3px 10px rgba(59, 130, 246, 0.4);
         }
 
         /* Modal styles - Modern Design */
@@ -794,25 +818,35 @@
 
         @media (max-width: ${CONFIG.CAROUSEL_SETTINGS.TABLET_BREAKPOINT}px) {
           .rh-card-content { -webkit-line-clamp: 3; }
-          .rh-review-card { padding: 20px; }
+          .rh-review-card { 
+            padding: 20px;
+            min-height: 310px; /* Intermediate height for tablet */
+          }
         }
 
         @media (max-width: ${CONFIG.CAROUSEL_SETTINGS.FOLDABLE_BREAKPOINT}px) {
           .rh-carousel-slide { padding: 0 8px; }
-          .rh-review-card { padding: 18px; }
+          .rh-review-card { 
+            padding: 18px;
+            min-height: 300px; /* Intermediate height for foldable */
+          }
           .rh-card-content { -webkit-line-clamp: 3; }
         }
 
         @media (max-width: ${CONFIG.CAROUSEL_SETTINGS.MOBILE_BREAKPOINT}px) {
           .rh-carousel-arrow { display: none; }
           .rh-carousel-slide { padding: 0 8px; }
-          .rh-review-card { padding: 18px; }
+          .rh-review-card { 
+            padding: 18px; 
+            min-height: 280px; /* Reduced for mobile */
+          }
           .rh-card-avatar { width: 40px; height: 40px; }
           .rh-card-author-name { font-size: 0.9rem; }
           .rh-card-review-meta { font-size: 0.75rem; }
           .rh-card-content { font-size: 0.85rem; -webkit-line-clamp: 3; }
           .rh-read-more { font-size: 0.8rem; }
-          .rh-carousel-dots { bottom: -16px; }
+          .rh-carousel-dots { bottom: -25px; } /* Adjusted for mobile */
+          .rh-carousel-wrapper { margin-bottom: 40px; } /* Reduced margin for mobile */
           
           .rh-modal { padding: 24px; border-radius: 16px; }
           .rh-modal-avatar { width: 48px; height: 48px; }
@@ -1316,29 +1350,43 @@
             if (isMobile || totalReviews <= visibleSlides || (window.innerWidth > CONFIG.CAROUSEL_SETTINGS.MOBILE_BREAKPOINT && totalReviews < minReviewsForNavDesktop)) {
                 prevBtn.style.display = 'none';
                 nextBtn.style.display = 'none';
+                return;
             } else {
                 prevBtn.style.display = 'flex';
                 nextBtn.style.display = 'flex';
             }
 
-            // With infinite loop, arrows are never disabled
+            // Update arrow states based on current position
             prevBtn.classList.remove('rh-disabled');
             nextBtn.classList.remove('rh-disabled');
+            
+            // Disable prev button when on first slide
+            if (currentIndex <= 0) {
+                prevBtn.classList.add('rh-disabled');
+            }
+            
+            // Next button is never disabled since we allow wrap from last to first
         };
         
         const changeSlide = (direction) => {
-            // Handle wrapping before changing the index to prevent blank space
+            // Handle wrapping logic
             let newIndex = currentIndex + direction;
             let shouldSnapInstantly = false;
             
-            // Check bounds and wrap immediately
-            // For forward direction, wrap when we can't show a full set of visible slides
-            if (newIndex > slides.length - visibleSlides) {
-                newIndex = 0; // Wrap to beginning
-                shouldSnapInstantly = false;
-            } else if (newIndex < 0) {
-                newIndex = slides.length - visibleSlides; // Wrap to last possible position
-                shouldSnapInstantly = false;
+            // Handle bounds and wrapping
+            if (direction > 0) {
+                // Moving right/forward
+                if (newIndex > slides.length - visibleSlides) {
+                    newIndex = 0; // Wrap to beginning when going right from last
+                    shouldSnapInstantly = false;
+                }
+            } else {
+                // Moving left/backward  
+                if (newIndex < 0) {
+                    // Don't wrap when going left from first slide - just stay at 0
+                    newIndex = 0;
+                    return; // Exit early, don't animate
+                }
             }
             
             currentIndex = newIndex;
@@ -1410,7 +1458,24 @@
             }
             
             if (isDragging) {
-                currentTranslate = prevTranslate + deltaX;
+                let newTranslate = prevTranslate + deltaX;
+                
+                // Apply boundary constraints with elastic resistance
+                const minTranslate = -(slides.length - visibleSlides) * slideWidth;
+                const maxTranslate = 0;
+                
+                // Add resistance when dragging beyond boundaries
+                if (newTranslate > maxTranslate) {
+                    // Dragging right from first slide - add resistance
+                    const excess = newTranslate - maxTranslate;
+                    newTranslate = maxTranslate + (excess * 0.3); // 30% resistance
+                } else if (newTranslate < minTranslate) {
+                    // Dragging left from last slide - add resistance  
+                    const excess = minTranslate - newTranslate;
+                    newTranslate = minTranslate - (excess * 0.3); // 30% resistance
+                }
+                
+                currentTranslate = newTranslate;
             }
         };
 
@@ -1432,15 +1497,30 @@
                 cancelAnimationFrame(animationID);
 
                 const movedBy = currentTranslate - prevTranslate;
-                let direction = 0;
-                if (movedBy < -dragThreshold) direction = 1; // Swiped left
-                if (movedBy > dragThreshold) direction = -1; // Swiped right
-
-                if (direction !== 0) {
-                    changeSlide(direction);
+                const minTranslate = -(slides.length - visibleSlides) * slideWidth;
+                const maxTranslate = 0;
+                
+                // Check if we're outside boundaries and need to snap back
+                if (currentTranslate > maxTranslate) {
+                    // Beyond right boundary (first slide) - snap back to first slide
+                    currentIndex = 0;
+                    updateCarouselPosition(true);
+                } else if (currentTranslate < minTranslate) {
+                    // Beyond left boundary (last slide) - snap back to last possible position  
+                    currentIndex = slides.length - visibleSlides;
+                    updateCarouselPosition(true);
                 } else {
-                    // Snap back to current slide if not moved enough
-                    updateCarouselPosition(); 
+                    // Within boundaries - check if movement threshold was met for slide change
+                    let direction = 0;
+                    if (movedBy < -dragThreshold) direction = 1; // Swiped left
+                    if (movedBy > dragThreshold) direction = -1; // Swiped right
+
+                    if (direction !== 0) {
+                        changeSlide(direction);
+                    } else {
+                        // Not moved enough - snap back to current slide
+                        updateCarouselPosition(true); 
+                    }
                 }
                 
                 // Prevent click events from firing after drag
