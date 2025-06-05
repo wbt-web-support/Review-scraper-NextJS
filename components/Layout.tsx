@@ -82,7 +82,7 @@ const Layout = ({ children }: LayoutProps) => {
   const headerClasses = "shadow-sm py-3 px-4 sticky top-0 z-40 border-b bg-white text-gray-800 border-slate-200";
   const mobileHeaderClasses = `${headerClasses} md:hidden`;
   const desktopHeaderClasses = `hidden md:flex items-center justify-between ${headerClasses.replace('px-4', 'px-6')}`;
-  const contentWrapperClasses = "flex-grow p-4 sm:p-6 bg-white text-gray-800";
+  const contentWrapperClasses = "flex-grow p-4 sm:p-10 bg-gray-50 text-gray-800";
   const primaryTextClass = "text-blue-600";
   const userAvatarClasses = "h-8 w-8 rounded-full flex items-center justify-center text-sm font-semibold bg-blue-500/20 text-blue-600";
   const desktopUserAvatarClasses = "h-9 w-9 rounded-full flex items-center justify-center text-base font-semibold cursor-pointer bg-blue-500/20 text-blue-600";
@@ -156,7 +156,7 @@ const Layout = ({ children }: LayoutProps) => {
           <h2 className="text-xl font-heading font-semibold text-gray-900">
             {getPageTitle()}
           </h2>
-          <div className="flex items-center space-x-4">
+          {/* <div className="flex items-center space-x-4">
             <Button variant="ghost" size="icon" className={`${mutedTextClass} ${hoverTextClass} relative`} aria-label="Notifications">
               <i className="fas fa-bell text-lg"></i>
               <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full ring-1 bg-red-500 ring-white"></span>
@@ -177,7 +177,7 @@ const Layout = ({ children }: LayoutProps) => {
                 </Button>
               </div>
             )}
-          </div>
+          </div> */}
         </header>
         <div className={contentWrapperClasses}>
           {children}
