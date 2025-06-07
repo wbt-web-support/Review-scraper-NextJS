@@ -25,7 +25,7 @@
     CAROUSEL_SETTINGS: {
       DESKTOP_MIN_REVIEWS_FOR_NAV: 5,
       autoplay: true,
-      MOBILE_BREAKPOINT: 580,
+      MOBILE_BREAKPOINT: 480,
       FOLDABLE_BREAKPOINT: 768,
       TABLET_BREAKPOINT: 1024,
       LAPTOP_BREAKPOINT: 1366,
@@ -812,7 +812,6 @@
 
         /* Responsive adjustments */
         @media (max-width: ${CONFIG.CAROUSEL_SETTINGS.LAPTOP_BREAKPOINT}px) {
-          .rh-carousel-arrow { display: block !important; }
           .rh-carousel-arrow.rh-prev { left: -15px; }
           .rh-carousel-arrow.rh-next { right: -15px; }
         }
@@ -1138,8 +1137,8 @@
         let dragThreshold = 50; // Minimum pixels to drag to change slide
         let dragStartThreshold = 10; // Minimum pixels to move before considering it a drag
 
-        const calculateVisibleSlides = () => {
-            const screenWidth = window.innerWidth;
+        const calculateVisibleSlides = (containerWidth) => {
+            const screenWidth = containerWidth;
             let num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.mobile; // Default fallback
             
             // Determine breakpoint and corresponding visible cards
@@ -1174,8 +1173,8 @@
         };
         
         const setSlideDimensions = () => {
-            visibleSlides = calculateVisibleSlides();
             const trackContainerClientWidth = trackContainer.clientWidth;
+            visibleSlides = calculateVisibleSlides(trackContainerClientWidth);
             
             // For single slide movement, each slide takes the full container width divided by visible slides
             slideWidth = trackContainerClientWidth / visibleSlides;
@@ -1353,10 +1352,9 @@
         const updateArrowStates = () => {
             if (!prevBtn || !nextBtn) return;
             const totalReviews = reviews.length;
-            const minReviewsForNavDesktop = CONFIG.CAROUSEL_SETTINGS.DESKTOP_MIN_REVIEWS_FOR_NAV;
-            const isMobile = window.innerWidth <= CONFIG.CAROUSEL_SETTINGS.MOBILE_BREAKPOINT;
 
-            if (isMobile || totalReviews <= visibleSlides || (window.innerWidth > CONFIG.CAROUSEL_SETTINGS.MOBILE_BREAKPOINT && totalReviews < minReviewsForNavDesktop)) {
+            // Arrows are hidden if there are not enough reviews to scroll
+            if (totalReviews <= visibleSlides) {
                 prevBtn.style.display = 'none';
                 nextBtn.style.display = 'none';
                 return;
