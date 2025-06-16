@@ -247,6 +247,11 @@
       style.id = 'reviewhub-grid-widget-styles';
       style.textContent = `
         /* Global styles */
+
+        i {
+            font-style: normal !important;
+        }
+
         .reviewhub-grid-widget-container h1,
         .reviewhub-grid-widget-container h2,
         .reviewhub-grid-widget-container h3,
@@ -262,12 +267,15 @@
         }
         
         .reviewhub-grid-widget-container p {
-          margin: 0 !important;
-          padding: 0 !important;
-          font-size: inherit !important;
-          line-height: inherit !important;
-          color: inherit !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            font-size: 16px !important;
+            line-height: inherit !important;
+            color: inherit !important;
+            padding-bottom: 20px !important;
         }
+
+
         
         .reviewhub-grid-widget-container button {
           background: none !important;
@@ -275,7 +283,7 @@
           padding: 0 !important;
           margin: 0 !important;
           font-family: inherit !important;
-          font-size: inherit !important;
+          font-size: 14px !important;
           line-height: inherit !important;
           color: inherit !important;
           cursor: pointer !important;
@@ -453,6 +461,7 @@
           display: flex;
           align-items: center;
           margin-bottom: 4px;
+          gap: 4px;
         }
 
         .rh-grid-card-author-name {
