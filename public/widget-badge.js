@@ -976,9 +976,10 @@
     renderWidget: function(container, data, config) {
       this.log('info', 'Rendering badge widget', { data, config });
       const { widgetSettings, reviews, businessName, businessUrlLink, totalReviewCount } = data;
-      
+      // Filter out reviews with empty content or text
+      const filteredReviews = reviews.filter(r => (r.content && r.content.trim()) || (r.text && r.text.trim()));
       // Detect platform from first review or widget settings
-      const platformSource = reviews.length > 0 ? this.detectReviewSource(reviews[0], widgetSettings) : 'google';
+      const platformSource = filteredReviews.length > 0 ? this.detectReviewSource(filteredReviews[0], widgetSettings) : 'google';
       const platformLogo = this.getPlatformLogo(platformSource);
       const platformName = platformSource === 'facebook' ? 'Facebook' : 'Google';
       
@@ -990,24 +991,24 @@
       container.style.setProperty('--badge-theme-color-dark', this.darkenColor(themeColor, 15));
       container.style.setProperty('--badge-theme-color-light', this.lightenColor(themeColor, 90));
 
-      if (!reviews || reviews.length === 0) {
+      if (!filteredReviews || filteredReviews.length === 0) {
         container.innerHTML = '<div class="reviewhub-badge-error"><div class="reviewhub-badge-error-title">No reviews to display.</div><div class="reviewhub-badge-error-message">Check back later or add some reviews!</div></div>';
         return;
       }
 
       // Calculate average rating or recommendation percentage for Facebook
       let avgRating, reviewCount, displayText;
-      reviewCount = totalReviewCount || reviews.length;
+      reviewCount = totalReviewCount || filteredReviews.length;
       
       if (platformSource === 'facebook') {
         // For Facebook, calculate percentage of recommended reviews
-        const recommendedReviews = reviews.filter(r => r.recommendationStatus === 'recommended').length;
-        const percentage = reviews.length > 0 ? Math.round((recommendedReviews / reviews.length) * 100) : 100;
+        const recommendedReviews = filteredReviews.filter(r => r.recommendationStatus === 'recommended').length;
+        const percentage = filteredReviews.length > 0 ? Math.round((recommendedReviews / filteredReviews.length) * 100) : 100;
         avgRating = `${percentage}%`;
         displayText = 'Recommended';
       } else {
         // For Google, use traditional star rating
-        avgRating = reviews.length > 0 ? (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length).toFixed(1) : '5.0';
+        avgRating = filteredReviews.length > 0 ? (filteredReviews.reduce((sum, r) => sum + (r.rating || 0), 0) / filteredReviews.length).toFixed(1) : '5.0';
         displayText = 'Stars';
       }
       
@@ -1017,9 +1018,9 @@
       let ratingDisplay = '';
       if (platformSource === 'facebook') {
         // Calculate recommendation status description
-        const recommendedCount = reviews.filter(r => r.recommendationStatus === 'recommended').length;
-        const notRecommendedCount = reviews.filter(r => r.recommendationStatus === 'not_recommended').length;
-        const recommendedPercentage = reviews.length > 0 ? (recommendedCount / reviews.length) * 100 : 100;
+        const recommendedCount = filteredReviews.filter(r => r.recommendationStatus === 'recommended').length;
+        const notRecommendedCount = filteredReviews.filter(r => r.recommendationStatus === 'not_recommended').length;
+        const recommendedPercentage = filteredReviews.length > 0 ? (recommendedCount / filteredReviews.length) * 100 : 100;
         
         let statusDescription = '';
         if (recommendedPercentage >= 80) {
@@ -1061,7 +1062,7 @@
       `;
 
       container.innerHTML = badgeHtml;
-      this.attachModalEventListener(container, data, config);
+      this.attachModalEventListener(container, { ...data, reviews: filteredReviews }, config);
     },
 
     attachModalEventListener: function(container, data, config) {
@@ -1085,25 +1086,27 @@
 
     showReviewsModal: function(data, config) {
       const { widgetSettings, reviews, businessName, businessUrlLink, totalReviewCount } = data;
+      // Filter out reviews with empty content or text
+      const filteredReviews = reviews.filter(r => (r.content && r.content.trim()) || (r.text && r.text.trim()));
       
       // Detect platform from first review or widget settings
-      const platformSource = reviews.length > 0 ? this.detectReviewSource(reviews[0], widgetSettings) : 'google';
+      const platformSource = filteredReviews.length > 0 ? this.detectReviewSource(filteredReviews[0], widgetSettings) : 'google';
       const platformLogo = this.getPlatformLogo(platformSource);
       const platformName = platformSource === 'facebook' ? 'Facebook' : 'Google';
       
       // Calculate appropriate rating display for modal summary
       let avgRating, reviewCount, summaryRatingDisplay;
-      reviewCount = totalReviewCount || reviews.length;
+      reviewCount = totalReviewCount || filteredReviews.length;
       
       if (platformSource === 'facebook') {
         // For Facebook, calculate percentage of recommended reviews
-        const recommendedReviews = reviews.filter(r => r.recommendationStatus === 'recommended').length;
-        const percentage = reviews.length > 0 ? Math.round((recommendedReviews / reviews.length) * 100) : 100;
+        const recommendedReviews = filteredReviews.filter(r => r.recommendationStatus === 'recommended').length;
+        const percentage = filteredReviews.length > 0 ? Math.round((recommendedReviews / filteredReviews.length) * 100) : 100;
         avgRating = `${percentage}%`;
         summaryRatingDisplay = `<span class="reviewhub-badge-modal-summary-number">${avgRating}</span>`;
       } else {
         // For Google, use traditional star rating
-        avgRating = reviews.length > 0 ? (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length).toFixed(1) : '5.0';
+        avgRating = filteredReviews.length > 0 ? (filteredReviews.reduce((sum, r) => sum + (r.rating || 0), 0) / filteredReviews.length).toFixed(1) : '5.0';
         const stars = this.generateStars(parseFloat(avgRating));
         summaryRatingDisplay = `
           <span class="reviewhub-badge-modal-summary-number">${avgRating}</span>
@@ -1124,7 +1127,7 @@
         reviewUrl = platformSource === 'facebook' ? 'https://www.facebook.com' : 'https://www.google.com/maps';
       }
 
-      const reviewsHtml = reviews.map((review) => {
+      const reviewsHtml = filteredReviews.map((review) => {
         const formattedDate = this.formatDate(review.postedAt);
         const initials = this.getInitials(review.author);
         

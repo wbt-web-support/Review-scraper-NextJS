@@ -884,9 +884,11 @@
     renderWidget: function(container, data, config) {
       this.log('info', 'Rendering list widget', { data, config });
       const { widgetSettings, reviews, businessName, businessUrlLink, totalReviewCount } = data;
+      // Filter out reviews with empty content or text
+      const filteredReviews = reviews.filter(r => (r.content && r.content.trim()) || (r.text && r.text.trim()));
       
       // Detect platform from first review or widget settings
-      const platformSource = reviews.length > 0 ? this.detectReviewSource(reviews[0], widgetSettings) : 'google';
+      const platformSource = filteredReviews.length > 0 ? this.detectReviewSource(filteredReviews[0], widgetSettings) : 'google';
       
       // Get appropriate theme color
       const userThemeColor = config.themeColor || widgetSettings.themeColor;
@@ -896,12 +898,12 @@
       container.style.setProperty('--list-theme-color-dark', this.darkenColor(themeColor, 15));
       container.style.setProperty('--list-theme-color-light', this.lightenColor(themeColor, 90));
 
-      if (!reviews || reviews.length === 0) {
+      if (!filteredReviews || filteredReviews.length === 0) {
         container.innerHTML = '<div class="reviewhub-list-error"><div class="reviewhub-list-error-title">No reviews to display.</div><div class="reviewhub-list-error-message">Check back later or add some reviews!</div></div>';
         return;
       }
       
-      const reviewItemsHtml = reviews.map((review, index) => {
+      const reviewItemsHtml = filteredReviews.map((review, index) => {
         const author = this.escapeHtml(review.author || 'Anonymous');
         const initials = this.getInitials(review.author);
         const profilePicture = review.profilePicture;
@@ -971,7 +973,7 @@
       `;
 
       container.innerHTML = listHtml;
-      this.attachModalEventListeners(container, reviews, data, config);
+      this.attachModalEventListeners(container, filteredReviews, data, config);
     },
 
     attachModalEventListeners: function(container, reviews, allData, config) {
@@ -987,6 +989,9 @@
     },
 
     showReviewModal: function(review, allData, config) {
+        // Only show modal if review has content or text
+        if (!((review.content && review.content.trim()) || (review.text && review.text.trim()))) return;
+
         if (document.querySelector('.reviewhub-list-modal-overlay')) return;
 
         const { widgetSettings } = allData;

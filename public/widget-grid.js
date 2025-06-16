@@ -186,12 +186,10 @@
 
     filterReviews: function(reviews, widgetSettings) {
       if (!reviews || reviews.length === 0) return reviews;
-      
-      return reviews.filter(review => {
+      // Filter out reviews with empty content or text
+      return reviews.filter(review => ((review.content && review.content.trim()) || (review.text && review.text.trim())) && (function() {
         const reviewSource = this.detectReviewSource(review, widgetSettings);
-        
         if (reviewSource === 'facebook') {
-          // Filter Facebook reviews based on reviewFilterDisplay setting
           const reviewFilterDisplay = widgetSettings.reviewFilterDisplay;
           if (reviewFilterDisplay) {
             if (reviewFilterDisplay === 'recommended' && review.recommendationStatus !== 'recommended') {
@@ -200,10 +198,8 @@
             if (reviewFilterDisplay === 'not_recommended' && review.recommendationStatus !== 'not_recommended') {
               return false;
             }
-            // If reviewFilterDisplay is 'all' or undefined, show all reviews
           }
         } else {
-          // Filter Google reviews based on minRating setting
           const minRating = widgetSettings.minRating;
           if (minRating && typeof minRating === 'number') {
             const reviewRating = parseFloat(review.rating) || 0;
@@ -212,9 +208,8 @@
             }
           }
         }
-        
         return true;
-      });
+      }).call(this, review));
     },
 
     injectStyles: function() {
@@ -410,7 +405,6 @@
           transition: all 0.3s ease;
           position: relative;
           overflow: hidden;
-          min-height: 280px;
         }
 
         .rh-grid-review-card:hover {
@@ -689,7 +683,6 @@
           
           .rh-grid-review-card {
             padding: 20px;
-            min-height: 240px;
           }
           
           .rh-grid-card-avatar {
@@ -1001,8 +994,9 @@
             
             <div class="rh-grid-card-content-wrapper">
               <p class="rh-grid-card-content">${content}</p>
-              ${isLongText ? `<button class="rh-grid-read-more" data-review-index="${index}">Read More</button>` : ''}
+              
             </div>
+            ${isLongText ? `<button class="rh-grid-read-more" data-review-index="${index}">Read More</button>` : ''}
           </div>
         `;
       }).join('');

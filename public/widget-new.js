@@ -992,9 +992,11 @@
     renderWidget: function(container, data, config) {
       this.log('info', 'Rendering widget V2', { data, config });
       const { widgetSettings, reviews, businessName, businessUrlLink, totalReviewCount } = data;
+      // Filter out reviews with empty content or text
+      const filteredReviews = reviews.filter(r => (r.content && r.content.trim()) || (r.text && r.text.trim()));
       
       // Detect platform from first review or widget settings
-      const platformSource = reviews.length > 0 ? this.detectReviewSource(reviews[0], widgetSettings) : 'google';
+      const platformSource = filteredReviews.length > 0 ? this.detectReviewSource(filteredReviews[0], widgetSettings) : 'google';
       
       // Get appropriate theme color
       const userThemeColor = config.themeColor || widgetSettings.themeColor;
@@ -1016,15 +1018,15 @@
       container.style.setProperty('--rh-theme-color-light', this.lightenColor(themeColor, 90)); // For very light backgrounds or accents
 
 
-      if (!reviews || reviews.length === 0) {
+      if (!filteredReviews || filteredReviews.length === 0) {
         container.innerHTML = '<div class="reviewhub-v2-error"><div class="reviewhub-v2-error-title">No reviews to display.</div><div class="reviewhub-v2-error-message">Check back later or add some reviews!</div></div>';
         return;
       }
 
       // For now, only carousel is being rebuilt. Add other layouts later.
       if (defaultWidgetSettings.layout === 'carousel' || config.layout === 'carousel' || !defaultWidgetSettings.layout) {
-        // Update data object to use default settings
-        const updatedData = { ...data, widgetSettings: defaultWidgetSettings };
+        // Update data object to use default settings and filtered reviews
+        const updatedData = { ...data, widgetSettings: defaultWidgetSettings, reviews: filteredReviews };
         this.renderCarouselWidget(container, updatedData, config);
       } else {
         // Fallback or message for other layouts not yet implemented in V2
@@ -1035,13 +1037,15 @@
 
     renderCarouselWidget: function(container, data, config) {
       const { reviews, widgetSettings, businessName } = data;
+      // Filter out reviews with empty content or text
+      const filteredReviews = reviews.filter(r => (r.content && r.content.trim()) || (r.text && r.text.trim()));
       const carouselId = `rh-carousel-${config.widgetId}-${Date.now()}`;
 
       // Detect platform from first review or widget settings
-      const platformSource = reviews.length > 0 ? this.detectReviewSource(reviews[0], widgetSettings) : 'google';
+      const platformSource = filteredReviews.length > 0 ? this.detectReviewSource(filteredReviews[0], widgetSettings) : 'google';
       const platformName = platformSource === 'facebook' ? 'Facebook' : 'Google';
 
-      let reviewItemsHtml = reviews.map((review, index) => {
+      let reviewItemsHtml = filteredReviews.map((review, index) => {
         const author = this.escapeHtml(review.author || 'Anonymous');
         const initials = this.getInitials(review.author);
         const profilePicture = review.profilePicture;
@@ -1109,8 +1113,8 @@
       `;
       
       container.innerHTML = carouselHtml;
-      this.initCarouselLogic(carouselId, container, reviews, config, widgetSettings);
-      this.attachModalEventListeners(container, reviews, data, config);
+      this.initCarouselLogic(carouselId, container, filteredReviews, config, widgetSettings);
+      this.attachModalEventListeners(container, filteredReviews, data, config);
     },
 
     initCarouselLogic: function(carouselId, containerElem, reviews, globalConfig, widgetSettings) {

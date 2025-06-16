@@ -1324,7 +1324,9 @@
         const totalReviews = typeof totalReviewCount === 'number' ? totalReviewCount : reviews.length;
         const platformName = widgetSettings.businessUrl?.source === 'facebook' ? 'Facebook' : 'Google';
         
-        const reviewsHtml = reviews.map((review, index) => {
+        const filteredReviews = reviews.filter(r => (r.content && r.content.trim()) || (r.text && r.text.trim()));
+        
+        const reviewsHtml = filteredReviews.map((review, index) => {
           const authorInitials = this.getInitials(review.author);
           const ratingStars = review.rating ? this.generateStars(review.rating) : '';
           const reviewDate = review.postedAt ? this.formatDate(review.postedAt) : '';
@@ -1384,7 +1386,7 @@
             </div>
             <button class="reviewhub-carousel-next" aria-label="Next">${chevronRight}</button>
             <ul class="reviewhub-carousel-dots">
-              ${reviews.map((_, index) => `
+              ${filteredReviews.map((_, index) => `
                 <li>
                   <button class="reviewhub-carousel-dot ${index === 0 ? 'active' : ''}" 
                           data-index="${index}" 
@@ -1431,7 +1433,7 @@
           
           if (isMobile && restartCard) {
             // Show restart card when user reaches the last review on mobile
-            if (currentIndex >= maxIndex && reviews.length > 1) {
+            if (currentIndex >= maxIndex && filteredReviews.length > 1) {
               restartCard.style.display = 'flex';
             } else {
               restartCard.style.display = 'none';
@@ -1458,7 +1460,7 @@
           if (autoPlayInterval) clearInterval(autoPlayInterval);
           const currentVisibleCount = getVisibleCount();
           const maxIndex = getMaxIndex();
-          if (reviews.length <= currentVisibleCount || maxIndex === 0) return;
+          if (filteredReviews.length <= currentVisibleCount || maxIndex === 0) return;
           
           autoPlayInterval = setInterval(() => {
             if (isAutoPlaying) {
@@ -1493,7 +1495,7 @@
             const gap = isMobile ? 12 : 16;
             
             let translateX = 0;
-            if (reviews.length > visibleCount) {
+            if (filteredReviews.length > visibleCount) {
               translateX = currentIndex * (cardWidth + gap);
             }
             
@@ -1508,7 +1510,7 @@
         
         function updateArrowsForLoop() {
           // For infinite loop, arrows are always enabled (except when not enough content)
-          if (reviews.length <= visibleCount) {
+          if (filteredReviews.length <= visibleCount) {
             prevBtn.style.display = 'none';
             nextBtn.style.display = 'none';
           } else {
@@ -1569,18 +1571,18 @@
         }
 
         function getMaxIndex() {
-          if (reviews.length <= visibleCount) {
+          if (filteredReviews.length <= visibleCount) {
             return 0; 
           }
           const currentVisibleCount = getVisibleCount();
-          return Math.max(0, reviews.length - currentVisibleCount);
+          return Math.max(0, filteredReviews.length - currentVisibleCount);
         }
         function updateArrows() {
           const maxIndex = getMaxIndex();
           const isMobile = window.innerWidth <= 767;
           
           // Hide arrows if not enough reviews to scroll
-          if (reviews.length <= visibleCount) {
+          if (filteredReviews.length <= visibleCount) {
             prevBtn.style.display = 'none';
             nextBtn.style.display = 'none';
           } else {
@@ -1624,7 +1626,7 @@
             
             // Calculate translation based on current index
             let translateX = 0;
-            if (reviews.length > visibleCount) {
+            if (filteredReviews.length > visibleCount) {
               translateX = currentIndex * (cardWidth + gap);
             }
             
@@ -1747,10 +1749,10 @@
           });
         });
 
-        this.attachEventListeners(container, reviews);
+        this.attachEventListeners(container, filteredReviews);
         return;
       }
-      const reviewsHtml = reviews.map((review, index) => {
+      const reviewsHtml = filteredReviews.map((review, index) => {
         const authorInitials = this.getInitials(review.author);
         const ratingStars = review.rating ? this.generateStars(review.rating) : '';
         const reviewDate = review.postedAt ? this.formatDate(review.postedAt) : '';
@@ -1827,7 +1829,7 @@
       `;
       
       container.innerHTML = widgetHtml;
-      this.attachEventListeners(container, reviews);
+      this.attachEventListeners(container, filteredReviews);
     },
     attachEventListeners: function(container, reviews) {
       const readMoreButtons = container.querySelectorAll('.reviewhub-read-more');
