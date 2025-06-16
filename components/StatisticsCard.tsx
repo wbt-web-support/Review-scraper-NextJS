@@ -24,7 +24,7 @@ const StatisticsCard = ({
   isLoading = false,
 }: StatisticsCardProps) => {
   return (
-    <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100 review-widget-slide-in">
+    <div className="bg-white rounded-xl p-5 border review-widget-slide-in">
       {isLoading ? (
         <div className="animate-pulse">
           <div className="flex items-center justify-between">

@@ -371,7 +371,21 @@ export const getFilteredReviewsFromBatch = (
   }
   let items = reviewBatch.reviews;
   if (options.minRating !== undefined) {
-    items = items.filter(review => review.rating !== undefined && review.rating >= options.minRating!);
+    items = items.filter(review => {
+      // Handle Facebook reviews that use recommendationStatus instead of numeric rating
+      if (reviewBatch.source === 'facebook') {
+        if (options.minRating! >= 2) {
+          // minRating=2 means "recommended only" for Facebook
+          return review.recommendationStatus === 'recommended';
+        } else {
+          // minRating=1 means "all reviews" for Facebook (both recommended and not recommended)
+          return review.recommendationStatus === 'recommended' || review.recommendationStatus === 'not_recommended';
+        }
+      }
+      
+      // Handle Google reviews with numeric ratings
+      return review.rating !== undefined && review.rating >= options.minRating!;
+    });
   }
   const offset = options.offset || 0;
   if (options.limit !== undefined) {
@@ -645,20 +659,75 @@ interface UpdateWidgetArgs {
   maxReviews?: number;
   minRating?: number;
   businessUrlId?: string;
+  themeColor?: string;
+  showRatings?: boolean;
+  showDates?: boolean;
+  showProfilePictures?: boolean;
   settings?: Record<string, unknown>;
 }
 export const updateWidget = async (id: string, widgetData: UpdateWidgetArgs): Promise<IWidget | null> => {
   await ensureDbConnected();
   if (!Types.ObjectId.isValid(id)) return null;
+  
   const updatePayload: UpdateQuery<IWidget> = { ...widgetData }; 
   updatePayload.updatedAt = new Date();
+  
   if (widgetData.businessUrlId && Types.ObjectId.isValid(widgetData.businessUrlId)) {
     updatePayload.businessUrlId = new Types.ObjectId(widgetData.businessUrlId); 
   } else if (widgetData.businessUrlId && !Types.ObjectId.isValid(widgetData.businessUrlId)) {
-      delete updatePayload.businessUrlId;
-      console.warn(`Invalid businessUrlId provided for widget update: ${widgetData.businessUrlId}`);
+    delete updatePayload.businessUrlId;
+    console.warn(`Invalid businessUrlId provided for widget update: ${widgetData.businessUrlId}`);
   }
-  return WidgetModel.findByIdAndUpdate(id, { $set: updatePayload }, { new: true }).lean().exec();
+  
+  const updatedWidget = await WidgetModel.findByIdAndUpdate(
+    id, 
+    { $set: updatePayload }, 
+    { new: true }
+  ).lean().exec();
+  
+  if (!updatedWidget) return null;
+
+  // Manually populate business URL information and get total review count (similar to getWidgetsByUserId)
+  let businessUrl = undefined;
+  let totalReviewCount = 0;
+  
+  if (updatedWidget.businessUrlId) {
+    try {
+      // Get business URL from the appropriate collection
+      const businessUrlData = await getBusinessUrlById(updatedWidget.businessUrlId.toString());
+      if (businessUrlData) {
+        businessUrl = {
+          _id: businessUrlData._id.toString(),
+          name: businessUrlData.name,
+          source: businessUrlData.source as 'google' | 'facebook',
+          url: businessUrlData.url,
+        };
+
+        // Get total review count for this business URL
+        if (businessUrlData.urlHash) {
+          try {
+            const reviewBatch = await getReviewBatchForBusinessUrl(
+              businessUrlData.urlHash,
+              businessUrlData.source as 'google' | 'facebook'
+            );
+            if (reviewBatch && reviewBatch.reviews) {
+              totalReviewCount = reviewBatch.reviews.length;
+            }
+          } catch (error) {
+            console.error(`[Storage/updateWidget] Error fetching review count for widget ${updatedWidget._id}:`, error);
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`[Storage/updateWidget] Error fetching business URL for widget ${updatedWidget._id}:`, error);
+    }
+  }
+
+  return {
+    ...updatedWidget,
+    businessUrl,
+    totalReviewCount,
+  } as IWidget;
 };
 export const incrementWidgetViews = async (id: string): Promise<IWidget | null> => {
   await ensureDbConnected();

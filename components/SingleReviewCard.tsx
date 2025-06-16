@@ -49,19 +49,34 @@ const SingleReviewCard = ({ review, displaySettings, sourcePlatform, widgetStyle
           {displaySettings.showProfilePictures && (
             <div className="relative w-12 h-12 rounded-full overflow-hidden border-3 border-gray-100 bg-gradient-to-br from-blue-500 to-purple-600 flex-shrink-0">
               {review.profilePicture ? (
-                <Image
-                  src={review.profilePicture}
-                  alt={review.author || 'Reviewer'}
-                  fill
-                  style={{ objectFit: 'cover' }}
-                  sizes="48px"
-                  className="transition-transform duration-300 group-hover:scale-105"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-white font-bold text-lg">
-                  {getInitials(review.author || 'A')}
-                </div>
-              )}
+                sourcePlatform === 'facebook' ? (
+                  <img
+                    src={review.profilePicture}
+                    alt={review.author || 'Reviewer'}
+                    className="w-full h-full object-cover"
+                    onError={(e) => { 
+                      e.currentTarget.style.display = 'none'; 
+                      const fallback = e.currentTarget.nextElementSibling as HTMLElement; 
+                      if (fallback) fallback.style.display = 'flex'; 
+                    }}
+                  />
+                ) : (
+                  <Image
+                    src={review.profilePicture}
+                    alt={review.author || 'Reviewer'}
+                    fill
+                    style={{ objectFit: 'cover' }}
+                    sizes="48px"
+                  />
+                )
+              ) : null}
+              {/* Fallback for when image fails or no profilePicture */}
+              <div 
+                className="w-full h-full flex items-center justify-center text-white font-bold text-lg"
+                style={{ display: review.profilePicture ? 'none' : 'flex' }}
+              >
+                {getInitials(review.author || 'A')}
+              </div>
             </div>
           )}
           
@@ -129,18 +144,34 @@ const SingleReviewCard = ({ review, displaySettings, sourcePlatform, widgetStyle
               {displaySettings.showProfilePictures && (
                 <div className="relative w-12 h-12 rounded-full overflow-hidden border-3 border-gray-100 bg-gradient-to-br from-blue-500 to-purple-600 flex-shrink-0">
                   {review.profilePicture ? (
-                    <Image
-                      src={review.profilePicture}
-                      alt={review.author || 'Reviewer'}
-                      fill
-                      style={{ objectFit: 'cover' }}
-                      sizes="48px"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-white font-bold text-lg">
-                      {getInitials(review.author || 'A')}
-                    </div>
-                  )}
+                    sourcePlatform === 'facebook' ? (
+                      <img
+                        src={review.profilePicture}
+                        alt={review.author || 'Reviewer'}
+                        className="w-full h-full object-cover"
+                        onError={(e) => { 
+                          e.currentTarget.style.display = 'none'; 
+                          const fallback = e.currentTarget.nextElementSibling as HTMLElement; 
+                          if (fallback) fallback.style.display = 'flex'; 
+                        }}
+                      />
+                    ) : (
+                      <Image
+                        src={review.profilePicture}
+                        alt={review.author || 'Reviewer'}
+                        fill
+                        style={{ objectFit: 'cover' }}
+                        sizes="48px"
+                      />
+                    )
+                  ) : null}
+                  {/* Fallback for when image fails or no profilePicture */}
+                  <div 
+                    className="w-full h-full flex items-center justify-center text-white font-bold text-lg"
+                    style={{ display: review.profilePicture ? 'none' : 'flex' }}
+                  >
+                    {getInitials(review.author || 'A')}
+                  </div>
                 </div>
               )}
               

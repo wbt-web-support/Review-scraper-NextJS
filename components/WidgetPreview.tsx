@@ -26,7 +26,7 @@ export interface IWidgetSettingsFromForm {
   name?: string;
   themeColor: string;
   layout: "grid" | "carousel" | "list" | "masonry" | "badge";
-  minRating: number;
+  minRating?: number;
   showRatings: boolean;
   showDates: boolean;
   showProfilePictures: boolean;
@@ -36,6 +36,9 @@ export interface IWidgetSettingsFromForm {
       url?: string;
       source: 'google' | 'facebook';
   };
+  platformName?: string;
+  reviewFilter?: 'recommended_only' | 'all_reviews';
+  reviewFilterDisplay?: string;
 }
 interface WidgetPreviewProps {
   widget: IWidgetSettingsFromForm; 
@@ -159,10 +162,25 @@ const WidgetPreview = ({
       console.warn("[WidgetPreview] 'reviews' prop is not an array, returning empty for filteredReviews. Received:", reviews);
       return [];
     }
+    
     return reviews
-      .filter(review => review.rating === undefined || review.rating === null || review.rating >= settings.minRating)
+      .filter(review => {
+        // For Facebook reviews, use reviewFilter instead of minRating
+        if (settings.businessUrl?.source === 'facebook') {
+          if (settings.reviewFilter === 'recommended_only') {
+            return review.recommendationStatus === 'recommended';
+          } else {
+            // 'all_reviews' - include both recommended and not recommended
+            return review.recommendationStatus === 'recommended' || review.recommendationStatus === 'not_recommended';
+          }
+        }
+        
+        // For Google reviews, use minRating (default to 1 if not set)
+        const minRating = settings.minRating ?? 1;
+        return review.rating === undefined || review.rating === null || review.rating >= minRating;
+      })
       .slice(0, MAX_PREVIEW_ITEMS);
-  }, [reviews, settings.minRating, MAX_PREVIEW_ITEMS]);
+  }, [reviews, settings.minRating, settings.reviewFilter, settings.businessUrl?.source, MAX_PREVIEW_ITEMS]);
 
   const avgRating = useMemo(() => {
     const ratedReviews = filteredReviews.filter(r => typeof r.rating === 'number');
