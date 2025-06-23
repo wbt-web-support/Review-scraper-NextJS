@@ -25,17 +25,19 @@
     CAROUSEL_SETTINGS: {
       DESKTOP_MIN_REVIEWS_FOR_NAV: 5,
       autoplay: true,
-      MOBILE_BREAKPOINT: 768,
+      MOBILE_BREAKPOINT: 480,
+      FOLDABLE_BREAKPOINT: 768,
       TABLET_BREAKPOINT: 1024,
       LAPTOP_BREAKPOINT: 1366,
       DESKTOP_BREAKPOINT: 1920,
       WIDE_SCREEN_BREAKPOINT: 2560,
       DEFAULT_VISIBLE_CARDS: {
         wideScreen: 6,    // 2K+ monitors (2560px+)
-        desktop: 5,       // Large desktop (1920px+)
+        desktop: 4,       // Large desktop (1920px+)
         laptop: 4,        // Laptop (1366px+)
-        tablet: 3,        // Tablet (768px - 1365px)
-        mobile: 1         // Mobile (< 768px)
+        tablet: 3,        // Tablet (1024px - 1365px)
+        foldable: 2,      // Foldable devices (900px - 1023px)
+        mobile: 1         // Mobile (< 900px)
       }
     }
   };
@@ -139,6 +141,54 @@
         return starsHtml;
     },
 
+    generateRecommendationStatus: function(review) {
+      // For Facebook reviews, show recommendation status instead of stars
+      const recommendationStatus = review.recommendationStatus || '';
+      if (recommendationStatus === 'recommended') {
+        return '<div class="rh-recommendation-status rh-recommended"><i class="rh-fas rh-fa-thumbs-up"></i> Recommended</div>';
+      } else if (recommendationStatus === 'not_recommended') {
+        return '<div class="rh-recommendation-status rh-not-recommended"><i class="rh-fas rh-fa-thumbs-down"></i> Not Recommended</div>';
+      }
+      return '';
+    },
+
+    detectReviewSource: function(review, widgetSettings) {
+      // Check review source or widget settings to determine platform
+      if (review.source) {
+        return review.source.toLowerCase();
+      }
+      if (widgetSettings && widgetSettings.businessUrl && widgetSettings.businessUrl.source) {
+        return widgetSettings.businessUrl.source.toLowerCase();
+      }
+      if (widgetSettings && widgetSettings.platformName) {
+        return widgetSettings.platformName.toLowerCase();
+      }
+      // Default to google if unable to determine
+      return 'google';
+    },
+
+    getPlatformLogo: function(source) {
+      if (source === 'facebook') {
+        return `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%231877F2' d='M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z'/%3E%3C/svg%3E`;
+      } else {
+        // Google logo
+        return `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%234285f4' d='M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z'/%3E%3Cpath fill='%2334a853' d='M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z'/%3E%3Cpath fill='%23fbbc05' d='M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z'/%3E%3Cpath fill='%23ea4335' d='M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z'/%3E%3C/svg%3E`;
+      }
+    },
+
+    getPlatformThemeColor: function(source, userThemeColor) {
+      // If user provided a theme color, use it
+      if (userThemeColor && userThemeColor !== '#007bff') {
+        return userThemeColor;
+      }
+      
+      // Use platform-specific colors
+      if (source === 'facebook') {
+        return '#1877F2'; // Facebook blue
+      } else {
+        return '#4285F4'; // Google blue
+      }
+    },
 
     injectStyles: function() {
       if (document.getElementById('reviewhub-v2-widget-styles')) return;
@@ -175,9 +225,51 @@
       style.id = 'reviewhub-v2-widget-styles';
       style.textContent = `
         /* Global styles */
-
-        i{
-            font-style: normal;
+        .reviewhub-v2-widget-container h1,
+        .reviewhub-v2-widget-container h2,
+        .reviewhub-v2-widget-container h3,
+        .reviewhub-v2-widget-container h4,
+        .reviewhub-v2-widget-container h5,
+        .reviewhub-v2-widget-container h6 {
+          margin: 0 !important;
+          padding: 0 !important;
+          font-size: 16px !important;
+          line-height: inherit !important;
+          color: inherit !important;
+        }
+        
+        .reviewhub-v2-widget-container p {
+          margin: 0 !important;
+          padding: 0 !important;
+          font-size: 16px !important;
+          line-height: inherit !important;
+          color: inherit !important;
+        }
+        
+        .reviewhub-v2-widget-container button {
+          background: transparent !important;
+          border: none !important;
+          padding: 0 !important;
+          margin: 0 !important;
+          font-family: inherit !important;
+          font-size: 14px !important;
+          line-height: inherit !important;
+          color: inherit !important;
+          cursor: pointer !important;
+          margin-top: 10px !important;
+        }
+        
+        .reviewhub-v2-widget-container a {
+          color: inherit !important;
+          text-decoration: none !important;
+          background: none !important;
+          border: none !important;
+          padding: 0 !important;
+          margin: 0 !important;
+        }
+        
+        .reviewhub-v2-widget-container i {
+          font-style: normal !important;
         }
 
         .reviewhub-v2-widget-container {
@@ -204,6 +296,8 @@
         .rh-fa-check-circle::before { content: "\\f058"; } 
         .rh-fa-chevron-left::before { content: "\\f053"; }
         .rh-fa-chevron-right::before { content: "\\f054"; }
+        .rh-fa-thumbs-up::before { content: "\\f164"; }
+        .rh-fa-thumbs-down::before { content: "\\f165"; }
         
         /* Loading state */
         .reviewhub-v2-loading {
@@ -270,7 +364,7 @@
           position: relative;
           width: 100%;
           padding: 0;
-          margin-bottom: 24px;
+          margin-bottom: 50px; /* Increased to accommodate dots */
         }
         .rh-carousel-track-container { 
             overflow: hidden;
@@ -285,6 +379,7 @@
         }
         .rh-carousel-track.rh-dragging {
           cursor: grabbing;
+          transition: none;
         }
         .rh-carousel-slide {
           flex: 0 0 auto;
@@ -307,6 +402,7 @@
           transition: all 0.3s ease;
           position: relative;
           overflow: hidden;
+          min-height: 320px; /* Ensure minimum height for content */
         }
     
         .rh-review-card:hover {
@@ -319,7 +415,7 @@
 
        .rh-google-logo-corner {
             position: absolute;
-            top: 12px;
+            bottom: 12px;
             right: 12px;
             width: 30px;
             height: 30px;
@@ -331,6 +427,7 @@
           align-items: center;
           gap: 14px; 
           margin-bottom: 12px;
+          flex-shrink: 0; /* Prevent header from shrinking */
         //   margin-top: 8px;
         }
         
@@ -367,6 +464,7 @@
             display: flex;
             align-items: center;
             margin-bottom: 4px;
+            gap: 8px;
         }
         .rh-card-author-name {
           font-weight: 600;
@@ -400,26 +498,55 @@
         .rh-card-rating {
           color:rgb(245, 202, 11);
           font-size: 0.9rem; 
-        //   margin-bottom: 12px;
+          margin-bottom: 12px; /* Add margin back for proper spacing */
           display: flex;
           gap: 1px;
+          flex-shrink: 0; /* Prevent rating from shrinking */
+        }
+
+        /* Facebook recommendation status styles */
+        .rh-recommendation-status {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 0.85rem;
+          font-weight: 600;
+          margin-bottom: 12px;
+          padding: 4px 0;
+          flex-shrink: 0; /* Prevent recommendation status from shrinking */
+        }
+
+        .rh-recommended {
+          color: #16A34A;
+        }
+
+        .rh-not-recommended {
+          color: #DC2626;
+        }
+
+        .rh-recommendation-status i {
+          font-size: 0.9rem;
         }
 
         .rh-card-content-wrapper {
             flex-grow: 1;
             display: flex;
             flex-direction: column;
+            min-height: 0; /* Allow shrinking */
+            overflow: hidden;
         }
         .rh-card-content {
           font-size: 0.9rem; 
           line-height: 1.6;
           color: #374151;
-          margin-bottom: 16px;
-          -webkit-line-clamp: 4;
-          overflow: hidden;
+          margin-bottom: 12px;
           display: -webkit-box;
+          -webkit-line-clamp: 4;
           -webkit-box-orient: vertical;
+          overflow: hidden;
           flex-grow: 1;
+          word-wrap: break-word;
+          hyphens: auto;
         }
         .rh-read-more {
           font-size: 0.85rem;
@@ -430,14 +557,19 @@
           padding: 0;
           cursor: pointer;
           text-align: left;
-          margin-top: auto;
+          margin-top: 8px; /* Fixed margin instead of auto */
           transition: color 0.2s ease;
-          text-decoration: none;
-        }
-        .rh-read-more:hover {
-          color: #2563EB;
           text-decoration: underline;
+          font-weight: bold;
+          flex-shrink: 0; /* Prevent button from shrinking */
+          align-self: flex-start; /* Align to start instead of stretching */
         }
+
+        .rh-read-more:hover {
+    color: #2563EB;
+    text-decoration: underline;
+    box-shadow: none !important;
+}
         
         /* Navigation Arrows - Modern Design */
         .rh-carousel-arrow {
@@ -484,48 +616,60 @@
         /* Navigation Dots - Modern Design with Sliding Window */
         .rh-carousel-dots {
             position: absolute;
-            bottom: -20px;
+            bottom: -30px; /* Increased spacing from carousel */
             left: 50%;
             transform: translateX(-50%);
             display: flex;
-            gap: 8px; 
+            gap: 10px; /* Increased gap for better visibility */
             list-style: none;
             padding: 0;
             margin: 0;
             z-index: 5;
+            justify-content: center;
+            align-items: center;
+        }
+        .rh-carousel-dots li {
+            list-style: none;
+            margin: 0;
+            padding: 0;
         }
         .rh-carousel-dots li button {
-            width: 8px;
-            height: 8px;
+            width: 10px; /* Slightly larger for better visibility */
+            height: 10px;
             border-radius: 50%;
-            background-color: #D1D5DB; 
+            background-color: #CBD5E1 !important; /* Better default color */
             border: none;
             padding: 0;
             cursor: pointer;
             transition: all 0.3s ease;
-            opacity: 0.4;
+            opacity: 0.6;
+            display: block;
         }
         .rh-carousel-dots li button.rh-active {
-            background-color: #3B82F6;
-            transform: scale(1.25);
+            background-color: #424b59 !important;
+            transform: scale(1.3); /* Slightly more prominent */
             opacity: 1;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3); /* Add shadow for active state */
         }
         .rh-carousel-dots li button.rh-near-active {
-            opacity: 0.7;
-            background-color: #9CA3AF;
+            opacity: 0.8;
+            background-color: #94A3B8 !important;
+            transform: scale(1.1);
         }
         .rh-carousel-dots li button.rh-far {
-            opacity: 0.3;
-            background-color: #D1D5DB;
+            opacity: 0.4;
+            background-color: #CBD5E1;
         }
         .rh-carousel-dots li button:hover {
             opacity: 1;
             background-color: #6B7280;
-            transform: scale(1.1);
+            transform: scale(1.2);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
         }
         .rh-carousel-dots li button.rh-active:hover {
             background-color: #2563EB;
-            transform: scale(1.25);
+            transform: scale(1.3);
+            box-shadow: 0 3px 10px rgba(59, 130, 246, 0.4);
         }
 
         /* Modal styles - Modern Design */
@@ -583,11 +727,13 @@
           justify-content: center;
           border-radius: 50%;
           transition: all 0.2s ease;
+          padding: 20px !important;
         }
         .rh-modal-close:hover {
           background-color: #E5E7EB;
           color: #374151;
           transform: scale(1.05);
+          padding: 20px !important;
         }
 
         .rh-modal-header {
@@ -675,19 +821,43 @@
 
         @media (max-width: ${CONFIG.CAROUSEL_SETTINGS.TABLET_BREAKPOINT}px) {
           .rh-card-content { -webkit-line-clamp: 3; }
-          .rh-review-card { padding: 20px; }
+          .rh-review-card { 
+            padding: 20px;
+            min-height: 310px; /* Intermediate height for tablet */
+          }
+        }
+
+        @media (max-width: ${CONFIG.CAROUSEL_SETTINGS.FOLDABLE_BREAKPOINT}px) {
+          .rh-carousel-slide { padding: 0 8px; }
+          .rh-review-card { 
+            padding: 18px;
+            min-height: 300px; /* Intermediate height for foldable */
+          }
+          .rh-card-content { -webkit-line-clamp: 3; }
         }
 
         @media (max-width: ${CONFIG.CAROUSEL_SETTINGS.MOBILE_BREAKPOINT}px) {
-          .rh-carousel-arrow { display: none; }
+          .rh-carousel-arrow { 
+            display: flex; /* Show arrows on mobile */
+            width: 28px; /* Smaller for mobile */
+            height: 28px;
+            font-size: 0.7rem; /* Smaller icon */
+          }
+          .rh-carousel-arrow.rh-prev { left: -5px; } /* Closer to edge on mobile */
+          .rh-carousel-arrow.rh-next { right: -5px; }
+          
           .rh-carousel-slide { padding: 0 8px; }
-          .rh-review-card { padding: 18px; }
+          .rh-review-card { 
+            padding: 18px; 
+            min-height: 280px; /* Reduced for mobile */
+          }
           .rh-card-avatar { width: 40px; height: 40px; }
           .rh-card-author-name { font-size: 0.9rem; }
           .rh-card-review-meta { font-size: 0.75rem; }
           .rh-card-content { font-size: 0.85rem; -webkit-line-clamp: 3; }
           .rh-read-more { font-size: 0.8rem; }
-          .rh-carousel-dots { bottom: -16px; }
+          .rh-carousel-dots { bottom: -25px; } /* Adjusted for mobile */
+          .rh-carousel-wrapper { margin-bottom: 40px; } /* Reduced margin for mobile */
           
           .rh-modal { padding: 24px; border-radius: 16px; }
           .rh-modal-avatar { width: 48px; height: 48px; }
@@ -825,12 +995,20 @@
     renderWidget: function(container, data, config) {
       this.log('info', 'Rendering widget V2', { data, config });
       const { widgetSettings, reviews, businessName, businessUrlLink, totalReviewCount } = data;
-      const themeColor = config.themeColor || widgetSettings.themeColor || '#007bff'; // Default to a modern blue
+      // Filter out reviews with empty content or text
+      const filteredReviews = reviews.filter(r => (r.content && r.content.trim()) || (r.text && r.text.trim()));
+      
+      // Detect platform from first review or widget settings
+      const platformSource = filteredReviews.length > 0 ? this.detectReviewSource(filteredReviews[0], widgetSettings) : 'google';
+      
+      // Get appropriate theme color
+      const userThemeColor = config.themeColor || widgetSettings.themeColor;
+      const themeColor = this.getPlatformThemeColor(platformSource, userThemeColor);
       
       // Set default values for autoplay and loop if not provided
       const defaultWidgetSettings = {
         autoplay: true,
-        autoplayDelay: 1000,
+        autoplayDelay: 4000,
         loop: true,
         showProfilePictures: true,
         showRatings: true,
@@ -843,15 +1021,15 @@
       container.style.setProperty('--rh-theme-color-light', this.lightenColor(themeColor, 90)); // For very light backgrounds or accents
 
 
-      if (!reviews || reviews.length === 0) {
+      if (!filteredReviews || filteredReviews.length === 0) {
         container.innerHTML = '<div class="reviewhub-v2-error"><div class="reviewhub-v2-error-title">No reviews to display.</div><div class="reviewhub-v2-error-message">Check back later or add some reviews!</div></div>';
         return;
       }
 
       // For now, only carousel is being rebuilt. Add other layouts later.
       if (defaultWidgetSettings.layout === 'carousel' || config.layout === 'carousel' || !defaultWidgetSettings.layout) {
-        // Update data object to use default settings
-        const updatedData = { ...data, widgetSettings: defaultWidgetSettings };
+        // Update data object to use default settings and filtered reviews
+        const updatedData = { ...data, widgetSettings: defaultWidgetSettings, reviews: filteredReviews };
         this.renderCarouselWidget(container, updatedData, config);
       } else {
         // Fallback or message for other layouts not yet implemented in V2
@@ -862,11 +1040,15 @@
 
     renderCarouselWidget: function(container, data, config) {
       const { reviews, widgetSettings, businessName } = data;
+      // Filter out reviews with empty content or text
+      const filteredReviews = reviews.filter(r => (r.content && r.content.trim()) || (r.text && r.text.trim()));
       const carouselId = `rh-carousel-${config.widgetId}-${Date.now()}`;
 
-      const platformName = widgetSettings.platformName || "Google";
+      // Detect platform from first review or widget settings
+      const platformSource = filteredReviews.length > 0 ? this.detectReviewSource(filteredReviews[0], widgetSettings) : 'google';
+      const platformName = platformSource === 'facebook' ? 'Facebook' : 'Google';
 
-      let reviewItemsHtml = reviews.map((review, index) => {
+      let reviewItemsHtml = filteredReviews.map((review, index) => {
         const author = this.escapeHtml(review.author || 'Anonymous');
         const initials = this.getInitials(review.author);
         const profilePicture = review.profilePicture;
@@ -876,10 +1058,25 @@
         const content = this.escapeHtml(review.content || review.text || '');
         const isVerified = true;
 
+        // Detect individual review source
+        const reviewSource = this.detectReviewSource(review, widgetSettings);
+        const reviewPlatformLogo = this.getPlatformLogo(reviewSource);
+        const reviewPlatformName = reviewSource === 'facebook' ? 'Facebook' : 'Google';
+
+        // Generate rating display based on platform
+        let ratingDisplay = '';
+        if (widgetSettings.showRatings) {
+          if (reviewSource === 'facebook') {
+            ratingDisplay = this.generateRecommendationStatus(review);
+          } else if (rating > 0) {
+            ratingDisplay = `<div class="rh-card-rating">${stars}</div>`;
+          }
+        }
+
         return `
           <div class="rh-carousel-slide" data-index="${index}">
             <div class="rh-review-card">
-              <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%234285f4' d='M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z'/%3E%3Cpath fill='%2334a853' d='M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z'/%3E%3Cpath fill='%23fbbc05' d='M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z'/%3E%3Cpath fill='%23ea4335' d='M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z'/%3E%3C/svg%3E" alt="Google" class="rh-google-logo-corner">
+              <img src="${reviewPlatformLogo}" alt="${reviewPlatformName}" class="rh-google-logo-corner">
               <div class="rh-card-header">
                 <div class="rh-card-avatar">
                   ${profilePicture && widgetSettings.showProfilePictures ? `<img src="${this.escapeHtml(profilePicture)}" alt="${author}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><span style="display:none;">${initials}</span>` : `<span>${initials}</span>`}
@@ -895,7 +1092,7 @@
                     </div>` : ''}
                 </div>
               </div>
-              ${widgetSettings.showRatings && rating > 0 ? `<div class="rh-card-rating">${stars}</div>` : ''}
+              ${ratingDisplay}
               <div class="rh-card-content-wrapper">
                   <p class="rh-card-content">${content}</p>
                   ${content.length > 120 ? `<button class="rh-read-more" data-review-index="${index}">Read More</button>` : ''} 
@@ -919,8 +1116,8 @@
       `;
       
       container.innerHTML = carouselHtml;
-      this.initCarouselLogic(carouselId, container, reviews, config, widgetSettings);
-      this.attachModalEventListeners(container, reviews, data, config);
+      this.initCarouselLogic(carouselId, container, filteredReviews, config, widgetSettings);
+      this.attachModalEventListeners(container, filteredReviews, data, config);
     },
 
     initCarouselLogic: function(carouselId, containerElem, reviews, globalConfig, widgetSettings) {
@@ -938,15 +1135,17 @@
         let visibleSlides = 1; // Default to 1, will be calculated
         let slideWidth = 0;
         let isDragging = false,
+            isPointerDown = false,
             startPos = 0,
             currentTranslate = 0,
             prevTranslate = 0,
             animationID;
         let totalDots = 0;
         let dragThreshold = 50; // Minimum pixels to drag to change slide
+        let dragStartThreshold = 10; // Minimum pixels to move before considering it a drag
 
-        const calculateVisibleSlides = () => {
-            const screenWidth = window.innerWidth;
+        const calculateVisibleSlides = (containerWidth) => {
+            const screenWidth = containerWidth;
             let num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.mobile; // Default fallback
             
             // Determine breakpoint and corresponding visible cards
@@ -958,6 +1157,8 @@
                 num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.laptop;
             } else if (screenWidth >= CONFIG.CAROUSEL_SETTINGS.TABLET_BREAKPOINT) {
                 num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.tablet;
+            } else if (screenWidth >= CONFIG.CAROUSEL_SETTINGS.FOLDABLE_BREAKPOINT) {
+                num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.foldable;
             } else {
                 num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.mobile;
             }
@@ -967,7 +1168,9 @@
                 num = widgetSettings.cardsToShowDesktop;
             } else if (screenWidth >= CONFIG.CAROUSEL_SETTINGS.TABLET_BREAKPOINT && screenWidth < CONFIG.CAROUSEL_SETTINGS.LAPTOP_BREAKPOINT && widgetSettings.cardsToShowTablet) {
                 num = widgetSettings.cardsToShowTablet;
-            } else if (screenWidth < CONFIG.CAROUSEL_SETTINGS.TABLET_BREAKPOINT && widgetSettings.cardsToShowMobile) {
+            } else if (screenWidth >= CONFIG.CAROUSEL_SETTINGS.FOLDABLE_BREAKPOINT && screenWidth < CONFIG.CAROUSEL_SETTINGS.TABLET_BREAKPOINT && widgetSettings.cardsToShowFoldable) {
+                num = widgetSettings.cardsToShowFoldable;
+            } else if (screenWidth < CONFIG.CAROUSEL_SETTINGS.FOLDABLE_BREAKPOINT && widgetSettings.cardsToShowMobile) {
                 num = widgetSettings.cardsToShowMobile;
             }
             
@@ -977,8 +1180,8 @@
         };
         
         const setSlideDimensions = () => {
-            visibleSlides = calculateVisibleSlides();
             const trackContainerClientWidth = trackContainer.clientWidth;
+            visibleSlides = calculateVisibleSlides(trackContainerClientWidth);
             
             // For single slide movement, each slide takes the full container width divided by visible slides
             slideWidth = trackContainerClientWidth / visibleSlides;
@@ -1156,35 +1359,48 @@
         const updateArrowStates = () => {
             if (!prevBtn || !nextBtn) return;
             const totalReviews = reviews.length;
-            const minReviewsForNavDesktop = CONFIG.CAROUSEL_SETTINGS.DESKTOP_MIN_REVIEWS_FOR_NAV;
-            const isMobile = window.innerWidth <= CONFIG.CAROUSEL_SETTINGS.MOBILE_BREAKPOINT;
 
-            if (isMobile || totalReviews <= visibleSlides || (window.innerWidth > CONFIG.CAROUSEL_SETTINGS.MOBILE_BREAKPOINT && totalReviews < minReviewsForNavDesktop)) {
+            // Arrows are hidden if there are not enough reviews to scroll
+            if (totalReviews <= visibleSlides) {
                 prevBtn.style.display = 'none';
                 nextBtn.style.display = 'none';
+                return;
             } else {
                 prevBtn.style.display = 'flex';
                 nextBtn.style.display = 'flex';
             }
 
-            // With infinite loop, arrows are never disabled
+            // Update arrow states based on current position
             prevBtn.classList.remove('rh-disabled');
             nextBtn.classList.remove('rh-disabled');
+            
+            // Disable prev button when on first slide
+            if (currentIndex <= 0) {
+                prevBtn.classList.add('rh-disabled');
+            }
+            
+            // Next button is never disabled since we allow wrap from last to first
         };
         
         const changeSlide = (direction) => {
-            // Handle wrapping before changing the index to prevent blank space
+            // Handle wrapping logic
             let newIndex = currentIndex + direction;
             let shouldSnapInstantly = false;
             
-            // Check bounds and wrap immediately
-            // For forward direction, wrap when we can't show a full set of visible slides
-            if (newIndex > slides.length - visibleSlides) {
-                newIndex = 0; // Wrap to beginning
-                shouldSnapInstantly = false;
-            } else if (newIndex < 0) {
-                newIndex = slides.length - visibleSlides; // Wrap to last possible position
-                shouldSnapInstantly = false;
+            // Handle bounds and wrapping
+            if (direction > 0) {
+                // Moving right/forward
+                if (newIndex > slides.length - visibleSlides) {
+                    newIndex = 0; // Wrap to beginning when going right from last
+                    shouldSnapInstantly = false;
+                }
+            } else {
+                // Moving left/backward  
+                if (newIndex < 0) {
+                    // Don't wrap when going left from first slide - just stay at 0
+                    newIndex = 0;
+                    return; // Exit early, don't animate
+                }
             }
             
             currentIndex = newIndex;
@@ -1225,26 +1441,55 @@
             setTimeout(startAutoPlay, (widgetSettings.autoplayDelay || 5000) * 1.5);
         });
 
-        // Touch/Drag simplified
+        // Touch/Drag functionality with improved click detection
         const getPositionX = (event) => event.type.includes('mouse') ? event.pageX : event.touches[0].clientX;
 
         const touchStart = (event) => {
-            isDragging = true;
+            isPointerDown = true;
+            isDragging = false; // Don't set dragging immediately
             startPos = getPositionX(event);
-            prevTranslate = -currentIndex * slideWidth; // Capture based on current index and slideWidth
+            prevTranslate = -currentIndex * slideWidth;
             track.style.transition = 'none';
-            animationID = requestAnimationFrame(dragAnimation);
             stopAutoPlay();
         };
 
         const touchMove = (event) => {
-            if (isDragging) {
-                const currentPosition = getPositionX(event);
-                currentTranslate = prevTranslate + currentPosition - startPos;
-                // Optional: prevent vertical scroll if horizontal drag is significant
-                if (Math.abs(currentPosition - startPos) > 10 && event.cancelable) {
-                    // event.preventDefault(); // Can cause issues if not careful
+            if (!isPointerDown) return;
+            
+            const currentPosition = getPositionX(event);
+            const deltaX = currentPosition - startPos;
+            
+            // Only start dragging if we've moved beyond the threshold
+            if (!isDragging && Math.abs(deltaX) > dragStartThreshold) {
+                isDragging = true;
+                track.classList.add('rh-dragging');
+                animationID = requestAnimationFrame(dragAnimation);
+                
+                // Prevent default behavior only when we're actually dragging
+                if (event.cancelable) {
+                    event.preventDefault();
                 }
+            }
+            
+            if (isDragging) {
+                let newTranslate = prevTranslate + deltaX;
+                
+                // Apply boundary constraints with elastic resistance
+                const minTranslate = -(slides.length - visibleSlides) * slideWidth;
+                const maxTranslate = 0;
+                
+                // Add resistance when dragging beyond boundaries
+                if (newTranslate > maxTranslate) {
+                    // Dragging right from first slide - add resistance
+                    const excess = newTranslate - maxTranslate;
+                    newTranslate = maxTranslate + (excess * 0.3); // 30% resistance
+                } else if (newTranslate < minTranslate) {
+                    // Dragging left from last slide - add resistance  
+                    const excess = minTranslate - newTranslate;
+                    newTranslate = minTranslate - (excess * 0.3); // 30% resistance
+                }
+                
+                currentTranslate = newTranslate;
             }
         };
 
@@ -1255,22 +1500,53 @@
             }
         }
         
-        const touchEnd = () => {
-            if (!isDragging) return;
-            isDragging = false;
-            cancelAnimationFrame(animationID);
+        const touchEnd = (event) => {
+            if (!isPointerDown) return;
+            
+            isPointerDown = false;
+            
+            if (isDragging) {
+                isDragging = false;
+                track.classList.remove('rh-dragging');
+                cancelAnimationFrame(animationID);
 
-            const movedBy = currentTranslate - prevTranslate;
-            let direction = 0;
-            if (movedBy < -dragThreshold) direction = 1; // Swiped left
-            if (movedBy > dragThreshold) direction = -1; // Swiped right
+                const movedBy = currentTranslate - prevTranslate;
+                const minTranslate = -(slides.length - visibleSlides) * slideWidth;
+                const maxTranslate = 0;
+                
+                // Check if we're outside boundaries and need to snap back
+                if (currentTranslate > maxTranslate) {
+                    // Beyond right boundary (first slide) - snap back to first slide
+                    currentIndex = 0;
+                    updateCarouselPosition(true);
+                } else if (currentTranslate < minTranslate) {
+                    // Beyond left boundary (last slide) - snap back to last possible position  
+                    currentIndex = slides.length - visibleSlides;
+                    updateCarouselPosition(true);
+                } else {
+                    // Within boundaries - check if movement threshold was met for slide change
+                    let direction = 0;
+                    if (movedBy < -dragThreshold) direction = 1; // Swiped left
+                    if (movedBy > dragThreshold) direction = -1; // Swiped right
 
-            if (direction !== 0) {
-                changeSlide(direction);
+                    if (direction !== 0) {
+                        changeSlide(direction);
+                    } else {
+                        // Not moved enough - snap back to current slide
+                        updateCarouselPosition(true); 
+                    }
+                }
+                
+                // Prevent click events from firing after drag
+                track.style.pointerEvents = 'none';
+                setTimeout(() => {
+                    track.style.pointerEvents = 'auto';
+                }, 100);
             } else {
-                // Snap back to current slide if not moved enough
-                updateCarouselPosition(); 
+                // If we didn't drag, restore transition for smooth snapping
+                track.style.transition = 'transform 0.45s cubic-bezier(0.65, 0, 0.35, 1)';
             }
+            
             setTimeout(startAutoPlay, (widgetSettings.autoplayDelay || 5000) * 1.5);
         };
         
@@ -1278,11 +1554,30 @@
         track.addEventListener('touchstart', touchStart, { passive: true });
 
         document.addEventListener('mousemove', touchMove); // Listen on document for wider drag area
-        document.addEventListener('touchmove', touchMove, { passive: true });
+        document.addEventListener('touchmove', touchMove, { passive: false }); // Need to be able to preventDefault
 
         document.addEventListener('mouseup', touchEnd);
         document.addEventListener('touchend', touchEnd);
-        document.addEventListener('mouseleave', () => {if(isDragging) touchEnd();}); // If mouse leaves document
+        document.addEventListener('mouseleave', (e) => {
+            // Only end drag if mouse leaves the document entirely
+            if (e.target === document.documentElement) {
+                touchEnd(e);
+            }
+        });
+
+        // Prevent context menu on long press for mobile
+        track.addEventListener('contextmenu', (e) => {
+            if (isDragging) {
+                e.preventDefault();
+            }
+        });
+        
+        // Prevent text selection during drag
+        track.addEventListener('selectstart', (e) => {
+            if (isDragging) {
+                e.preventDefault();
+            }
+        });
 
         let autoPlayInterval;
         const startAutoPlay = () => {
@@ -1345,8 +1640,8 @@
         const stars = this.generateStars(rating);
         const content = this.escapeHtml(review.content || review.text || '');
         const displayContent = content.replace(/\n/g, '<br>');
-        const source = (review.source || 'default').toLowerCase();
-        const platformName = (widgetSettings.platformName || (source === 'google' ? 'Google' : (source === 'facebook' ? 'Facebook' : 'Platform')));
+        const source = this.detectReviewSource(review, widgetSettings);
+        const platformName = source === 'facebook' ? 'Facebook' : 'Google';
         const isVerified = true;
 
         const modalOverlay = document.createElement('div');
@@ -1355,6 +1650,16 @@
         const showAvatarsSetting = widgetSettings.showProfilePictures !== undefined ? widgetSettings.showProfilePictures : globalConfig.showProfilePictures;
         const showDatesSetting = widgetSettings.showDates !== undefined ? widgetSettings.showDates : globalConfig.showDates;
         const showRatingsSetting = widgetSettings.showRatings !== undefined ? widgetSettings.showRatings : globalConfig.showRatings;
+
+        // Generate rating display for modal based on platform
+        let modalRatingDisplay = '';
+        if (showRatingsSetting) {
+          if (source === 'facebook') {
+            modalRatingDisplay = this.generateRecommendationStatus(review);
+          } else if (rating > 0) {
+            modalRatingDisplay = `<div class="rh-modal-rating">${stars}</div>`;
+          }
+        }
 
         const modalHTML = `
             <div class="rh-modal">
@@ -1372,7 +1677,7 @@
                            <p class="rh-modal-review-meta">
                              ${date}
                            </p>` : ''}
-                         ${showRatingsSetting && rating > 0 ? `<div class="rh-modal-rating">${stars}</div>` : ''}
+                         ${modalRatingDisplay}
                     </div>
                 </div>
                 <div class="rh-modal-content">
@@ -1421,18 +1726,29 @@
       };
 
       this.log('info', 'Initializing widget V2', config);
+      
+      // Prevent duplicate initializations - create a unique identifier for this widget instance
+      const widgetInstanceId = config.containerId ? 
+        `${config.widgetId}-${config.containerId}` : 
+        `${config.widgetId}-script-${config._scriptTag ? Array.from(document.scripts).indexOf(config._scriptTag) : Date.now()}`;
+      
+      // Check if this widget instance has already been initialized
+      this._initializedWidgets = this._initializedWidgets || new Set();
+      if (this._initializedWidgets.has(widgetInstanceId)) {
+        this.log('warn', `Widget instance ${widgetInstanceId} already initialized, skipping.`);
+        return;
+      }
+      this._initializedWidgets.add(widgetInstanceId);
+      
       this.injectStyles();
 
       if (config.containerId) {
         container = document.getElementById(config.containerId);
         if (!container) {
           this.log('error', `Container element #${config.containerId} not found.`);
-          // Optionally create a temporary error message in body if no container
-          const errDiv = document.createElement('div');
-          errDiv.className = 'reviewhub-v2-widget-container'; // Use a base class
-          this.showError(errDiv, new Error(`Container #${config.containerId} not found.`), config, null);
-          document.body.insertAdjacentElement('beforeend', errDiv); // Add to end of body
-          return;
+          // Remove from initialized set since we failed
+          this._initializedWidgets.delete(widgetInstanceId);
+          return; // Don't create fallback containers when containerId is explicitly specified
         }
       } else if (config._scriptTag) { // If initialized from script tag without explicit container
           container = document.createElement('div');
@@ -1440,8 +1756,14 @@
           this.log('info', `No containerId, created one after script tag: ${config._scriptTag.src}`);
       } else {
         this.log('error', 'No containerId provided and cannot infer container. Widget will not render.');
+        // Remove from initialized set since we failed
+        this._initializedWidgets.delete(widgetInstanceId);
         return; // Cannot proceed without a container
       }
+      
+      // Add a data attribute to mark this container as initialized
+      container.setAttribute('data-reviewhub-widget-id', config.widgetId);
+      container.setAttribute('data-reviewhub-instance-id', widgetInstanceId);
       
       container.className = 'reviewhub-v2-widget-container'; // Base class for all widgets
       container.innerHTML = `
@@ -1465,6 +1787,9 @@
       // API might not need themeColor or layout for fetching raw data.
       // if (config.layout) params.append('layout', config.layout); // If API filters by layout
       
+      // Add limit parameter to fetch at least 500 reviews by default
+      params.append('limit', '1000');
+      
       const queryString = params.toString();
       const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${config.widgetId}${queryString ? '?' + queryString : ''}`;
       this.log('info', `Fetching data from: ${apiUrl}`);
@@ -1473,6 +1798,8 @@
         this.log('info', 'Retrying widget load V2', { widgetId: config.widgetId });
         // Clear container and re-init. Be careful of infinite loops if API always fails.
         container.innerHTML = ''; // Clear previous error/loading
+        // Remove from initialized set to allow retry
+        this._initializedWidgets.delete(widgetInstanceId);
         this.initWidget(config); 
       };
 
@@ -1486,6 +1813,7 @@
            // This allows overriding API settings via script tag attributes.
            if(config.cardsToShowDesktop) data.widgetSettings.cardsToShowDesktop = parseInt(config.cardsToShowDesktop, 10);
            if(config.cardsToShowTablet) data.widgetSettings.cardsToShowTablet = parseInt(config.cardsToShowTablet, 10);
+           if(config.cardsToShowFoldable) data.widgetSettings.cardsToShowFoldable = parseInt(config.cardsToShowFoldable, 10);
            if(config.cardsToShowMobile) data.widgetSettings.cardsToShowMobile = parseInt(config.cardsToShowMobile, 10);
            if(config.autoplay !== undefined) data.widgetSettings.autoplay = config.autoplay === 'true' || config.autoplay === true;
            if(config.autoplayDelay) data.widgetSettings.autoplayDelay = parseInt(config.autoplayDelay, 10);
@@ -1510,6 +1838,12 @@
       // Handle string shorthand for widgetId
       const config = typeof userConfig === 'string' ? { widgetId: userConfig } : userConfig;
       
+      // Add some basic validation
+      if (!config || !config.widgetId) {
+        this.log('error', 'Invalid config provided to init method', config);
+        return;
+      }
+      
       // If script is still loading, defer initialization
       if (document.readyState === 'loading') {
           window.ReviewHubV2._pendingInitializations = window.ReviewHubV2._pendingInitializations || [];
@@ -1522,16 +1856,26 @@
 
   // Auto-initialize widgets from script tags
   function initializeWidgetsFromScripts() {
-    const scriptTags = document.querySelectorAll('script[data-widget-id]');
+    // Prevent multiple executions
+    if (window.ReviewHubV2._autoInitialized) {
+      window.ReviewHubV2.log('info', 'Auto-initialization already completed, skipping.');
+      return;
+    }
+    window.ReviewHubV2._autoInitialized = true;
+    
+    const scriptTags = document.querySelectorAll('script[data-reviewhub-widget-id]:not([data-reviewhub-processed])');
     window.ReviewHubV2.log('info', `Found ${scriptTags.length} V2 widget script tag(s) for auto-initialization.`);
     scriptTags.forEach(script => {
+      // Mark script as processed to prevent duplicate processing
+      script.setAttribute('data-reviewhub-processed', 'true');
+      
       const config = {
-        widgetId: script.getAttribute('data-widget-id'),
+        widgetId: script.getAttribute('data-reviewhub-widget-id'),
         containerId: script.getAttribute('data-container-id') || null,
         themeColor: script.getAttribute('data-theme-color') || undefined,
         layout: script.getAttribute('data-layout') || undefined,
         cardsToShowDesktop: script.getAttribute('data-cards-desktop') || undefined,
-        cardsToShowTablet: script.getAttribute('data-cards-tablet') || undefined,
+        cardsToShowFoldable: script.getAttribute('data-cards-foldable') || undefined,
         cardsToShowMobile: script.getAttribute('data-cards-mobile') || undefined,
         autoplay: script.getAttribute('data-autoplay') || undefined,
         autoplayDelay: script.getAttribute('data-autoplay-delay') || undefined,
@@ -1544,15 +1888,24 @@
       // Filter out undefined values from config
       Object.keys(config).forEach(key => config[key] === undefined && delete config[key]);
       
+      // Only add _scriptTag if there's no containerId specified
+      if (config.containerId) {
+        delete config._scriptTag;
+        window.ReviewHubV2.log('info', `Using specified container: ${config.containerId} for widget: ${config.widgetId}`);
+      } else {
+        window.ReviewHubV2.log('info', `No container specified, will create container after script tag for widget: ${config.widgetId}`);
+      }
+      
       window.ReviewHubV2.initWidget(config);
     });
   }
   
   // Handle pending initializations if DOM was already ready
   function processPendingInitializations() {
-      if (window.ReviewHubV2._pendingInitializations) {
+      if (window.ReviewHubV2._pendingInitializations && window.ReviewHubV2._pendingInitializations.length > 0) {
+          window.ReviewHubV2.log('info', `Processing ${window.ReviewHubV2._pendingInitializations.length} pending widget initializations.`);
           window.ReviewHubV2._pendingInitializations.forEach(config => window.ReviewHubV2.initWidget(config));
-          delete window.ReviewHubV2._pendingInitializations; // Clear after processing
+          window.ReviewHubV2._pendingInitializations = []; // Clear after processing
       }
   }
 
@@ -1570,3 +1923,4 @@
   }
 
 })(); 
+
