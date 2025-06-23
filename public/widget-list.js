@@ -503,12 +503,14 @@
           cursor: pointer;
           text-align: left;
           transition: color 0.2s ease;
-          text-decoration: none;
+          text-decoration: underline;
+          font-weight: bold;
         }
 
         .rh-list-read-more:hover {
           color: var(--list-theme-color-dark, #2563EB);
           text-decoration: underline;
+          font-weight: bold;
         }
 
         .rh-list-source-badge {
@@ -599,12 +601,14 @@
           justify-content: center;
           border-radius: 50%;
           transition: all 0.2s ease;
+          padding: 20px !important;
         }
 
         .reviewhub-list-modal-close:hover {
           background-color: #E5E7EB;
           color: #374151;
           transform: scale(1.05);
+          padding: 20px !important;
         }
 
         .reviewhub-list-modal-header {

@@ -395,7 +395,7 @@
         }
 
         .reviewhub-badge-compact-stars {
-          color: #F59E0B;
+          color: #f5ca0b;
           font-size: 1.1rem;
           letter-spacing: 1px;
           line-height: 1;
@@ -484,13 +484,15 @@
         .rh-badge-recommendation-status {
           display: flex;
           align-items: center;
-          justify-content: center;
+          justify-content: start;
           gap: 6px;
           font-size: 1rem;
           font-weight: 600;
           letter-spacing: 0.5px;
           line-height: 1;
           padding: 4px 0;
+          gap: 4px;
+
         }
 
         .rh-badge-recommended {
@@ -503,6 +505,7 @@
 
         .rh-badge-recommendation-status i {
           font-size: 1.1rem;
+          text-decoration: none;
         }
 
         .reviewhub-badge-actions {
@@ -620,12 +623,14 @@
           justify-content: center;
           border-radius: 50%;
           transition: all 0.2s ease;
+          padding: 20px !important;
         }
 
         .reviewhub-badge-modal-close:hover {
           background-color: #E5E7EB;
           color: #374151;
           transform: scale(1.05);
+          padding: 20px !important;
         }
 
         .reviewhub-badge-modal-title {
@@ -855,6 +860,9 @@
             font-size: 0.8rem;
           }
         }
+          i{
+          font-style: normal !important;
+          }
       `;
       document.head.appendChild(style);
     },

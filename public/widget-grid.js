@@ -424,7 +424,7 @@
           display: flex;
           align-items: center;
           gap: 14px;
-          margin-bottom: 16px;
+          margin-bottom: 8px;
         }
 
         .rh-grid-card-avatar {
@@ -493,6 +493,7 @@
           font-size: 1rem;
           display: flex;
           gap: 2px;
+          margin-bottom: 6px;
         }
 
         /* Facebook recommendation status styles */
@@ -502,7 +503,7 @@
           gap: 6px;
           font-size: 0.9rem;
           font-weight: 600;
-          margin-bottom: 12px;
+          margin-bottom: 6px;
           padding: 4px 0;
         }
 
@@ -594,12 +595,14 @@
           justify-content: center;
           border-radius: 50%;
           transition: all 0.2s ease;
+          padding: 20px !important;
         }
 
         .reviewhub-grid-modal-close:hover {
           background-color: #E5E7EB;
           color: #374151;
           transform: scale(1.05);
+          padding: 20px !important;
         }
 
         .reviewhub-grid-modal-header {
@@ -798,7 +801,8 @@
           text-align: left;
           margin-top: auto;
           transition: color 0.2s ease;
-          text-decoration: none;
+          text-decoration: underline;
+          font-weight: bold;
         }
 
         .rh-grid-read-more:hover {

@@ -22,7 +22,6 @@ const Sidebar = ({ isMobile, isOpen, onClose, onLogout, user, currentPath, _reso
     { label: "Dashboard", icon: "tachometer-alt", href: "/dashboard" },
     { label: "My Widgets", icon: "th-large", href: "/widgets" },
     { label: "Reviews", icon: "star", href: "/reviews" },
-    { label: "Settings", icon: "cog", href: "/settings" },
     { label: "Help & Support", icon: "question-circle", href: "/help" },
   ];
   if (isMobile && !isOpen) {

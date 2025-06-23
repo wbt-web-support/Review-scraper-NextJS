@@ -559,7 +559,8 @@
           text-align: left;
           margin-top: 8px; /* Fixed margin instead of auto */
           transition: color 0.2s ease;
-          text-decoration: none;
+          text-decoration: underline;
+          font-weight: bold;
           flex-shrink: 0; /* Prevent button from shrinking */
           align-self: flex-start; /* Align to start instead of stretching */
         }
@@ -726,11 +727,13 @@
           justify-content: center;
           border-radius: 50%;
           transition: all 0.2s ease;
+          padding: 20px !important;
         }
         .rh-modal-close:hover {
           background-color: #E5E7EB;
           color: #374151;
           transform: scale(1.05);
+          padding: 20px !important;
         }
 
         .rh-modal-header {
