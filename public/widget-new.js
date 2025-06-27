@@ -225,6 +225,12 @@
       style.id = 'reviewhub-v2-widget-styles';
       style.textContent = `
         /* Global styles */
+
+        i {
+            font-style: normal !important;
+        }
+
+
         .reviewhub-v2-widget-container h1,
         .reviewhub-v2-widget-container h2,
         .reviewhub-v2-widget-container h3,

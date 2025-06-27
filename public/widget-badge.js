@@ -205,6 +205,9 @@
       style.id = 'reviewhub-badge-widget-styles';
       style.textContent = `
         /* Global styles */
+        i {
+            font-style: normal !important;
+        }
         .reviewhub-badge-widget-container h1,
         .reviewhub-badge-widget-container h2,
         .reviewhub-badge-widget-container h3,

@@ -219,6 +219,9 @@
       style.id = 'reviewhub-masonry-widget-styles';
       style.textContent = `
         /* Global styles */
+        i {
+            font-style: normal !important;
+        }
         .reviewhub-masonry-widget-container h1,
         .reviewhub-masonry-widget-container h2,
         .reviewhub-masonry-widget-container h3,

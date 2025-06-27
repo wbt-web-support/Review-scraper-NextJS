@@ -250,7 +250,7 @@
 
         i {
             font-style: normal !important;
-        }
+        } 
 
         .reviewhub-grid-widget-container h1,
         .reviewhub-grid-widget-container h2,

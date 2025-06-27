@@ -205,6 +205,9 @@
       style.id = 'reviewhub-list-widget-styles';
       style.textContent = `
         /* Global styles */
+        i {
+            font-style: normal !important;
+        }
         .reviewhub-list-widget-container h1,
         .reviewhub-list-widget-container h2,
         .reviewhub-list-widget-container h3,
