@@ -433,13 +433,14 @@
 
         .rh-masonry-card-author-name {
           font-weight: 600;
-          font-size: 0.95rem;
+          font-size: 0.95rem !important;
           color: #111827;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
           margin: 0;
           margin-right: 8px;
+          letter-spacing: normal;
         }
 
         .rh-masonry-verified-badge {
@@ -664,7 +665,7 @@
 
         .reviewhub-masonry-modal-author-name {
           font-weight: 600;
-          font-size: 1.2rem;
+          font-size: 1.2rem !important;
           color: #111827;
           margin: 0;
           margin-right: 8px;
@@ -719,7 +720,7 @@
           }
           
           .rh-masonry-card-author-name {
-            font-size: 0.9rem;
+            font-size: 0.9rem; letter-spacing: normal;
           }
           
           .rh-masonry-card-content {
@@ -779,7 +780,7 @@
           }
           
           .rh-masonry-card-author-name {
-            font-size: 1rem;
+            font-size: 1rem; letter-spacing: normal;
           }
           
           .rh-masonry-card-content {

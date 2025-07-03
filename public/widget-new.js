@@ -474,13 +474,14 @@
         }
         .rh-card-author-name {
           font-weight: 600;
-          font-size: 0.95rem; 
+          font-size: 0.95rem !important; 
           color: #111827;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
           margin: 0px;
           margin-right: 6px;
+          letter-spacing: normal;
         }
         .rh-verified-badge {
             color: #3B82F6;
@@ -784,10 +785,11 @@
         }
         .rh-modal-author-name {
             font-weight: 600;
-            font-size: 1.2rem;
+            font-size: 1.2rem !important;
             color: #111827;
             margin: 0px;
             margin-right: 8px;
+            letter-spacing: normal;
         }
         .rh-modal-verified-badge {
             color: #3B82F6;
@@ -858,7 +860,7 @@
             min-height: 280px; /* Reduced for mobile */
           }
           .rh-card-avatar { width: 40px; height: 40px; }
-          .rh-card-author-name { font-size: 0.9rem; }
+          .rh-card-author-name { font-size: 0.9rem; letter-spacing: normal; }
           .rh-card-review-meta { font-size: 0.75rem; }
           .rh-card-content { font-size: 0.85rem; -webkit-line-clamp: 3; }
           .rh-read-more { font-size: 0.8rem; }
@@ -867,7 +869,7 @@
           
           .rh-modal { padding: 24px; border-radius: 16px; }
           .rh-modal-avatar { width: 48px; height: 48px; }
-          .rh-modal-author-name { font-size: 1.1rem; }
+          .rh-modal-author-name { font-size: 1.1rem !important; }
           .rh-modal-content { font-size: 0.95rem; }
         }
 
@@ -875,7 +877,7 @@
         @media (min-width: ${CONFIG.CAROUSEL_SETTINGS.WIDE_SCREEN_BREAKPOINT}px) {
           .rh-review-card { padding: 28px; }
           .rh-card-avatar { width: 48px; height: 48px; }
-          .rh-card-author-name { font-size: 1rem; }
+          .rh-card-author-name { font-size: 1rem !important; letter-spacing: normal; }
           .rh-card-content { font-size: 0.95rem; }
         }
       `;

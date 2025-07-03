@@ -637,10 +637,11 @@
         }
 
         .reviewhub-badge-modal-title {
-          font-size: 1.4rem;
-          font-weight: 700;
-          margin-bottom: 24px;
-          color: #1F2937;
+            font-size: 1.4rem !important;
+            line-height: 1.2 !important;
+            font-weight: 700;
+            margin-bottom: 24px;
+            color: #1F2937;
         }
 
         .reviewhub-badge-modal-summary {
@@ -665,7 +666,7 @@
 
         .reviewhub-badge-modal-summary-title {
           font-weight: 600;
-          font-size: 1.1rem;
+          font-size: 1.1rem !important;
           color: #1F2937;
           margin: 0;
         }

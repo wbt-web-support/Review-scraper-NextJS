@@ -473,6 +473,7 @@
           text-overflow: ellipsis;
           margin: 0;
           margin-right: 8px;
+          letter-spacing: normal;
         }
 
         .rh-grid-verified-badge {
@@ -650,10 +651,11 @@
 
         .reviewhub-grid-modal-author-name {
           font-weight: 600;
-          font-size: 1.2rem;
+          font-size: 1.2rem !important;
           color: #111827;
           margin: 0;
           margin-right: 8px;
+          letter-spacing: normal;
         }
 
         .reviewhub-grid-modal-verified-badge {
@@ -705,6 +707,7 @@
           
           .rh-grid-card-author-name {
             font-size: 0.9rem;
+            letter-spacing: normal;
           }
           
           .rh-grid-card-content {
@@ -723,7 +726,8 @@
           }
           
           .reviewhub-grid-modal-author-name {
-            font-size: 1.1rem;
+            font-size: 1.1rem !important;
+            letter-spacing: normal;
           }
           
           .reviewhub-grid-modal-content {
@@ -764,7 +768,8 @@
           }
           
           .rh-grid-card-author-name {
-            font-size: 1.05rem;
+            font-size: 1.05rem !important;
+            letter-spacing: normal;
           }
           
           .rh-grid-card-content {
