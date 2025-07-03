@@ -67,6 +67,12 @@
       const style = document.createElement('style');
       style.id = 'reviewhub-widget-styles';
       style.textContent = `
+
+      i {
+            font-style: normal !important;
+        }
+
+
         .reviewhub-widget-container h1,
         .reviewhub-widget-container h2,
         .reviewhub-widget-container h3,

@@ -205,6 +205,9 @@
       style.id = 'reviewhub-list-widget-styles';
       style.textContent = `
         /* Global styles */
+        i {
+            font-style: normal !important;
+        }
         .reviewhub-list-widget-container h1,
         .reviewhub-list-widget-container h2,
         .reviewhub-list-widget-container h3,
@@ -412,10 +415,11 @@
 
         .rh-list-item-author-name {
           font-weight: 600;
-          font-size: 1.05rem;
+          font-size: 1.05rem !important;
           color: #111827;
           margin: 0;
-        }
+          letter-spacing: normal;
+        } 
 
         .rh-list-verified-badge {
           color: #3B82F6;
@@ -656,10 +660,11 @@
 
         .reviewhub-list-modal-author-name {
           font-weight: 600;
-          font-size: 1.2rem;
+          font-size: 1.2rem !important;
           color: #111827;
           margin: 0;
           margin-right: 8px;
+          letter-spacing: normal;
         }
 
         .reviewhub-list-modal-verified-badge {
@@ -713,7 +718,7 @@
           }
           
           .rh-list-item-author-name {
-            font-size: 1rem;
+            font-size: 1rem; letter-spacing: normal;
           }
           
           .rh-list-item-text {
@@ -731,7 +736,7 @@
           }
           
           .reviewhub-list-modal-author-name {
-            font-size: 1.1rem;
+            font-size: 1.1rem; letter-spacing: normal;
           }
           
           .reviewhub-list-modal-content {
@@ -760,7 +765,7 @@
           }
           
           .rh-list-item-author-name {
-            font-size: 1.1rem;
+            font-size: 1.1rem; letter-spacing: normal;
           }
           
           .rh-list-item-text {
