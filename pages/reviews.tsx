@@ -26,7 +26,7 @@ import {
 } from "../components/ui/command";
 import { Combobox, ComboboxOption } from "../components/ui/combobox";
 import { Trash2 } from "lucide-react";
-import { Loader, RefreshCcw } from "lucide-react";
+import { Loader, RefreshCcw, Download } from "lucide-react";
 
 interface IBusinessUrl {
   _id: string;
@@ -302,6 +302,23 @@ const Reviews = () => {
                       )}
                     </Button>
                     <Button
+                      onClick={() => scrapeReviewsMutation.mutate(selectedBusinessUrl)}
+                      disabled={scrapeReviewsMutation.isPending}
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      {scrapeReviewsMutation.isPending ? (
+                        <>
+                          <Loader className="mr-2 animate-spin" />
+                          Scraping...
+                        </>
+                      ) : (
+                        <>
+                          <Download className="mr-2" />
+                          Fetch This Business
+                        </>
+                      )}
+                    </Button>
+                    <Button
                       onClick={() => handleDeleteClick(filteredBusinessUrls.find(b => b._id === selectedBusinessUrl)!)}
                       variant="destructive"
                       className="bg-red-600 hover:bg-red-700 text-white  cursor-pointer" 
@@ -311,6 +328,34 @@ const Reviews = () => {
                     </Button>
                   </>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Review Count Display */}
+          {selectedBusinessUrl && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-blue-800">
+                    {filteredBusinessUrls.find(b => b._id === selectedBusinessUrl)?.name}
+                  </span>
+                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                    {filteredBusinessUrls.find(b => b._id === selectedBusinessUrl)?.source === 'google' ? 'Google' : 'Facebook'}
+                  </span>
+                </div>
+                <div className="text-sm text-blue-700">
+                  {isReviewsLoading ? (
+                    <span className="flex items-center gap-1">
+                      <Loader className="w-4 h-4 animate-spin" />
+                      Loading reviews...
+                    </span>
+                  ) : (
+                    <span className="font-semibold">
+                      {reviews.length} review{reviews.length !== 1 ? 's' : ''} found
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           )}

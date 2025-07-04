@@ -95,8 +95,13 @@ export const scrapeGoogleReviews = async (businessUrlId: string, maxReviewsParam
       if (!businessUrlDoc.url) throw new Error('Business URL is missing.');
   
   
-      const input = { startUrls: [{ url: businessUrlDoc.url }], language: "en" };
-      console.log(`Starting Apify actor: ${GOOGLE_REVIEWS_ACTOR_NAME} for business ID: ${businessUrlId}`);
+      const input = { 
+        startUrls: [{ url: businessUrlDoc.url }], 
+        language: "en",
+        maxReviews: maxReviewsParam || 10000, // Set a high default to get all reviews
+        resultsLimit: 99999 // Set to unlimited to get all available reviews
+      };
+      console.log(`Starting Apify actor: ${GOOGLE_REVIEWS_ACTOR_NAME} for business ID: ${businessUrlId} with maxReviews: ${input.maxReviews}`);
       const run = await googleClient.actor(GOOGLE_REVIEWS_ACTOR_NAME).call(input);
       console.log(`Apify actor run for Google completed. Dataset ID: ${run.defaultDatasetId}`);
       const { items } = await googleClient.dataset(run.defaultDatasetId).listItems();
@@ -139,8 +144,13 @@ export const scrapeFacebookReviews = async (businessUrlId: string, maxReviewsPar
       if (businessUrlDoc.source !== 'facebook') throw new Error('Business URL source is not Facebook.');
       if (!businessUrlDoc.url) throw new Error('Business URL is missing.');
   
-      const input = { startUrls: [{ url: businessUrlDoc.url }] };
-      console.log(`Starting Apify actor: ${FACEBOOK_REVIEWS_ACTOR_NAME} for business ID: ${businessUrlId}`);
+      const input = { 
+        startUrls: [{ url: businessUrlDoc.url }],
+        maxReviews: maxReviewsParam || 10000, // Set a high default to get all reviews
+        scrapeReviews: true,
+        resultsLimit: 99999 // Set to unlimited to get all available reviews
+      };
+      console.log(`Starting Apify actor: ${FACEBOOK_REVIEWS_ACTOR_NAME} for business ID: ${businessUrlId} with maxReviews: ${input.maxReviews}`);
       const run = await facebookClient.actor(FACEBOOK_REVIEWS_ACTOR_NAME).call(input);
       console.log(`Apify actor run for Facebook completed. Dataset ID: ${run.defaultDatasetId}`);
       const { items } = await facebookClient.dataset(run.defaultDatasetId).listItems();

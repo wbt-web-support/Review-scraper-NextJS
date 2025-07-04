@@ -17,7 +17,7 @@
       if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
         return window.location.protocol + '//' + window.location.host;
       }
-      return 'https://reviews.webuildtrades.com/'; // Default API domain
+      return 'https://reviews.webuildtrades.com/'; // Default API 
     })(),
     RETRY_ATTEMPTS: 3,
     RETRY_DELAY: 3000,
@@ -34,7 +34,9 @@
         tablet: 768,
         desktop: 1024,
         wide: 1280
-      }
+      },
+      INITIAL_REVIEW_COUNT: 12, // Show first 12 reviews initially
+      LOAD_MORE_INCREMENT: 8    // Load 8 more reviews each time
     }
   };
 
@@ -42,6 +44,9 @@
     isInitialized: true,
     version: '1.0.0',
     buildId: Date.now(),
+    
+    // State tracking for each widget instance
+    widgetStates: new Map(),
 
     log: function(level, message, data) {
       if (window.console && window.console[level]) {
@@ -252,18 +257,10 @@
             font-style: normal !important;
         } 
 
-        .reviewhub-grid-widget-container h1,
-        .reviewhub-grid-widget-container h2,
-        .reviewhub-grid-widget-container h3,
-        .reviewhub-grid-widget-container h4,
-        .reviewhub-grid-widget-container h5,
-        .reviewhub-grid-widget-container h6 {
-          margin: 0 !important;
-          padding: 0 !important;
-          font-weight: inherit !important;
-          font-size: inherit !important;
-          line-height: inherit !important;
-          color: inherit !important;
+        .reviewhub-grid-widget-container h1, .reviewhub-grid-widget-container h2, .reviewhub-grid-widget-container h3, .reviewhub-grid-widget-container h4, .reviewhub-grid-widget-container h5, .reviewhub-grid-widget-container h6 {
+            margin: 0 !important;
+            color: inherit !important;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
         
         .reviewhub-grid-widget-container p {
@@ -279,8 +276,6 @@
         
         .reviewhub-grid-widget-container button {
           background: none !important;
-          border: none !important;
-          padding: 0 !important;
           margin: 0 !important;
           font-family: inherit !important;
           font-size: 14px !important;
@@ -814,6 +809,73 @@
           color: var(--grid-theme-color-dark, #2563EB);
           text-decoration: underline;
         }
+
+        /* Load More / Show Less Button Styles */
+        .reviewhub-grid-load-more-container {
+          display: flex;
+          justify-content: center;
+          margin-top: 32px;
+          gap: 10px;
+        }
+
+        .reviewhub-grid-load-more-btn,
+        .reviewhub-grid-show-less-btn {
+          background: var(--grid-theme-color, #3B82F6);
+          color: white;
+          border: solid 1px rgb(205, 213, 226);
+          padding: 8px 20px !important;
+          border-radius: 50px;
+          font-size: 1rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+          margin: 0 8px;
+          min-width: 120px;
+        }
+
+     
+
+        .reviewhub-grid-load-more-btn:hover,
+        .reviewhub-grid-show-less-btn:hover {
+          background: var(--grid-theme-color-dark, #2563EB);
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+        }
+
+        .reviewhub-grid-show-less-btn {
+          background: #6B7280;
+          box-shadow: 0 2px 8px rgba(107, 114, 128, 0.15);
+        }
+
+        .reviewhub-grid-show-less-btn:hover {
+          background: #4B5563;
+          box-shadow: 0 4px 12px rgba(107, 114, 128, 0.25);
+        }
+
+        @media (max-width: ${CONFIG.GRID_SETTINGS.BREAKPOINTS.mobile}px) {
+          .reviewhub-grid-load-more-container {
+            margin-top: 24px;
+            padding-top: 16px;
+          }
+          
+          .reviewhub-grid-load-more-btn,
+          .reviewhub-grid-show-less-btn {
+            padding: 12px 24px;
+            font-size: 0.9rem;
+            min-width: 100px;
+          }
+
+          .reviewhub-grid-load-more-container {
+              display: flex;
+              justify-content: center;
+              margin-top: 32px;
+              gap: 20px;
+              flex-wrap: wrap;
+              gap: 0px;
+              margin-top: 10px !important;
+          }
+        }
       `;
       document.head.appendChild(style);
     },
@@ -932,9 +994,23 @@
         return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
     },
 
-    renderWidget: function(container, data, config) {
+    renderWidget: function(container, data, config, displayCount = null) {
       this.log('info', 'Rendering grid widget', { data, config });
       const { widgetSettings, reviews, businessName, businessUrlLink, totalReviewCount } = data;
+      
+      // Get or create widget state
+      const widgetId = config.widgetId;
+      if (!this.widgetStates.has(widgetId)) {
+        this.widgetStates.set(widgetId, {
+          displayCount: displayCount || CONFIG.GRID_SETTINGS.INITIAL_REVIEW_COUNT,
+          isExpanded: false
+        });
+      }
+      
+      const widgetState = this.widgetStates.get(widgetId);
+      if (displayCount !== null) {
+        widgetState.displayCount = displayCount;
+      }
       
       // Filter reviews based on widget settings
       const filteredReviews = this.filterReviews(reviews, widgetSettings);
@@ -957,7 +1033,14 @@
         return;
       }
       
-      const reviewCardsHtml = filteredReviews.map((review, index) => {
+      // Determine how many reviews to show
+      const totalReviews = filteredReviews.length;
+      const currentDisplayCount = Math.min(widgetState.displayCount, totalReviews);
+      const reviewsToShow = filteredReviews.slice(0, currentDisplayCount);
+      const hasMoreReviews = totalReviews > currentDisplayCount;
+      const canShowLess = currentDisplayCount > CONFIG.GRID_SETTINGS.INITIAL_REVIEW_COUNT;
+      
+      const reviewCardsHtml = reviewsToShow.map((review, index) => {
         const author = this.escapeHtml(review.author || 'Anonymous');
         const initials = this.getInitials(review.author);
         const profilePicture = review.profilePicture;
@@ -1019,16 +1102,34 @@
         `;
       }).join('');
 
+      // Generate load more/show less buttons
+      let loadMoreButtonsHtml = '';
+      if (hasMoreReviews || canShowLess) {
+        const loadMoreButton = hasMoreReviews ? 
+          `<button class="reviewhub-grid-load-more-btn" data-action="load-more">Load More Reviews (${totalReviews - currentDisplayCount} remaining)</button>` : '';
+        const showLessButton = canShowLess ? 
+          `<button class="reviewhub-grid-show-less-btn" data-action="show-less">Show Less</button>` : '';
+        
+        loadMoreButtonsHtml = `
+          <div class="reviewhub-grid-load-more-container">
+            ${loadMoreButton}
+            ${showLessButton}
+          </div>
+        `;
+      }
+
       const gridHtml = `
         <div class="reviewhub-grid-widget">
           <div class="reviewhub-grid-container">
             ${reviewCardsHtml}
           </div>
+          ${loadMoreButtonsHtml}
         </div>
       `;
 
       container.innerHTML = gridHtml;
       this.attachModalEventListeners(container, filteredReviews, data, config);
+      this.attachLoadMoreEventListeners(container, data, config);
     },
 
     attachModalEventListeners: function(container, reviews, allData, config) {
@@ -1041,6 +1142,34 @@
                 }
             });
         });
+    },
+
+    attachLoadMoreEventListeners: function(container, data, config) {
+        const loadMoreBtn = container.querySelector('.reviewhub-grid-load-more-btn');
+        const showLessBtn = container.querySelector('.reviewhub-grid-show-less-btn');
+        
+        if (loadMoreBtn) {
+            loadMoreBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const widgetState = this.widgetStates.get(config.widgetId);
+                const newDisplayCount = widgetState.displayCount + CONFIG.GRID_SETTINGS.LOAD_MORE_INCREMENT;
+                widgetState.isExpanded = true;
+                this.renderWidget(container, data, config, newDisplayCount);
+            });
+        }
+        
+        if (showLessBtn) {
+            showLessBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const widgetState = this.widgetStates.get(config.widgetId);
+                widgetState.displayCount = CONFIG.GRID_SETTINGS.INITIAL_REVIEW_COUNT;
+                widgetState.isExpanded = false;
+                this.renderWidget(container, data, config, CONFIG.GRID_SETTINGS.INITIAL_REVIEW_COUNT);
+                
+                // Smooth scroll to top of widget
+                container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        }
     },
 
     showReviewModal: function(review, allData, config) {
