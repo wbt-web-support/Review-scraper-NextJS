@@ -391,7 +391,9 @@
           flex: 0 0 auto;
           padding: 0 10px;
           display: flex; 
-          align-items: stretch; 
+          align-items: stretch;
+          min-width: 40% !important;
+          
         }
 
         /* Review Card - Modern Design */

@@ -379,7 +379,7 @@ const CreateWidgetModal = ({
           </div>
           <iframe
             srcDoc={previewHtml}
-            className="w-full h-[400px] min-w-[80%]  border-0"
+            className="w-full h-[400px] border-0"
             title={`Widget Preview - ${selectedLayout}`}
             sandbox="allow-scripts allow-same-origin"
           />
