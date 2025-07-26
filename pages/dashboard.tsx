@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient  } from "@tanstack/react-query";
 import Link from "next/link";
 import Layout from "../components/Layout";
@@ -12,16 +12,7 @@ import { useSession } from 'next-auth/react';
 import { Plus } from "lucide-react";
 import { Button } from "@headlessui/react";
 
-interface IStats {
-  totalWidgets: number;
-  totalReviews: number;
-  averageRating: number;
-  totalViews: number;
-  reviewsBySource?: { 
-    google: number;
-    facebook: number;
-  };
-}
+
 
 interface IWidget {
   _id: string;
@@ -105,18 +96,56 @@ const Dashboard = () => {
     }
   }, [session, authStatus, router]);
 
-  const { data: stats, isLoading: isStatsLoading, error: statsError } = useQuery<IStats>({
-    queryKey: ['dashboardStats'],
-    queryFn: () => fetcher<IStats>('/api/dashboard/stats'),
-    enabled: !!session, 
-  });
+
 
   const { data: widgetsData, isLoading: isWidgetsLoading, error: widgetsError } = useQuery<{ widgets: IWidget[] }>({
     queryKey: ['widgets'],
     queryFn: () => fetcher<{ widgets: IWidget[] }>('/api/widgets'), 
     enabled: !!session,
   });
-  const widgets = widgetsData?.widgets || []; 
+  const allWidgets = useMemo(() => {
+    const widgets = widgetsData?.widgets || [];
+    console.log('Dashboard - Widget data:', widgets);
+    console.log('Dashboard - Sample widget views:', widgets.map(w => ({ id: w._id, name: w.name, views: w.views, totalReviewCount: w.totalReviewCount })));
+    return widgets;
+  }, [widgetsData]);
+
+  // Get stats for average rating calculation
+  const { data: stats, isLoading: isStatsLoading, error: statsError } = useQuery<{
+    totalWidgets: number;
+    totalReviews: number;
+    averageRating: number;
+    totalViews: number;
+  }>({
+    queryKey: ['dashboardStats'],
+    queryFn: () => fetcher<{ totalWidgets: number; totalReviews: number; averageRating: number; totalViews: number }>('/api/dashboard/stats'),
+    enabled: !!session,
+  });
+
+  // Calculate totals from widget data
+  const calculatedStats = useMemo(() => {
+    const totalWidgets = allWidgets.length;
+    const totalReviews = allWidgets.reduce((acc, widget) => acc + (widget.totalReviewCount || 0), 0);
+    const totalViews = allWidgets.reduce((acc, widget) => acc + (widget.views || 0), 0);
+    
+    // Use average rating from stats API since it's calculated from actual reviews
+    const averageRating = stats?.averageRating || 0;
+
+    console.log('Dashboard - Calculated stats:', {
+      totalWidgets,
+      totalReviews,
+      totalViews,
+      averageRating,
+      statsFromAPI: stats
+    });
+
+    return {
+      totalWidgets,
+      totalReviews,
+      totalViews,
+      averageRating
+    };
+  }, [allWidgets, stats?.averageRating]);
 
   const { data: latestReviewsData, isLoading: isReviewsLoading, error: reviewsError } = useQuery<{ reviews: IReviewItem[] }>({
     queryKey: ['latestReviews'],
@@ -133,11 +162,11 @@ const Dashboard = () => {
   const businessUrls = businessUrlsData?.businessUrls || [];
 
   useEffect(() => {
-    if (statsError) toast({ title: "Error Loading Stats", description: (statsError as Error).message, variant: "destructive" });
     if (widgetsError) toast({ title: "Error Loading Widgets", description: (widgetsError as Error).message, variant: "destructive" });
+    if (statsError) toast({ title: "Error Loading Stats", description: (statsError as Error).message, variant: "destructive" });
     if (reviewsError) toast({ title: "Error Loading Reviews", description: (reviewsError as Error).message, variant: "destructive" });
     if (businessUrlsError) toast({ title: "Error Loading Sources", description: (businessUrlsError as Error).message, variant: "destructive" });
-  }, [statsError, widgetsError, reviewsError, businessUrlsError, toast]);
+  }, [widgetsError, statsError, reviewsError, businessUrlsError, toast]);
 
   const handleWidgetCreated = () => {
     setIsCreateModalOpen(false);
@@ -155,10 +184,10 @@ const Dashboard = () => {
       </Layout>
     );
   }
-  const totalWidgetsDisplay = stats?.totalWidgets ?? 0;
-  const totalReviewsDisplay = stats?.totalReviews ?? 0;
-  const averageRatingDisplay = stats?.averageRating ? stats.averageRating.toFixed(1) : '0.0';
-  const totalViewsDisplay = stats?.totalViews ?? 0;
+  const totalWidgetsDisplay = calculatedStats.totalWidgets;
+  const totalReviewsDisplay = calculatedStats.totalReviews;
+  const averageRatingDisplay = calculatedStats.averageRating.toFixed(1);
+  const totalViewsDisplay = calculatedStats.totalViews;
 
   return (
     <Layout>
@@ -175,20 +204,20 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
       <StatisticsCard
         title="Total Widgets"
-        value={isStatsLoading ? "..." : totalWidgetsDisplay.toString()}
+        value={isWidgetsLoading ? "..." : totalWidgetsDisplay.toString()}
         icon="th-large"
         iconBgClass="bg-primary-100"
         iconTextClass="text-primary-500"
-        isLoading={isStatsLoading}
+        isLoading={isWidgetsLoading}
         change={null} 
       />
         <StatisticsCard
           title="Total Reviews"
-          value={isStatsLoading ? "..." : totalReviewsDisplay.toString()}
+          value={isWidgetsLoading ? "..." : totalReviewsDisplay.toString()}
           icon="star"
           iconBgClass="bg-secondary-100 "
           iconTextClass="text-secondary-500"
-          isLoading={isStatsLoading}
+          isLoading={isWidgetsLoading}
           change={null} 
         />
         <StatisticsCard
@@ -202,11 +231,11 @@ const Dashboard = () => {
         />
         <StatisticsCard
           title="Widget Views"
-          value={isStatsLoading ? "..." : totalViewsDisplay.toLocaleString()}
+          value={isWidgetsLoading ? "..." : totalViewsDisplay.toLocaleString()}
           icon="eye"
           iconBgClass="bg-success-100"
           iconTextClass="text-success-500"
-          isLoading={isStatsLoading}
+          isLoading={isWidgetsLoading}
           change={null} 
         />
       </div>
