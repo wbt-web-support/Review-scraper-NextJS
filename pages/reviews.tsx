@@ -191,8 +191,10 @@ const Reviews = () => {
       }
       return { message: result.message }; 
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['reviews', selectedBusinessUrl] });
+    onSuccess: async (data, _vars, _ctx) => {
+      // Invalidate and immediately refetch reviews for the selected business
+      await queryClient.invalidateQueries({ queryKey: ['reviews', selectedBusinessUrl] });
+      await queryClient.refetchQueries({ queryKey: ['reviews', selectedBusinessUrl] });
       queryClient.invalidateQueries({ queryKey: ['dashboardStats'] }); 
       queryClient.invalidateQueries({ queryKey: ['latestReviews'] }); 
       toast({ title: "Scraping Initiated", description: data?.message || "Review scraping process started." });
@@ -444,6 +446,7 @@ const Reviews = () => {
                     disabled={scrapeReviewsMutation.isPending}
                     onClick={async () => {
                       await scrapeReviewsMutation.mutateAsync(newBusinessId);
+                      await queryClient.refetchQueries({ queryKey: ['reviews', newBusinessId] });
                       setIsAddBusinessModalOpen(false);
                       setNewBusinessId(null);
                     }}

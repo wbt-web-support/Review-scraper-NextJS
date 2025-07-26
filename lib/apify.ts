@@ -1,6 +1,7 @@
 import { ApifyClient } from 'apify-client';
 import { getBusinessUrlById, updateBusinessUrlScrapedTime, upsertReviews } from './storage';
 import { IReviewItem } from '../models/Review.model'; 
+import { ReviewModel } from '../models/Review.model';
 
 const GOOGLE_APIFY_TOKEN = process.env.GOOGLE_APIFY_API_TOKEN;
 const FACEBOOK_APIFY_TOKEN = process.env.FACEBOOK_APIFY_API_TOKEN;
@@ -93,47 +94,57 @@ export const scrapeGoogleReviews = async (businessUrlId: string, maxReviewsParam
       if (!businessUrlDoc) throw new Error('Business URL not found.');
       if (businessUrlDoc.source !== 'google') throw new Error('Business URL source is not Google.');
       if (!businessUrlDoc.url) throw new Error('Business URL is missing.');
-  
-  
+   
       const input = { 
         startUrls: [{ url: businessUrlDoc.url }], 
         language: "en",
         maxReviews: maxReviewsParam || 10000, // Set a high default to get all reviews
         resultsLimit: 99999 // Set to unlimited to get all available reviews
       };
-      console.log(`Starting Apify actor: ${GOOGLE_REVIEWS_ACTOR_NAME} for business ID: ${businessUrlId} with maxReviews: ${input.maxReviews}`);
       const run = await googleClient.actor(GOOGLE_REVIEWS_ACTOR_NAME).call(input);
-      console.log(`Apify actor run for Google completed. Dataset ID: ${run.defaultDatasetId}`);
       const { items } = await googleClient.dataset(run.defaultDatasetId).listItems();
-  
       if (!items || items.length === 0) {
         await updateBusinessUrlScrapedTime(businessUrlId, 'google'); 
         console.log(`No new Google reviews found from Apify for business ID: ${businessUrlId}`);
         return { success: true, message: 'No new reviews found from Apify.', reviews: [] };
       }
-  
       console.log(`Found ${items.length} Google reviews from Apify for business ID: ${businessUrlId}. Parsing...`);
       const parsedApifyReviews: IReviewItem[] = items.map(item => parseGoogleReviewFromApify(item as ApifyGoogleReviewItem));
       const businessIdString = businessUrlDoc._id.toString();
-  
-      await upsertReviews({
-          businessUrlId: businessIdString,
-          url: businessUrlDoc.url,
-          urlHash: businessUrlDoc.urlHash, 
+      // Remove all existing reviews for this business
+      await ReviewModel.deleteMany({ businessUrlId: businessIdString, source: 'google' });
+      // Debug: Log the first review and required fields before insert
+      if (parsedApifyReviews.length > 0) {
+        console.log('First review to insert:', {
+          ...parsedApifyReviews[0],
+          businessUrlId: businessUrlDoc._id,
+          urlHash: businessUrlDoc.urlHash,
           source: 'google',
-          reviews: parsedApifyReviews
-      });
+        });
+      }
+      console.log('businessUrlDoc._id:', businessUrlDoc._id, 'urlHash:', businessUrlDoc.urlHash, 'source:', 'google');
+      // Insert all reviews as separate documents, even if some fields are missing
+      await ReviewModel.insertMany(parsedApifyReviews.map(r => ({
+        ...r,
+        businessUrlId: businessUrlDoc._id,
+        urlHash: businessUrlDoc.urlHash,
+        source: 'google',
+      })));
       await updateBusinessUrlScrapedTime(businessIdString, 'google');
-      console.log(`Successfully scraped and upserted ${parsedApifyReviews.length} Google reviews for business ID: ${businessUrlId}`);
+      console.log(`Successfully scraped and inserted ${parsedApifyReviews.length} Google reviews for business ID: ${businessUrlId}`);
       return { success: true, message: `Scraped ${parsedApifyReviews.length} Google reviews.`, reviews: parsedApifyReviews };
-  
     } catch (error: unknown) {
+      console.error(`Error scraping Google reviews for business ID ${businessUrlId}:`, error);
+      if (error && typeof error === 'object' && 'errors' in error) {
+        // Mongoose validation error details
+        // @ts-ignore
+        console.error('Validation error details:', error.errors);
+      }
       const message = error instanceof Error ? error.message : 'Google review scraping failed due to an unknown error.';
-      console.error(`Error scraping Google reviews for business ID ${businessUrlId}:`, message, error);
       return { success: false, message };
     }
 };
-  
+
 export const scrapeFacebookReviews = async (businessUrlId: string, maxReviewsParam?: number): Promise<ScrapeResult> => {
     if (!FACEBOOK_APIFY_TOKEN) {
       return { success: false, message: "Facebook Apify token not configured." };
@@ -150,11 +161,8 @@ export const scrapeFacebookReviews = async (businessUrlId: string, maxReviewsPar
         scrapeReviews: true,
         resultsLimit: 99999 // Set to unlimited to get all available reviews
       };
-      console.log(`Starting Apify actor: ${FACEBOOK_REVIEWS_ACTOR_NAME} for business ID: ${businessUrlId} with maxReviews: ${input.maxReviews}`);
       const run = await facebookClient.actor(FACEBOOK_REVIEWS_ACTOR_NAME).call(input);
-      console.log(`Apify actor run for Facebook completed. Dataset ID: ${run.defaultDatasetId}`);
       const { items } = await facebookClient.dataset(run.defaultDatasetId).listItems();
-  
       if (!items || items.length === 0) {
         await updateBusinessUrlScrapedTime(businessUrlId, 'facebook');
         console.log(`No new Facebook reviews found from Apify for business ID: ${businessUrlId}`);
@@ -163,20 +171,36 @@ export const scrapeFacebookReviews = async (businessUrlId: string, maxReviewsPar
       console.log(`Found ${items.length} Facebook reviews from Apify for business ID: ${businessUrlId}. Parsing...`);
       const parsedApifyReviews: IReviewItem[] = items.map(item => parseFacebookReviewFromApify(item as ApifyFacebookReviewItem));
       const businessIdString = businessUrlDoc._id.toString();
-      await upsertReviews({
-          businessUrlId: businessIdString,
-          url: businessUrlDoc.url,
+      // Remove all existing reviews for this business
+      await ReviewModel.deleteMany({ businessUrlId: businessIdString, source: 'facebook' });
+      // Debug: Log the first review and required fields before insert
+      if (parsedApifyReviews.length > 0) {
+        console.log('First review to insert:', {
+          ...parsedApifyReviews[0],
+          businessUrlId: businessUrlDoc._id,
           urlHash: businessUrlDoc.urlHash,
           source: 'facebook',
-          reviews: parsedApifyReviews
-      });
+        });
+      }
+      console.log('businessUrlDoc._id:', businessUrlDoc._id, 'urlHash:', businessUrlDoc.urlHash, 'source:', 'facebook');
+      // Insert all reviews as separate documents, even if some fields are missing
+      await ReviewModel.insertMany(parsedApifyReviews.map(r => ({
+        ...r,
+        businessUrlId: businessUrlDoc._id,
+        urlHash: businessUrlDoc.urlHash,
+        source: 'facebook',
+      })));
       await updateBusinessUrlScrapedTime(businessIdString, 'facebook');
-      console.log(`Successfully scraped and upserted ${parsedApifyReviews.length} Facebook reviews for business ID: ${businessUrlId}`);
+      console.log(`Successfully scraped and inserted ${parsedApifyReviews.length} Facebook reviews for business ID: ${businessUrlId}`);
       return { success: true, message: `Scraped ${parsedApifyReviews.length} Facebook reviews.`, reviews: parsedApifyReviews };
-  
     } catch (error: unknown) {
+      console.error(`Error scraping Facebook reviews for business ID ${businessUrlId}:`, error);
+      if (error && typeof error === 'object' && 'errors' in error) {
+        // Mongoose validation error details
+        // @ts-ignore
+        console.error('Validation error details:', error.errors);
+      }
       const message = error instanceof Error ? error.message : 'Facebook review scraping failed due to an unknown error.';
-      console.error(`Error scraping Facebook reviews for business ID ${businessUrlId}:`, message, error);
       return { success: false, message };
     }
 };

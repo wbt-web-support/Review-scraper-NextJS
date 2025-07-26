@@ -4,6 +4,7 @@ import { authOptions } from '../auth/[...nextauth]';
 import dbConnect from '@/lib/mongodb';
 import * as storage from '@/lib/storage';
 import { IReviewItem } from '@/models/Review.model';
+import { getLatestReviewsFromReviewModel } from '@/lib/storage';
 
 interface LatestReviewResponseItem extends IReviewItem {
     businessName: string;
@@ -48,7 +49,7 @@ export default async function handler(
     console.log(`[API /latest-reviews] Parsed Limit: ${limit}`);
 
     console.log(`[API /latest-reviews] Calling storage.getLatestReviews for user: ${userId}, limit: ${limit}`);
-    const latestReviewsFromStorage = await storage.getLatestReviews(userId, limit); // <--- CALL TO STORAGE
+    const latestReviewsFromStorage = await getLatestReviewsFromReviewModel(userId, limit); // <--- USE NEW MODEL
     console.log(`[API /latest-reviews] Reviews from storage count: ${latestReviewsFromStorage?.length}`);
     // console.log("[API /latest-reviews] Reviews from storage:", JSON.stringify(latestReviewsFromStorage, null, 2)); // Can be very verbose
 
