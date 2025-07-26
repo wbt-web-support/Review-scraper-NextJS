@@ -8,6 +8,8 @@ import WidgetModel, { IWidget } from '../models/Widget.model';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import { Types, UpdateQuery  } from 'mongoose';
+import mongoose from 'mongoose';
+import { ReviewModel } from '../models/Review.model';
 interface IBusinessStats {
   totalBusinessUrls: number;
   totalWidgets: number;
@@ -83,6 +85,7 @@ export const createUser = async (userData: CreateUserArgs): Promise<IUser> => {
     isVerified: userData.isVerified === undefined ? true : userData.isVerified,
   });
   const savedUser = await userToSave.save();
+  console.log(`[Storage/createUser] User saved with _id: ${savedUser._id}`);
   const userObject = savedUser.toObject();
   delete userObject.password;
   return userObject as IUser;
@@ -271,6 +274,7 @@ export const createBusinessUrl = async (data: CreateBusinessUrlArgs): Promise<IB
     newBusinessUrlDoc = await FacebookBusinessUrlModel.create(modelData);
   }
   const result = newBusinessUrlDoc.toObject();
+  console.log(`[Storage/createBusinessUrl] Business URL saved with _id: ${result._id}`);
   return {
     _id: result._id.toString(),
     name: result.name,
@@ -406,7 +410,11 @@ export const upsertReviews = async (data: UpsertReviewsArgs): Promise<IReviewBat
   await ensureDbConnected();
   if (!Types.ObjectId.isValid(data.businessUrlId)) throw new Error("Invalid businessUrlId for upsertReviews");
   const ReviewModelToUse = data.source === 'google' ? GoogleReviewBatchModel : FacebookReviewBatchModel;
-  return ReviewModelToUse.findOneAndUpdate(
+  console.log(`[Storage/upsertReviews] Saving ${data.reviews.length} reviews for businessUrlId: ${data.businessUrlId}, source: ${data.source}`);
+  // ... your code ...
+ 
+  const result = await ReviewModelToUse.findOneAndUpdate(
+
     { businessUrlId: new Types.ObjectId(data.businessUrlId), source: data.source },
     {
       $set: { 
@@ -420,6 +428,11 @@ export const upsertReviews = async (data: UpsertReviewsArgs): Promise<IReviewBat
     },
     { new: true, upsert: true, setDefaultsOnInsert: true }
   ).exec();
+  if (result) {
+    console.log(`[Storage/upsertReviews] Upserted review batch _id: ${result._id}, total reviews now: ${result.reviews?.length ?? 0}`);
+  
+  }
+  return result;
 };
 export const getLatestReviews = async (
   userId: string,
@@ -441,7 +454,6 @@ export const getLatestReviews = async (
       .select('_id name url source urlHash addedAt') // Ensure urlHash is selected for old review lookup
       .lean().exec();
     console.log(`[Storage/getLatestReviews] Found ${userGoogleBusinessUrls.length} Google URLs.`);
-
     console.log(`[Storage/getLatestReviews] Fetching FacebookBusinessUrls for userId: ${userIdObj}`);
     const userFacebookBusinessUrls = await FacebookBusinessUrlModel.find({ userId: userIdObj })
       .select('_id name url source urlHash addedAt') // Ensure urlHash is selected
@@ -519,6 +531,69 @@ export const getLatestReviews = async (
     throw new Error(`Database error in getLatestReviews: ${err.message}`); // Re-throw a new error or the original
   }
 };
+
+/**
+ * Fetch latest reviews for a user using the new ReviewModel (single review document).
+ * Joins with business URLs for business name and url.
+ * Returns the latest N reviews sorted by scrapedAt or postedAt.
+ */
+export const getLatestReviewsFromReviewModel = async (
+  userId: string,
+  limit = 10
+): Promise<Array<IReviewItem & { businessName: string; source: 'google' | 'facebook'; businessUrl?: string }>> => {
+  await ensureDbConnected();
+  if (!Types.ObjectId.isValid(userId)) return [];
+  const userIdObj = new Types.ObjectId(userId);
+
+  // Get all business URLs for this user
+  const googleBusinessUrls = await GoogleBusinessUrlModel.find({ userId: userIdObj })
+    .select('_id name url urlHash source')
+    .lean().exec();
+  const facebookBusinessUrls = await FacebookBusinessUrlModel.find({ userId: userIdObj })
+    .select('_id name url urlHash source')
+    .lean().exec();
+  const allBusinessUrls = [
+    ...googleBusinessUrls.map(b => ({ ...b, source: 'google' as const })),
+    ...facebookBusinessUrls.map(b => ({ ...b, source: 'facebook' as const })),
+  ];
+  if (allBusinessUrls.length === 0) return [];
+
+  // Map for quick lookup
+  const urlHashToBiz = Object.fromEntries(
+    allBusinessUrls.map(b => [b.urlHash, b])
+  );
+  const urlHashes = allBusinessUrls.map(b => b.urlHash);
+
+  // Fetch latest reviews from ReviewModel for these urlHashes
+  const reviews = await ReviewModel.find({ urlHash: { $in: urlHashes } })
+    .sort({ scrapedAt: -1, postedAt: -1 })
+    .limit(limit * 2) // fetch extra in case some are missing businessUrl
+    .lean()
+    .exec();
+
+  // Attach business info
+  const reviewsWithBiz = reviews.map(r => {
+    const biz = urlHashToBiz[r.urlHash];
+    return {
+      ...r,
+      businessName: biz?.name || '',
+      source: r.source,
+      businessUrl: biz?.url,
+    };
+  });
+
+  // Sort and limit
+  reviewsWithBiz.sort((a, b) => {
+    const dateA = a.scrapedAt || (a.postedAt && !isNaN(new Date(a.postedAt).getTime()) ? new Date(a.postedAt) : null);
+    const dateB = b.scrapedAt || (b.postedAt && !isNaN(new Date(b.postedAt).getTime()) ? new Date(b.postedAt) : null);
+    if (dateA && dateB) return dateB.getTime() - dateA.getTime();
+    if (dateA) return -1;
+    if (dateB) return 1;
+    return 0;
+  });
+
+  return reviewsWithBiz.slice(0, limit);
+};
 export const getWidgetById = async (id: string): Promise<IWidget | null> => {
   await ensureDbConnected();
   if (!Types.ObjectId.isValid(id)) return null;
@@ -552,16 +627,10 @@ export const getWidgetsByUserId = async (userId: string): Promise<IWidget[]> => 
               url: businessUrlData.url,
             };
 
-            // Get total review count for this business URL
+            // Get total review count for this business URL using the new ReviewModel
             if (businessUrlData.urlHash) {
               try {
-                const reviewBatch = await getReviewBatchForBusinessUrl(
-                  businessUrlData.urlHash,
-                  businessUrlData.source as 'google' | 'facebook'
-                );
-                if (reviewBatch && reviewBatch.reviews) {
-                  totalReviewCount = reviewBatch.reviews.length;
-                }
+                totalReviewCount = await ReviewModel.countDocuments({ urlHash: businessUrlData.urlHash, source: businessUrlData.source }).exec();
               } catch (error) {
                 console.error(`[Storage/getWidgetsByUserId] Error fetching review count for widget ${widget._id}:`, error);
               }
@@ -570,34 +639,6 @@ export const getWidgetsByUserId = async (userId: string): Promise<IWidget[]> => 
         } catch (error) {
           console.error(`[Storage/getWidgetsByUserId] Error fetching business URL for widget ${widget._id}:`, error);
         }
-      } else if (widget.businessUrlSource) {
-        // If no businessUrlId but we have businessUrlSource, create a minimal businessUrl object
-        businessUrl = {
-          _id: "",
-          name: widget.name, // Use widget name as fallback
-          source: widget.businessUrlSource as 'google' | 'facebook',
-          url: undefined,
-        };
-
-        // Try to get total review count using urlHash from widget
-        if (widget.urlHash) {
-          try {
-            const source = widget.businessUrlSource === 'GoogleBusinessUrl' ? 'google' : 'facebook';
-            const reviewBatch = await getReviewBatchForBusinessUrl(widget.urlHash, source);
-            if (reviewBatch && reviewBatch.reviews) {
-              totalReviewCount = reviewBatch.reviews.length;
-            }
-          } catch (error) {
-            console.error(`[Storage/getWidgetsByUserId] Error fetching review count for widget ${widget._id}:`, error);
-          }
-        }
-      } else {
-        businessUrl = {
-          _id: "",
-          name: widget.name, // Use widget name as fallback
-          source: 'google',
-          url: undefined,
-        };
       }
 
       return {
@@ -650,7 +691,7 @@ export const createWidget = async (widgetData: CreateWidgetArgs): Promise<IWidge
   console.log("[Storage/createWidget] Data for new WidgetModel:", newWidgetDocumentData);
   const newWidget = new WidgetModel(newWidgetDocumentData);
   const savedWidget = await newWidget.save();
-  console.log("[Storage/createWidget] Widget saved:", savedWidget);
+  console.log(`[Storage/createWidget] Widget saved with _id: ${savedWidget._id}`);
   return savedWidget.toObject({ getters: true, virtuals: false }) as IWidget; 
 };
 interface UpdateWidgetArgs {
@@ -684,7 +725,9 @@ export const updateWidget = async (id: string, widgetData: UpdateWidgetArgs): Pr
     { $set: updatePayload }, 
     { new: true }
   ).lean().exec();
-  
+  if (updatedWidget) {
+    console.log(`[Storage/updateWidget] Widget updated with _id: ${updatedWidget._id}`);
+  }
   if (!updatedWidget) return null;
 
   // Manually populate business URL information and get total review count (similar to getWidgetsByUserId)
@@ -770,13 +813,13 @@ export const getBusinessUrlStats = async (userId: string): Promise<IBusinessStat
     };
   }
   const userObjId = new Types.ObjectId(userId);
-  
+
   // Get business URLs from both models
   const [googleBusinessUrls, facebookBusinessUrls] = await Promise.all([
     GoogleBusinessUrlModel.find({ userId: userObjId }).lean().exec(),
     FacebookBusinessUrlModel.find({ userId: userObjId }).lean().exec()
   ]);
-  
+
   const totalBusinessUrls = googleBusinessUrls.length + facebookBusinessUrls.length;
   if (totalBusinessUrls === 0) {
     return {
@@ -784,80 +827,57 @@ export const getBusinessUrlStats = async (userId: string): Promise<IBusinessStat
       averageRating: 0, totalViews: 0, reviewsBySource: { google: 0, facebook: 0 },
     };
   }
-  
-  const businessUrlObjectIds = [
-    ...googleBusinessUrls.map((b: { _id: Types.ObjectId }) => b._id),
-    ...facebookBusinessUrls.map((b: { _id: Types.ObjectId }) => b._id)
-  ];
-  
-  // Get review stats from both Google and Facebook review batches
-  const [googleReviewStats, facebookReviewStats] = await Promise.all([
-    GoogleReviewBatchModel.aggregate<ReviewStatItem>([
-      { $match: { businessUrlId: { $in: businessUrlObjectIds } } },
-      { $unwind: '$reviews' },
-      {
-        $group: {
-          _id: '$source',
-          totalReviewsInSource: { $sum: 1 },
-          sumOfRatings: { $sum: { $ifNull: ['$reviews.rating', 0] } }, 
-          countOfRatedReviews: { $sum: { $cond: [{ $isNumber: '$reviews.rating' }, 1, 0] } }, 
-        },
-      },
-    ]).exec(),
-    FacebookReviewBatchModel.aggregate<ReviewStatItem>([
-      { $match: { businessUrlId: { $in: businessUrlObjectIds } } },
-      { $unwind: '$reviews' },
-      {
-        $group: {
-          _id: '$source',
-          totalReviewsInSource: { $sum: 1 },
-          sumOfRatings: { $sum: { $ifNull: ['$reviews.rating', 0] } }, 
-          countOfRatedReviews: { $sum: { $cond: [{ $isNumber: '$reviews.rating' }, 1, 0] } }, 
-        },
-      },
-    ]).exec()
-  ]);
 
-  const reviewStats = [...googleReviewStats, ...facebookReviewStats];
-  
-  let totalReviews = 0;
-  let totalSumOfRatings = 0;
-  let totalCountOfRatedReviews = 0;
-  const reviewsBySource: { google: number; facebook: number } = { google: 0, facebook: 0 };
-  
-  reviewStats.forEach((stat: ReviewStatItem) => { 
-    totalReviews += stat.totalReviewsInSource || 0; 
-    totalSumOfRatings += stat.sumOfRatings || 0;
-    totalCountOfRatedReviews += stat.countOfRatedReviews || 0;
-    if (stat._id === 'google') {
-      reviewsBySource.google = stat.totalReviewsInSource || 0;
-    } else if (stat._id === 'facebook') {
-      reviewsBySource.facebook = stat.totalReviewsInSource || 0;
-    }
-  });
-  
-  const averageRating = totalCountOfRatedReviews > 0 ? totalSumOfRatings / totalCountOfRatedReviews : 0;
-  const totalWidgets = await WidgetModel.countDocuments({ userId: userObjId }).exec();
-  interface WidgetViewAggItem {
-    _id: null;              
-    totalViews: number | null;
-  }
-  const widgetViewsAgg = await WidgetModel.aggregate<WidgetViewAggItem>([
-    { $match: { userId: userObjId } },
-    { $group: { _id: null, totalViews: { $sum: '$views' } } },
+  // Get all urlHashes for this user
+  const allBusinessUrls = [...googleBusinessUrls, ...facebookBusinessUrls];
+  const urlHashes = allBusinessUrls.map((b: any) => b.urlHash);
+
+  // Aggregate review stats from the new ReviewModel
+  const reviewAgg = await ReviewModel.aggregate([
+    { $match: { urlHash: { $in: urlHashes } } },
+    {
+      $group: {
+        _id: '$source',
+        totalReviewsInSource: { $sum: 1 },
+        sumOfRatings: { $sum: { $ifNull: ['$rating', 0] } },
+        countOfRatedReviews: { $sum: { $cond: [{ $isNumber: '$rating' }, 1, 0] } },
+      },
+    },
   ]).exec();
-    const totalViews = widgetViewsAgg.length > 0 && widgetViewsAgg[0].totalViews !== null
-    ? widgetViewsAgg[0].totalViews
-    : 0;
+
+  let totalReviews = 0;
+  let sumOfRatings = 0;
+  let countOfRatedReviews = 0;
+  let reviewsBySource = { google: 0, facebook: 0 };
+  for (const stat of reviewAgg) {
+    if (stat._id === 'google' || stat._id === 'facebook') {
+      reviewsBySource[stat._id as 'google' | 'facebook'] = stat.totalReviewsInSource;
+    }
+    totalReviews += stat.totalReviewsInSource;
+    sumOfRatings += stat.sumOfRatings;
+    countOfRatedReviews += stat.countOfRatedReviews;
+  }
+  const averageRating = countOfRatedReviews > 0 ? sumOfRatings / countOfRatedReviews : 0;
+
+  // Get total widgets and total views
+  const [totalWidgets, totalViewsAgg] = await Promise.all([
+    WidgetModel.countDocuments({ userId: userObjId }),
+    WidgetModel.aggregate([
+      { $match: { userId: userObjId } },
+      { $group: { _id: null, totalViews: { $sum: { $ifNull: ['$views', 0] } } } },
+    ]).exec(),
+  ]);
+  const totalViews = totalViewsAgg[0]?.totalViews || 0;
+
   return {
     totalBusinessUrls,
     totalWidgets,
     totalReviews,
-    averageRating: parseFloat(averageRating.toFixed(2)),
+    averageRating,
     totalViews,
     reviewsBySource,
   };
-}
+};
 
 export const getReviewAggregates = async (businessUrlObjectId: string, source: 'google' | 'facebook') => {
   await ensureDbConnected();
@@ -951,3 +971,16 @@ export const deleteBusinessUrl = async (businessUrlId: string): Promise<void> =>
     throw new Error('Business URL not found or could not be deleted.');
   }
 };
+
+// Utility: Print BSON size and review count for each business review batch document
+export async function printReviewBatchSizes() {
+  await ensureDbConnected();
+  const batches = await mongoose.connection.collection('business_reviews').find({}).toArray();
+  batches.forEach(batch => {
+    // Use BSON serialize to get size
+    const size = require('bson').calculateObjectSize(batch);
+    const count = batch.reviews ? batch.reviews.length : 0;
+    console.log(`BusinessUrlId: ${batch.businessUrlId}, Reviews: ${count}, Size: ${size} bytes (${(size/1024/1024).toFixed(2)} MB)`);
+    // process.exit(1); // Remove this line so all documents are logged
+  });
+}

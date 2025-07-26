@@ -40,6 +40,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (businessUrl.source === 'google') {
       console.log(`[API /scrape] Calling apify.scrapeGoogleReviews for ID: ${businessUrlId_param}`);
       result = await apify.scrapeGoogleReviews(businessUrlId_param, maxReviews);
+    
     } else if (businessUrl.source === 'facebook') {
       result = await apify.scrapeFacebookReviews(businessUrlId_param, maxReviews);
     } else {

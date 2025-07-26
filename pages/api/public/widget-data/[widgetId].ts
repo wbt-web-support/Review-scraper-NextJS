@@ -3,6 +3,7 @@ import * as storage from '../../../../lib/storage';
 import dbConnect from '../../../../lib/mongodb';   
 import { Types } from 'mongoose';
 import { IWidgetSettingsFromForm, IReviewItemFromAPI } from '../../../../components/WidgetPreview'; 
+import { ReviewModel } from '@/models/Review.model';
 
 export interface PublicWidgetDataResponse {
   widgetSettings: IWidgetSettingsFromForm;
@@ -100,7 +101,6 @@ export default async function handler(
     // Simplified approach: use urlHash directly from widget document
     if (widgetDoc.urlHash) {
       console.log(`[Widget API] Using urlHash from widget: ${widgetDoc.urlHash}`);
-      
       // Get business URL info for display purposes only
       let businessUrlDoc = null;
       if (widgetDoc.businessUrlId) {
@@ -110,7 +110,6 @@ export default async function handler(
           fetchedBusinessUrlLink = businessUrlDoc.url;
         }
       }
-      
       // Determine source from businessUrlSource field
       let reviewSource: 'google' | 'facebook';
       switch (widgetDoc.businessUrlSource) {
@@ -123,71 +122,31 @@ export default async function handler(
         default:
           reviewSource = 'google'; // fallback
       }
-      
-      console.log(`[Widget API] Fetching reviews for urlHash: ${widgetDoc.urlHash}, source: ${reviewSource}`);
-      
-      // Add detailed debugging like the working API endpoint
-      console.log(`[Widget API] Debugging: Using ${reviewSource} models for urlHash: ${widgetDoc.urlHash}`);
-      const { GoogleReviewBatchModel, FacebookReviewBatchModel } = require('@/models/Review.model');
-      const GoogleBusinessUrlModel = require('@/models/GoogleBusinessUrl.model').default;
-      const FacebookBusinessUrlModel = require('@/models/FacebookBusinessUrl.model').default;
-      
-      const ModelToUse = reviewSource === 'google' ? GoogleReviewBatchModel : FacebookReviewBatchModel;
-      const BusinessUrlModel = reviewSource === 'google' ? GoogleBusinessUrlModel : FacebookBusinessUrlModel;
-      
-      // Check if any documents exist for this urlHash
-      const allDocsWithUrlHash = await ModelToUse.find({ urlHash: widgetDoc.urlHash }).lean().exec();
-      console.log(`[Widget API] Debug: Found ${allDocsWithUrlHash.length} documents with urlHash ${widgetDoc.urlHash}`);
-      
-      // Get a sample of documents to see what urlHashes exist
-      const sampleDocs = await ModelToUse.find({}).limit(5).select('urlHash businessUrlId').lean().exec();
-      console.log('[Widget API] Debug: Sample documents:', sampleDocs);
-      
-      // Check if business URL exists
-      const businessUrlCheck = await (BusinessUrlModel as any).findOne({ urlHash: widgetDoc.urlHash }).lean().exec();
-      console.log('[Widget API] Debug: Business URL found:', businessUrlCheck ? `ID: ${businessUrlCheck._id}, Name: ${businessUrlCheck.name}` : 'null');
-      
-      // If business URL exists, check for reviews by businessUrlId  
-      if (businessUrlCheck) {
-        const reviewsByBusinessId = await ModelToUse.find({ businessUrlId: businessUrlCheck._id }).lean().exec();
-        console.log(`[Widget API] Debug: Reviews found by businessUrlId ${businessUrlCheck._id}:`, reviewsByBusinessId.length);
-        if (reviewsByBusinessId.length > 0) {
-          console.log('[Widget API] Debug: Sample review by businessUrlId:', reviewsByBusinessId[0]);
+      // Try to fetch reviews from the new ReviewModel
+      reviews = await ReviewModel.find({ urlHash: widgetDoc.urlHash, source: reviewSource })
+        .sort({ scrapedAt: -1, postedAt: -1 })
+        .lean()
+        .exec();
+      totalReviewCount = await ReviewModel.countDocuments({ urlHash: widgetDoc.urlHash, source: reviewSource });
+      // If no reviews found in new model, fallback to old batch model for backward compatibility
+      if (reviews.length === 0) {
+        const reviewBatch = await storage.getReviewBatchForBusinessUrl(
+          widgetDoc.urlHash,
+          reviewSource
+        );
+        if (reviewBatch && reviewBatch.reviews) {
+          totalReviewCount = reviewBatch.reviews.length;
+          let requestedLimit;
+          if (layoutQuery === 'badge' || widgetDoc.type === 'badge') {
+            requestedLimit = undefined;
+          } else {
+            requestedLimit = limitQuery ? parseInt(limitQuery as string) : 100000;
+          }
+          reviews = storage.getFilteredReviewsFromBatch(reviewBatch, {
+            minRating: widgetDoc.minRating,
+            limit: requestedLimit,
+          });
         }
-      }
-      
-      const reviewBatch = await storage.getReviewBatchForBusinessUrl(
-        widgetDoc.urlHash,
-        reviewSource
-      );
-      
-      if (reviewBatch && reviewBatch.reviews) {
-        console.log(`[Widget API] Found ${reviewBatch.reviews.length} reviews`);
-        console.log(`[Widget API] Review batch source: ${reviewBatch.source}`);
-        console.log(`[Widget API] Widget minRating: ${widgetDoc.minRating}`);
-        console.log(`[Widget API] Sample review:`, reviewBatch.reviews[0]);
-        totalReviewCount = reviewBatch.reviews.length;
-        
-        // For badge layout, use all available reviews without any limit
-        let requestedLimit;
-        if (layoutQuery === 'badge' || widgetDoc.type === 'badge') {
-          requestedLimit = undefined; // No limit for badge widgets
-        } else {
-          requestedLimit = limitQuery ? parseInt(limitQuery as string) : 100000;
-        }
-        
-        reviews = storage.getFilteredReviewsFromBatch(reviewBatch, {
-          minRating: widgetDoc.minRating,
-          limit: requestedLimit,
-        });
-        console.log(`[Widget API] Filtered to ${reviews.length} reviews (minRating: ${widgetDoc.minRating}, source: ${reviewBatch.source})`);
-        
-        if (reviewBatch.source === 'facebook') {
-          console.log(`[Widget API] Facebook filtering: minRating=${widgetDoc.minRating} means ${widgetDoc.minRating >= 2 ? 'recommended only' : 'all reviews'}`);
-        }
-      } else {
-        console.log(`[Widget API] No review batch found for urlHash: ${widgetDoc.urlHash}`);
-        totalReviewCount = 0;
       }
     } else {
       console.warn(`[Widget API] Widget ${widgetId} has no urlHash - using fallback method`);
