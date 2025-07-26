@@ -2,7 +2,7 @@
 const mongoose = require('mongoose');
 
 (async () => {
-  const uri = process.env.MONGODB_URI || '';
+  const uri = process.env.MONGODB_URI_TEST || '';
   await mongoose.connect(uri);
   const indexes = await mongoose.connection.collection('reviews').getIndexes();
   console.log('Current indexes:', indexes);
