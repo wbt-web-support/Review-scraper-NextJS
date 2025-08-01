@@ -732,7 +732,9 @@
           box-shadow: 0 2px 8px rgba(0,0,0,0.04);
           transition: all 0.2s ease;
         }
-
+.reviewhub-badge-modal-review-date-label{
+display: none;
+}
         .reviewhub-badge-modal-review:hover {
           box-shadow: 0 4px 12px rgba(0,0,0,0.08);
           transform: translateY(-1px);
@@ -1166,7 +1168,11 @@
               }
               <div class="reviewhub-badge-modal-review-info">
                 <div class="reviewhub-badge-modal-review-author">${this.escapeHtml(review.author)}</div>
-                <div class="reviewhub-badge-modal-review-date">${formattedDate}</div>
+                <div class="reviewhub-badge-modal-review-date-label">${widgetSettings.showDatesLabel}</div>
+                  ${widgetSettings.showDates !== false && formattedDate ? `
+                  <div class="reviewhub-badge-modal-review-date">
+                 ${formattedDate}
+                  </div>` : ''}
               </div>
             </div>
             ${reviewRatingDisplay}

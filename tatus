@@ -1,0 +1,10 @@
+[33m8318e1d[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Merge pull request #9 from wbt-web-support/widget
+[33ma64f45c[m[33m ([m[1;31morigin/widget[m[33m)[m Add conditional show/hide for date in batch preview
+[33m2b11cad[m Merge pull request #7 from wbt-web-support/origin/v3
+[33ma2b0c87[m[33m ([m[1;31morigin/origin/v3[m[33m, [m[1;32morigin/v3[m[33m)[m Set minimum width for review cart
+[33mf97e3c7[m Set minimum width for review cart
+[33m94ee892[m Merge pull request #6 from wbt-web-support/v2
+[33mdc9c9fd[m[33m ([m[1;31morigin/v2[m[33m)[m review fetching fix
+[33m8031f09[m Merge pull request #5 from wbt-web-support/v2
+[33mad2ca1a[m bug fix
+[33me13c00b[m monkey
