@@ -1166,7 +1166,10 @@
               }
               <div class="reviewhub-badge-modal-review-info">
                 <div class="reviewhub-badge-modal-review-author">${this.escapeHtml(review.author)}</div>
-                <div class="reviewhub-badge-modal-review-date">${formattedDate}</div>
+                ${widgetSettings.showDates !== false && formattedDate ? `
+                  <div class="reviewhub-badge-modal-review-date">
+                 ${formattedDate}
+                  </div>` : ''}
               </div>
             </div>
             ${reviewRatingDisplay}
