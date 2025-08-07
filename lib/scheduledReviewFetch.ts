@@ -8,12 +8,11 @@ function getBaseUrl(providedBaseUrl?: string) {
   if (typeof window !== 'undefined' && window.location) {
     return window.location.origin;
   }
-  return 'http://localhost:3000';
+  return process.env.API_BASE_URL || 'http://localhost:3000';
 }
 
 export async function runScheduledReviewFetch({ source, baseUrl }: { source?: string, baseUrl?: string }) {
   const API_BASE_URL = getBaseUrl(baseUrl);
-  console.log('API_BASE_URL***************************', window.location.origin);
   const url = `${API_BASE_URL}${API_ENDPOINT}`;
   const body = source ? JSON.stringify({ source }) : '{}';
 
