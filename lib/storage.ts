@@ -405,6 +405,9 @@ interface UpsertReviewsArgs {
 export const upsertReviews = async (data: UpsertReviewsArgs): Promise<IReviewBatch> => {
   await ensureDbConnected();
   if (!Types.ObjectId.isValid(data.businessUrlId)) throw new Error("Invalid businessUrlId for upsertReviews");
+  if (data.source === 'facebook') {
+    throw new Error("upsertReviews should NOT be used for Facebook reviews. Use mergeNewReviews instead to avoid duplicate urlHash errors.");
+  }
   const ReviewModelToUse = data.source === 'google' ? GoogleReviewBatchModel : FacebookReviewBatchModel;
   return ReviewModelToUse.findOneAndUpdate(
     { businessUrlId: new Types.ObjectId(data.businessUrlId), source: data.source },
@@ -421,6 +424,137 @@ export const upsertReviews = async (data: UpsertReviewsArgs): Promise<IReviewBat
     { new: true, upsert: true, setDefaultsOnInsert: true }
   ).exec();
 };
+
+// New function to merge new reviews with existing ones
+export const mergeNewReviews = async (data: UpsertReviewsArgs): Promise<IReviewBatch> => {
+  await ensureDbConnected();
+  if (!Types.ObjectId.isValid(data.businessUrlId)) throw new Error("Invalid businessUrlId for mergeNewReviews");
+  
+  const ReviewModelToUse = data.source === 'google' ? GoogleReviewBatchModel : FacebookReviewBatchModel;
+  
+  // Find existing review batch by businessUrlId
+  let existingBatch = await ReviewModelToUse.findOne({ 
+    businessUrlId: new Types.ObjectId(data.businessUrlId), 
+    source: data.source 
+  }).exec();
+
+  // If not found, try to find by urlHash (to avoid duplicate key error)
+  if (!existingBatch) {
+    existingBatch = await ReviewModelToUse.findOne({ urlHash: data.urlHash, source: data.source }).exec();
+  }
+
+  if (!existingBatch) {
+    // If still not found, create new batch
+    console.log(`[Storage/mergeNewReviews] No existing batch found for businessUrlId: ${data.businessUrlId} or urlHash: ${data.urlHash}, creating new batch with ${data.reviews.length} reviews`);
+    const newBatch = await ReviewModelToUse.create({
+      businessUrlId: new Types.ObjectId(data.businessUrlId),
+      url: data.url,
+      urlHash: data.urlHash,
+      reviews: data.reviews,
+      lastScrapedAt: new Date(),
+      source: data.source
+    });
+    if (!newBatch) {
+      throw new Error("Failed to create new review batch");
+    }
+    return newBatch;
+  }
+
+  // Clean existing reviews: remove any with missing or empty content
+  existingBatch.reviews = existingBatch.reviews.filter(
+    review => typeof review.content === 'string' && review.content.trim().length > 0
+  );
+
+  // Merge new reviews with existing ones
+  const existingReviewIds = new Set(existingBatch.reviews.map(review => review.reviewId));
+  // Also filter new reviews for valid content (defensive)
+  const newReviews = data.reviews.filter(
+    review => !existingReviewIds.has(review.reviewId) && typeof review.content === 'string' && review.content.trim().length > 0
+  );
+  
+  console.log(`[Storage/mergeNewReviews] Existing batch has ${existingBatch.reviews.length} reviews, ${data.reviews.length} new reviews provided, ${newReviews.length} are actually new`);
+
+  if (newReviews.length === 0) {
+    // No new reviews, just update the lastScrapedAt timestamp and url/urlHash
+    existingBatch.lastScrapedAt = new Date();
+    existingBatch.url = data.url;
+    existingBatch.urlHash = data.urlHash;
+    await existingBatch.save();
+    return existingBatch;
+  }
+
+  // Add new reviews to existing batch
+  existingBatch.reviews = [...existingBatch.reviews, ...newReviews];
+  existingBatch.lastScrapedAt = new Date();
+  existingBatch.url = data.url;
+  existingBatch.urlHash = data.urlHash;
+  await existingBatch.save();
+  return existingBatch;
+};
+
+/**
+ * Get the latest review date for a specific business URL
+ * Returns the most recent review date or null if no reviews exist
+ */
+export const getLatestReviewDateForBusiness = async (
+  businessUrlId: string,
+  source: 'google' | 'facebook'
+): Promise<Date | null> => {
+  await ensureDbConnected();
+  
+  if (!Types.ObjectId.isValid(businessUrlId)) {
+    console.warn(`[Storage/getLatestReviewDateForBusiness] Invalid businessUrlId: ${businessUrlId}`);
+    return null;
+  }
+
+  try {
+    const ReviewModelToUse = source === 'google' ? GoogleReviewBatchModel : FacebookReviewBatchModel;
+    
+    // Find the review batch for this business URL
+    const reviewBatch = await ReviewModelToUse.findOne({ 
+      businessUrlId: new Types.ObjectId(businessUrlId),
+      source: source 
+    }).exec();
+
+    if (!reviewBatch || !reviewBatch.reviews || reviewBatch.reviews.length === 0) {
+      console.log(`[Storage/getLatestReviewDateForBusiness] No reviews found for businessUrlId: ${businessUrlId}, source: ${source}`);
+      return null;
+    }
+
+    // Find the latest review date
+    let latestDate: Date | null = null;
+    
+    for (const review of reviewBatch.reviews) {
+      let reviewDate: Date | null = null;
+      
+      // Try to parse the postedAt date
+      if (review.postedAt) {
+        const parsedDate = new Date(review.postedAt);
+        if (!isNaN(parsedDate.getTime())) {
+          reviewDate = parsedDate;
+        }
+      }
+      
+      // If postedAt is not available or invalid, try scrapedAt
+      if (!reviewDate && review.scrapedAt) {
+        reviewDate = new Date(review.scrapedAt);
+      }
+      
+      // Update latest date if this review is more recent
+      if (reviewDate && (!latestDate || reviewDate > latestDate)) {
+        latestDate = reviewDate;
+      }
+    }
+
+    console.log(`[Storage/getLatestReviewDateForBusiness] Latest review date for businessUrlId: ${businessUrlId}, source: ${source}: ${latestDate}`);
+    return latestDate;
+    
+  } catch (error) {
+    console.error(`[Storage/getLatestReviewDateForBusiness] Error getting latest review date for businessUrlId: ${businessUrlId}, source: ${source}:`, error);
+    return null;
+  }
+};
+
 export const getLatestReviews = async (
   userId: string,
   limit = 10
