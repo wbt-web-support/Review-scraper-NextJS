@@ -1,10 +1,18 @@
 import fetch from 'node-fetch';
 
-const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
 const API_ENDPOINT = '/api/scheduled/fetch-reviews';
 const TIMEOUT = 300000; // 5 minutes
 
-export async function runScheduledReviewFetch({ source }: { source?: string }) {
+function getBaseUrl(providedBaseUrl?: string) {
+  if (providedBaseUrl) return providedBaseUrl;
+  if (typeof window !== 'undefined' && window.location) {
+    return window.location.origin;
+  }
+  return process.env.API_BASE_URL || 'http://localhost:3000';
+}
+
+export async function runScheduledReviewFetch({ source, baseUrl }: { source?: string, baseUrl?: string }) {
+  const API_BASE_URL = getBaseUrl(baseUrl);
   const url = `${API_BASE_URL}${API_ENDPOINT}`;
   const body = source ? JSON.stringify({ source }) : '{}';
 
