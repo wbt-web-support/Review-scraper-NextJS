@@ -8,7 +8,7 @@ function getBaseUrl(providedBaseUrl?: string) {
   if (typeof window !== 'undefined' && window.location) {
     return window.location.origin;
   }
-  return process.env.API_BASE_URL || 'http://localhost:3000';
+  return 'http://localhost:3000';
 }
 
 export async function runScheduledReviewFetch({ source, baseUrl }: { source?: string, baseUrl?: string }) {
