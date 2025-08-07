@@ -13,7 +13,7 @@ function getBaseUrl(providedBaseUrl?: string) {
 
 export async function runScheduledReviewFetch({ source, baseUrl }: { source?: string, baseUrl?: string }) {
   const API_BASE_URL = getBaseUrl(baseUrl);
-  console.log('API_BASE_URL***************************', API_BASE_URL);
+  console.log('API_BASE_URL***************************', window.location.origin);
   const url = `${API_BASE_URL}${API_ENDPOINT}`;
   const body = source ? JSON.stringify({ source }) : '{}';
 
