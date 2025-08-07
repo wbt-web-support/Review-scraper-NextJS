@@ -1,0 +1,15 @@
+{
+    "cron": [
+      {
+       
+        "path": "/api/cron/google",
+        "schedule": "*/5 * * * *"
+      },
+      {
+        
+        "path": "/api/cron/facebook",
+        "schedule": "*/10 * * * *"
+      }
+    ]
+  }
+  

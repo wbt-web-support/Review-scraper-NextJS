@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "fetch-reviews": "node scripts/scheduled-review-fetch.js",
+    "test-single-business": "node scripts/test-single-business.js",
+    "list-business-urls": "node scripts/list-business-urls.js"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.4",

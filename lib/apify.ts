@@ -1,5 +1,5 @@
 import { ApifyClient } from 'apify-client';
-import { getBusinessUrlById, updateBusinessUrlScrapedTime, upsertReviews } from './storage';
+import { getBusinessUrlById, updateBusinessUrlScrapedTime, mergeNewReviews, getLatestReviewDateForBusiness } from './storage';
 import { IReviewItem } from '../models/Review.model'; 
 
 const GOOGLE_APIFY_TOKEN = process.env.GOOGLE_APIFY_API_TOKEN;
@@ -57,7 +57,7 @@ const parseGoogleReviewFromApify = (item: ApifyGoogleReviewItem): IReviewItem =>
     return {
         reviewId: item.reviewId || item.id?.toString(),
         author: item.name || item.authorName || "Anonymous Reviewer",
-        content: item.text || item.reviewText || "",
+        content: (item.text || item.reviewText || "").toString(), // Always a string
         rating: typeof item.stars === 'number' ? item.stars : (typeof item.rating === 'number' ? item.rating : undefined),
         postedAt: item.publishedAtDate || item.date || "Recently",
         profilePicture: item.userUrl || item.reviewerPhotoUrl || item.profilePictureUrl,
@@ -78,13 +78,15 @@ const parseFacebookReviewFromApify = (item: ApifyFacebookReviewItem): IReviewIte
     }
 };
 
+
+
 interface ScrapeResult {
     success: boolean;
     message: string;
     reviews?: IReviewItem[];
 }
 
-export const scrapeGoogleReviews = async (businessUrlId: string, maxReviewsParam?: number): Promise<ScrapeResult> => {
+export const scrapeGoogleReviews = async (businessUrlId: string, maxReviewsParam?: number, fromDate?: Date): Promise<ScrapeResult> => {
     if (!GOOGLE_APIFY_TOKEN) {
       return { success: false, message: "Google Apify token not configured." };
     }
@@ -93,19 +95,32 @@ export const scrapeGoogleReviews = async (businessUrlId: string, maxReviewsParam
       if (!businessUrlDoc) throw new Error('Business URL not found.');
       if (businessUrlDoc.source !== 'google') throw new Error('Business URL source is not Google.');
       if (!businessUrlDoc.url) throw new Error('Business URL is missing.');
-  
-  
+     
+      // If no fromDate provided, get the latest review date from database
+      let effectiveFromDate: Date | null | undefined = fromDate;
+      if (!effectiveFromDate) {
+        effectiveFromDate = await getLatestReviewDateForBusiness(businessUrlId, 'google');
+        if (effectiveFromDate) {
+          console.log(`[Apify/scrapeGoogleReviews] Using latest review date from database: ${effectiveFromDate.toISOString()}`);
+        } else {
+          console.log(`[Apify/scrapeGoogleReviews] No existing reviews found, will fetch all reviews`);
+        }
+      }
+     
       const input = { 
         startUrls: [{ url: businessUrlDoc.url }], 
         language: "en",
         maxReviews: maxReviewsParam || 10000, // Set a high default to get all reviews
-        resultsLimit: 99999 // Set to unlimited to get all available reviews
-      };
-      console.log(`Starting Apify actor: ${GOOGLE_REVIEWS_ACTOR_NAME} for business ID: ${businessUrlId} with maxReviews: ${input.maxReviews}`);
+        resultsLimit: 99999, // Set to unlimited to get all available reviews
+        ...(effectiveFromDate && { 
+          reviewsStartDate: effectiveFromDate.toISOString() // full ISO format: "2025-07-01T00:00:00.000Z"
+        })
+      }; 
+
+      console.log(`Starting Apify actor: ${GOOGLE_REVIEWS_ACTOR_NAME} for business ID: ${businessUrlId} with maxReviews: ${input.maxReviews}${effectiveFromDate ? ` and date filter: ${effectiveFromDate.toISOString().split('T')[0]}` : ''}`);
       const run = await googleClient.actor(GOOGLE_REVIEWS_ACTOR_NAME).call(input);
-      console.log(`Apify actor run for Google completed. Dataset ID: ${run.defaultDatasetId}`);
       const { items } = await googleClient.dataset(run.defaultDatasetId).listItems();
-  
+     
       if (!items || items.length === 0) {
         await updateBusinessUrlScrapedTime(businessUrlId, 'google'); 
         console.log(`No new Google reviews found from Apify for business ID: ${businessUrlId}`);
@@ -113,10 +128,17 @@ export const scrapeGoogleReviews = async (businessUrlId: string, maxReviewsParam
       }
   
       console.log(`Found ${items.length} Google reviews from Apify for business ID: ${businessUrlId}. Parsing...`);
-      const parsedApifyReviews: IReviewItem[] = items.map(item => parseGoogleReviewFromApify(item as ApifyGoogleReviewItem));
+      // Always set content, and filter out reviews with empty content
+      const parsedApifyReviews: IReviewItem[] = items
+        .map(item => parseGoogleReviewFromApify(item as ApifyGoogleReviewItem))
+        .filter(review => review.content && review.content.trim().length > 0);
+      
+      // No need to filter client-side since we're using Apify's built-in date filtering
+      console.log(`Using Apify's built-in date filtering - all ${parsedApifyReviews.length} reviews are newer than ${effectiveFromDate?.toISOString().split('T')[0] || 'all dates'}`);
+      
       const businessIdString = businessUrlDoc._id.toString();
   
-      await upsertReviews({
+      await mergeNewReviews({
           businessUrlId: businessIdString,
           url: businessUrlDoc.url,
           urlHash: businessUrlDoc.urlHash, 
@@ -124,7 +146,7 @@ export const scrapeGoogleReviews = async (businessUrlId: string, maxReviewsParam
           reviews: parsedApifyReviews
       });
       await updateBusinessUrlScrapedTime(businessIdString, 'google');
-      console.log(`Successfully scraped and upserted ${parsedApifyReviews.length} Google reviews for business ID: ${businessUrlId}`);
+      console.log(`Successfully scraped and merged ${parsedApifyReviews.length} Google reviews for business ID: ${businessUrlId}`);
       return { success: true, message: `Scraped ${parsedApifyReviews.length} Google reviews.`, reviews: parsedApifyReviews };
   
     } catch (error: unknown) {
@@ -134,7 +156,7 @@ export const scrapeGoogleReviews = async (businessUrlId: string, maxReviewsParam
     }
 };
   
-export const scrapeFacebookReviews = async (businessUrlId: string, maxReviewsParam?: number): Promise<ScrapeResult> => {
+export const scrapeFacebookReviews = async (businessUrlId: string, maxReviewsParam?: number, fromDate?: Date): Promise<ScrapeResult> => {
     if (!FACEBOOK_APIFY_TOKEN) {
       return { success: false, message: "Facebook Apify token not configured." };
     }
@@ -144,11 +166,24 @@ export const scrapeFacebookReviews = async (businessUrlId: string, maxReviewsPar
       if (businessUrlDoc.source !== 'facebook') throw new Error('Business URL source is not Facebook.');
       if (!businessUrlDoc.url) throw new Error('Business URL is missing.');
   
+      // If no fromDate provided, get the latest review date from database
+      let effectiveFromDate: Date | null | undefined = fromDate;
+      if (!effectiveFromDate) {
+        effectiveFromDate = await getLatestReviewDateForBusiness(businessUrlId, 'facebook');
+        if (effectiveFromDate) {
+          console.log(`[Apify/scrapeFacebookReviews] Using latest review date from database: ${effectiveFromDate.toISOString()}`);
+        } else {
+          console.log(`[Apify/scrapeFacebookReviews] No existing reviews found, will fetch all reviews`);
+        }
+      }
+  
+      // REMOVE onlyReviewsNewerThan from input, always fetch all reviews
       const input = { 
         startUrls: [{ url: businessUrlDoc.url }],
         maxReviews: maxReviewsParam || 10000, // Set a high default to get all reviews
         scrapeReviews: true,
         resultsLimit: 99999 // Set to unlimited to get all available reviews
+        // Do NOT include onlyReviewsNewerThan
       };
       console.log(`Starting Apify actor: ${FACEBOOK_REVIEWS_ACTOR_NAME} for business ID: ${businessUrlId} with maxReviews: ${input.maxReviews}`);
       const run = await facebookClient.actor(FACEBOOK_REVIEWS_ACTOR_NAME).call(input);
@@ -162,17 +197,31 @@ export const scrapeFacebookReviews = async (businessUrlId: string, maxReviewsPar
       }
       console.log(`Found ${items.length} Facebook reviews from Apify for business ID: ${businessUrlId}. Parsing...`);
       const parsedApifyReviews: IReviewItem[] = items.map(item => parseFacebookReviewFromApify(item as ApifyFacebookReviewItem));
+      
+      // Client-side date filtering for Facebook reviews
+      let filteredReviews = parsedApifyReviews;
+      if (effectiveFromDate) {
+        filteredReviews = parsedApifyReviews.filter(review => {
+          if (!review.postedAt) return false;
+          const reviewDate = new Date(review.postedAt);
+          return reviewDate > effectiveFromDate;
+        });
+        console.log(`[Apify/scrapeFacebookReviews] Filtered ${parsedApifyReviews.length - filteredReviews.length} old reviews, ${filteredReviews.length} remain after date filter.`);
+      } else {
+        console.log(`[Apify/scrapeFacebookReviews] No effectiveFromDate, using all ${parsedApifyReviews.length} reviews.`);
+      }
+      
       const businessIdString = businessUrlDoc._id.toString();
-      await upsertReviews({
+      await mergeNewReviews({
           businessUrlId: businessIdString,
           url: businessUrlDoc.url,
           urlHash: businessUrlDoc.urlHash,
           source: 'facebook',
-          reviews: parsedApifyReviews
+          reviews: filteredReviews
       });
       await updateBusinessUrlScrapedTime(businessIdString, 'facebook');
-      console.log(`Successfully scraped and upserted ${parsedApifyReviews.length} Facebook reviews for business ID: ${businessUrlId}`);
-      return { success: true, message: `Scraped ${parsedApifyReviews.length} Facebook reviews.`, reviews: parsedApifyReviews };
+      console.log(`Successfully scraped and merged ${filteredReviews.length} Facebook reviews for business ID: ${businessUrlId}`);
+      return { success: true, message: `Scraped ${filteredReviews.length} Facebook reviews.`, reviews: filteredReviews };
   
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Facebook review scraping failed due to an unknown error.';
