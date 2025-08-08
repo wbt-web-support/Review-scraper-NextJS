@@ -1,8 +1,8 @@
 import mongoose, { Mongoose } from 'mongoose';
-const MONGODB_URI_TEST = process.env.MONGODB_URI_TEST;
-if (!MONGODB_URI_TEST) {
+const MONGODB_URI = process.env.MONGODB_URI;
+if (!MONGODB_URI) {
   throw new Error(
-    'Please define the MONGODB_URI_TEST environment variable inside .env.local'
+    'Please define the MONGODB_URI environment variable inside .env.local'
   );
 }
 interface MongooseCache {
@@ -27,7 +27,7 @@ async function dbConnect(): Promise<Mongoose> {
       bufferCommands: false,
     };
     console.log("MongoDB: Creating new connection promise.");
-    cached.promise = mongoose.connect(MONGODB_URI_TEST!, opts).then((mongooseInstance) => {
+    cached.promise = mongoose.connect(MONGODB_URI!, opts).then((mongooseInstance) => {
       console.log("MongoDB: Connection successful!");
       return mongooseInstance;
     }).catch(err => {

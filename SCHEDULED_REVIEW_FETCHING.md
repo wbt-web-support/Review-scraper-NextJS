@@ -34,7 +34,7 @@ The scheduled review fetching system consists of:
 ### 1. Environment Variables
 Make sure these environment variables are set:
 ```bash
-MONGODB_URI_TEST=your_mongodb_connection_string
+MONGODB_URI=your_mongodb_connection_string
 GOOGLE_APIFY_API_TOKEN=your_google_apify_token
 FACEBOOK_APIFY_API_TOKEN=your_facebook_apify_token
 API_BASE_URL=https://your-domain.com  # Optional, defaults to reviews.webuildtrades.com
@@ -185,7 +185,7 @@ scrapeResult = await apify.scrapeGoogleReviews(businessUrl._id, 1000); // Limit 
    - Verify Apify tokens are working
 
 3. **Database connection errors**
-   - Verify `MONGODB_URI_TEST` is correct
+   - Verify `MONGODB_URI` is correct
    - Check database connectivity
    - Ensure database user has proper permissions
 

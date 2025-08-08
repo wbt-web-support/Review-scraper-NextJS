@@ -1,15 +1,12 @@
 {
-    "crons": [
-      {
-        
-        "path": "/api/cron/google",
-        "schedule": "*/1 * * * *"
-      },
-      {
-       
-        "path": "/api/cron/facebook",
-        "schedule": "*/10 * * * *"
-      }
-    ]
-  }
-  
+  "crons": [
+    {
+      "path": "/api/cron/google",
+      "schedule": "0 0 */4 * *"
+    },
+    {
+      "path": "/api/cron/facebook",
+      "schedule": "0 0 */15 * *"
+    }
+  ]
+}

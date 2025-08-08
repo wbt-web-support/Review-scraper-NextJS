@@ -21,7 +21,7 @@ export default async function handler(
     console.log(`Direct fix for widget ${widgetId}...`);
 
     // Use MongoDB client directly to bypass any Mongoose schema issues
-    const uri = process.env.MONGODB_URI_TEST || 'mongodb://localhost:27017/review-scraper';
+    const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/review-scraper';
     const client = new MongoClient(uri);
     
     await client.connect();
