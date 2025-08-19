@@ -120,10 +120,14 @@ const Dashboard = () => {
 
   const { data: latestReviewsData, isLoading: isReviewsLoading, error: reviewsError } = useQuery<{ reviews: IReviewItem[] }>({
     queryKey: ['latestReviews'],
-    queryFn: () => fetcher<{ reviews: IReviewItem[] }>('/api/dashboard/latest-reviews?limit=5'), 
+    queryFn: () => fetcher<{ reviews: IReviewItem[] }>('/api/dashboard/latest-reviews?limit=10'), 
     enabled: !!session,
   });
   const latestReviews = latestReviewsData?.reviews || [];
+
+  
+
+
 
   const { data: businessUrlsData, isLoading: isBusinessUrlsLoading, error: businessUrlsError } = useQuery<{ businessUrls: IBusinessUrl[] }>({
     queryKey: ['businessUrls'],

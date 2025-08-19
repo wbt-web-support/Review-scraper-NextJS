@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { 
   Table, 
   TableBody, 
@@ -43,6 +43,7 @@ interface ReviewTableProps {
 const ReviewTable = ({  reviews, isLoading = false, emptyState, error }: ReviewTableProps) => {
   const [selectedReview, setSelectedReview] = useState<IReviewItem | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
 
   const openReviewModal = (review: IReviewItem) => {
     setSelectedReview(review);
@@ -153,6 +154,7 @@ const ReviewTable = ({  reviews, isLoading = false, emptyState, error }: ReviewT
               <TableHead className="w-[150px] px-4 py-3 text-xs font-medium text-slate-500  uppercase tracking-wider text-right">Date</TableHead>
             </TableRow>
           </TableHeader>
+         
           <TableBody className="divide-y divide-slate-200 ">
             {reviews.map((review: IReviewItem, index: number) => {
               const source = getReviewSource(review);
