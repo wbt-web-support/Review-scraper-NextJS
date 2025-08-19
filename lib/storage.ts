@@ -33,6 +33,40 @@ export interface IBusinessUrlDisplay {
     source: 'google' | 'facebook';
     userId?: string;
 }
+// Add cache for getLatestReviews at the top of the file after imports
+const latestReviewsCache = new Map<string, { data: any[], timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+// Function to clear cache for a specific user or all users
+export const clearLatestReviewsCache = (userId?: string) => {
+  if (userId) {
+    // Clear cache for specific user
+    const keysToDelete = Array.from(latestReviewsCache.keys()).filter(key => key.startsWith(`${userId}:`));
+    keysToDelete.forEach(key => latestReviewsCache.delete(key));
+    console.log(`[Storage/clearLatestReviewsCache] Cleared cache for user: ${userId}`);
+  } else {
+    // Clear all cache
+    latestReviewsCache.clear();
+    console.log('[Storage/clearLatestReviewsCache] Cleared all latest reviews cache');
+  }
+};
+
+// Function to get cache statistics
+export const getLatestReviewsCacheStats = () => {
+  const now = Date.now();
+  const totalEntries = latestReviewsCache.size;
+  const expiredEntries = Array.from(latestReviewsCache.entries()).filter(([_, value]) => 
+    (now - value.timestamp) >= CACHE_TTL
+  ).length;
+  
+  return {
+    totalEntries,
+    expiredEntries,
+    validEntries: totalEntries - expiredEntries,
+    cacheSize: latestReviewsCache.size
+  };
+};
+
 async function ensureDbConnected() {
   await dbConnect();
 };
@@ -558,99 +592,149 @@ export const getLatestReviewDateForBusiness = async (
 export const getLatestReviews = async (
   userId: string,
   limit = 10
-): Promise<Array<IReviewItem & { businessName: string; source: 'google' | 'facebook' | string; businessUrl?: string }>> => {
+): Promise<{ data: Array<IReviewItem & { businessName: string; source: 'google' | 'facebook' | string; businessUrl?: string }>, cacheHit: boolean }> => {
   console.log(`[Storage/getLatestReviews] Attempting for userId: ${userId}, limit: ${limit}`);
   await ensureDbConnected();
 
   if (!Types.ObjectId.isValid(userId)) {
     console.warn(`[Storage/getLatestReviews] Invalid userId: ${userId}`);
-    return [];
+    return { data: [], cacheHit: false };
   }
+
+  // Check cache first
+  const cacheKey = `${userId}:${limit}`;
+  const cached = latestReviewsCache.get(cacheKey);
+  if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
+    console.log(`[Storage/getLatestReviews] Returning cached results for ${cacheKey}`);
+    return { data: cached.data, cacheHit: true };
+  }
+
   const userIdObj = new Types.ObjectId(userId);
   console.log(`[Storage/getLatestReviews] Converted userId to ObjectId: ${userIdObj}`);
 
   try {
-    console.log(`[Storage/getLatestReviews] Fetching GoogleBusinessUrls for userId: ${userIdObj}`);
-    const userGoogleBusinessUrls = await GoogleBusinessUrlModel.find({ userId: userIdObj })
-      .select('_id name url source urlHash addedAt') // Ensure urlHash is selected for old review lookup
-      .lean().exec();
-    console.log(`[Storage/getLatestReviews] Found ${userGoogleBusinessUrls.length} Google URLs.`);
+    // Use Promise.all to run both queries in parallel for better performance
+    const [googleReviews, facebookReviews] = await Promise.all([
+      GoogleReviewBatchModel.aggregate([
+        {
+          $lookup: {
+            from: 'business_urls', // Collection name for GoogleBusinessUrl
+            localField: 'businessUrlId',
+            foreignField: '_id',
+            as: 'businessUrl'
+          }
+        },
+        {
+          $unwind: {
+            path: '$businessUrl',
+            preserveNullAndEmptyArrays: false
+          }
+        },
+        {
+          $match: {
+            'businessUrl.userId': userIdObj
+          }
+        },
+        {
+          $unwind: '$reviews'
+        },
+        {
+          $addFields: {
+            'reviews.businessName': '$businessUrl.name',
+            'reviews.source': 'google',
+            'reviews.businessUrl': '$businessUrl.url',
+            'reviews.scrapedAt': { 
+              $ifNull: [
+                '$reviews.scrapedAt', 
+                { $dateFromString: { dateString: '$reviews.postedAt', onError: new Date(0) } }
+              ] 
+            }
+          }
+        },
+        {
+          $replaceRoot: { newRoot: '$reviews' }
+        },
+        {
+          $sort: { scrapedAt: -1 }
+        },
+        {
+          $limit: limit
+        }
+      ]),
+      
+      FacebookReviewBatchModel.aggregate([
+        {
+          $lookup: {
+            from: 'facebook_business_urls', // Collection name for FacebookBusinessUrl
+            localField: 'businessUrlId',
+            foreignField: '_id',
+            as: 'businessUrl'
+          }
+        },
+        {
+          $unwind: {
+            path: '$businessUrl',
+            preserveNullAndEmptyArrays: false
+          }
+        },
+        {
+          $match: {
+            'businessUrl.userId': userIdObj
+          }
+        },
+        {
+          $unwind: '$reviews'
+        },
+        {
+          $addFields: {
+            'reviews.businessName': '$businessUrl.name',
+            'reviews.source': 'facebook',
+            'reviews.businessUrl': '$businessUrl.url',
+            'reviews.scrapedAt': { 
+              $ifNull: [
+                '$reviews.scrapedAt', 
+                { $dateFromString: { dateString: '$reviews.postedAt', onError: new Date(0) } }
+              ] 
+            }
+          }
+        },
+        {
+          $replaceRoot: { newRoot: '$reviews' }
+        },
+        {
+          $sort: { scrapedAt: -1 }
+        },
+        {
+          $limit: limit
+        }
+      ])
+    ]);
 
-    console.log(`[Storage/getLatestReviews] Fetching FacebookBusinessUrls for userId: ${userIdObj}`);
-    const userFacebookBusinessUrls = await FacebookBusinessUrlModel.find({ userId: userIdObj })
-      .select('_id name url source urlHash addedAt') // Ensure urlHash is selected
-      .lean().exec();
-    console.log(`[Storage/getLatestReviews] Found ${userFacebookBusinessUrls.length} Facebook URLs.`);
-
-    const allUserBusinessUrls = [
-        ...(userGoogleBusinessUrls as IBusinessUrl[]), // Cast to ensure type compatibility
-        ...(userFacebookBusinessUrls as IBusinessUrl[])
-    ];
-    console.log(`[Storage/getLatestReviews] Total business URLs for user: ${allUserBusinessUrls.length}`);
-
-    if (allUserBusinessUrls.length === 0) {
-      console.log("[Storage/getLatestReviews] No business URLs found for user, returning empty array.");
-      return [];
-    }
-
-    const results: Array<IReviewItem & { businessName: string; source: 'google' | 'facebook' | string; businessUrl?: string }> = [];
-
-    for (const bizUrl of allUserBusinessUrls) {
-      if (!bizUrl._id) {
-        console.warn("[Storage/getLatestReviews] Skipping bizUrl due to missing _id:", bizUrl);
-        continue;
-      }
-      // Ensure bizUrl.source is reliable, default if necessary for model selection
-      const source = bizUrl.source || (bizUrl.url.includes('facebook.com') ? 'facebook' : 'google');
-      console.log(`[Storage/getLatestReviews] Processing bizUrl: "${bizUrl.name}" (ID: ${bizUrl._id}, Source: ${source}, Hash: ${bizUrl.urlHash})`);
-
-      const ReviewModelToUse = source === 'google' ? GoogleReviewBatchModel : FacebookReviewBatchModel;
-
-      let reviewBatch = await ReviewModelToUse.findOne({ businessUrlId: bizUrl._id }) // Try new link
-        .sort({ lastScrapedAt: -1 })
-        .lean().exec();
-
-      if (!reviewBatch && bizUrl.urlHash) { // Fallback to old link
-        console.log(`[Storage/getLatestReviews] No batch by businessUrlId for "${bizUrl.name}", trying urlHash: ${bizUrl.urlHash}`);
-        reviewBatch = await ReviewModelToUse.findOne({ urlHash: bizUrl.urlHash })
-          .sort({ lastScrapedAt: -1 }) // or timestamp for google old data
-          .lean().exec();
-      }
-
-      if (reviewBatch && reviewBatch.reviews && reviewBatch.reviews.length > 0) {
-        console.log(`[Storage/getLatestReviews] Found ${reviewBatch.reviews.length} reviews in batch for "${bizUrl.name}"`);
-        const reviewsFromBatch = reviewBatch.reviews.map(r => ({
-          ...r,
-          businessName: bizUrl.name,
-          source: source, // Use determined source
-          businessUrl: bizUrl.url,
-        }));
-        results.push(...reviewsFromBatch);
-      } else {
-        console.log(`[Storage/getLatestReviews] No reviews in batch for "${bizUrl.name}" (Source: ${source})`);
-      }
-    }
-
-    console.log(`[Storage/getLatestReviews] Total reviews collected before sort/limit: ${results.length}`);
-
-    results.sort((a, b) => {
-      const dateA = a.scrapedAt || (a.postedAt && !isNaN(new Date(a.postedAt).getTime()) ? new Date(a.postedAt) : null);
-      const dateB = b.scrapedAt || (b.postedAt && !isNaN(new Date(b.postedAt).getTime()) ? new Date(b.postedAt) : null);
-      if (dateA && dateB) {
-        return dateB.getTime() - dateA.getTime(); // Most recent first
-      }
-      if (dateA) return -1; // Put items with dates first
-      if (dateB) return 1;
-      return 0;
+    // Combine and sort the results
+    const allReviews = [...googleReviews, ...facebookReviews];
+    
+    // Sort by scrapedAt date (most recent first) and limit
+    allReviews.sort((a, b) => {
+      const dateA = a.scrapedAt ? new Date(a.scrapedAt).getTime() : 0;
+      const dateB = b.scrapedAt ? new Date(b.scrapedAt).getTime() : 0;
+      return dateB - dateA;
     });
 
-    console.log(`[Storage/getLatestReviews] Returning ${results.slice(0, limit).length} reviews after slicing.`);
-    return results.slice(0, limit);
+    const finalResults = allReviews.slice(0, limit);
+    
+    // Cache the results
+    latestReviewsCache.set(cacheKey, {
+      data: finalResults,
+      timestamp: Date.now()
+    });
+
+    console.log(`[Storage/getLatestReviews] Returning ${finalResults.length} reviews after optimization.`);
+    return { data: finalResults, cacheHit: false };
 
   } catch (dbError: unknown) {
     const err = dbError as Error;
     console.error(`[Storage/getLatestReviews] DB Error for userId ${userId}:`, err.message, err.stack);
-    throw new Error(`Database error in getLatestReviews: ${err.message}`); // Re-throw a new error or the original
+    throw new Error(`Database error in getLatestReviews: ${err.message}`);
   }
 };
 export const getWidgetById = async (id: string): Promise<IWidget | null> => {
@@ -1084,4 +1168,185 @@ export const deleteBusinessUrl = async (businessUrlId: string): Promise<void> =>
   if (googleResult.deletedCount === 0 && facebookResult.deletedCount === 0) {
     throw new Error('Business URL not found or could not be deleted.');
   }
+};
+
+interface PaginatedWidgetsParams {
+  userId: string;
+  page: number;
+  limit: number;
+  source?: string;
+  search?: string;
+  sortBy?: string;
+  sortOrder?: string;
+}
+
+interface PaginatedWidgetsResult {
+  widgets: IWidget[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+}
+
+export const getPaginatedWidgetsByUserId = async (params: PaginatedWidgetsParams): Promise<PaginatedWidgetsResult> => {
+  await ensureDbConnected();
+  if (!Types.ObjectId.isValid(params.userId)) {
+    return {
+      widgets: [],
+      pagination: {
+        page: params.page,
+        limit: params.limit,
+        total: 0,
+        totalPages: 0,
+        hasNext: false,
+        hasPrev: false,
+      },
+    };
+  }
+
+  console.log(`[Storage/getPaginatedWidgetsByUserId] Fetching widgets for userId: ${params.userId}`, params);
+
+  // Build query
+  const query: any = { userId: new Types.ObjectId(params.userId) };
+
+  // Add source filter if specified
+  if (params.source && params.source !== 'all') {
+    // For source filtering, we need to join with business URLs
+    // This will be handled after the initial query
+  }
+
+  // Add search filter if specified (optimized for performance)
+  if (params.search && params.search.trim()) {
+    const searchTerm = params.search.trim();
+    query.$or = [
+      { name: { $regex: searchTerm, $options: 'i' } },
+      // You can add more searchable fields here if needed
+      // { description: { $regex: searchTerm, $options: 'i' } }
+    ];
+  }
+
+  // Build sort object
+  const sortOrder = params.sortOrder === 'asc' ? 1 : -1;
+  const sort: any = {};
+  sort[params.sortBy || 'createdAt'] = sortOrder;
+
+  // Get total count for pagination
+  const total = await WidgetModel.countDocuments(query);
+
+  // Calculate pagination values
+  const totalPages = Math.ceil(total / params.limit);
+  const hasNext = params.page < totalPages;
+  const hasPrev = params.page > 1;
+
+  // Get paginated widgets
+  const widgets = await WidgetModel.find(query)
+    .sort(sort)
+    .skip((params.page - 1) * params.limit)
+    .limit(params.limit)
+    .lean()
+    .exec();
+
+  // Manually populate business URL information and get total review count
+  const populatedWidgets = await Promise.all(
+    widgets.map(async (widget) => {
+      let businessUrl = undefined;
+      let totalReviewCount = 0;
+      
+      if (widget.businessUrlId) {
+        try {
+          // Try to get business URL from the appropriate collection
+          const businessUrlData = await getBusinessUrlById(widget.businessUrlId.toString());
+          if (businessUrlData) {
+            // Apply source filter if specified
+            if (params.source && params.source !== 'all' && businessUrlData.source !== params.source) {
+              return null; // Skip this widget if it doesn't match the source filter
+            }
+
+            businessUrl = {
+              _id: businessUrlData._id.toString(),
+              name: businessUrlData.name,
+              source: businessUrlData.source as 'google' | 'facebook',
+              url: businessUrlData.url,
+            };
+
+            // Get total review count for this business URL
+            if (businessUrlData.urlHash) {
+              try {
+                const reviewBatch = await getReviewBatchForBusinessUrl(
+                  businessUrlData.urlHash,
+                  businessUrlData.source as 'google' | 'facebook'
+                );
+                if (reviewBatch && reviewBatch.reviews) {
+                  totalReviewCount = reviewBatch.reviews.length;
+                }
+              } catch (error) {
+                console.error(`[Storage/getPaginatedWidgetsByUserId] Error fetching review count for widget ${widget._id}:`, error);
+              }
+            }
+          }
+        } catch (error) {
+          console.error(`[Storage/getPaginatedWidgetsByUserId] Error fetching business URL for widget ${widget._id}:`, error);
+        }
+      } else if (widget.businessUrlSource) {
+        // If no businessUrlId but we have businessUrlSource, create a minimal businessUrl object
+        const source = widget.businessUrlSource === 'GoogleBusinessUrl' ? 'google' : 'facebook';
+        
+        // Apply source filter if specified
+        if (params.source && params.source !== 'all' && source !== params.source) {
+          return null; // Skip this widget if it doesn't match the source filter
+        }
+
+        businessUrl = {
+          _id: "",
+          name: widget.name, // Use widget name as fallback
+          source: source,
+          url: undefined,
+        };
+
+        // Try to get total review count using urlHash from widget
+        if (widget.urlHash) {
+          try {
+            const reviewBatch = await getReviewBatchForBusinessUrl(widget.urlHash, source);
+            if (reviewBatch && reviewBatch.reviews) {
+              totalReviewCount = reviewBatch.reviews.length;
+            }
+          } catch (error) {
+            console.error(`[Storage/getPaginatedWidgetsByUserId] Error fetching review count for widget ${widget._id}:`, error);
+          }
+        }
+      } else {
+        businessUrl = {
+          _id: "",
+          name: widget.name, // Use widget name as fallback
+          source: 'google',
+          url: undefined,
+        };
+      }
+
+      return {
+        ...widget,
+        businessUrl,
+        totalReviewCount,
+      } as IWidget;
+    })
+  );
+
+  // Filter out null values (widgets that didn't match source filter)
+  const filteredWidgets = populatedWidgets.filter(widget => widget !== null) as IWidget[];
+
+  return {
+    widgets: filteredWidgets,
+    pagination: {
+      page: params.page,
+      limit: params.limit,
+      total,
+      totalPages,
+      hasNext,
+      hasPrev,
+    },
+  };
 };

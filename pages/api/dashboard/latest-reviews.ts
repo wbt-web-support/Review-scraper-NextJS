@@ -48,11 +48,13 @@ export default async function handler(
     console.log(`[API /latest-reviews] Parsed Limit: ${limit}`);
 
     console.log(`[API /latest-reviews] Calling storage.getLatestReviews for user: ${userId}, limit: ${limit}`);
-    const latestReviewsFromStorage = await storage.getLatestReviews(userId, limit); // <--- CALL TO STORAGE
-    console.log(`[API /latest-reviews] Reviews from storage count: ${latestReviewsFromStorage?.length}`);
-    // console.log("[API /latest-reviews] Reviews from storage:", JSON.stringify(latestReviewsFromStorage, null, 2)); // Can be very verbose
+    const latestReviewsResult = await storage.getLatestReviews(userId, limit); // <--- CALL TO STORAGE
+    console.log(`[API /latest-reviews] Reviews from storage count: ${latestReviewsResult.data?.length}`);
 
-    return res.status(200).json({ reviews: latestReviewsFromStorage as LatestReviewResponseItem[] });
+    // Add cache hit header for monitoring
+    res.setHeader('x-cache-hit', latestReviewsResult.cacheHit.toString());
+
+    return res.status(200).json({ reviews: latestReviewsResult.data as LatestReviewResponseItem[] });
 
   } catch (error: unknown) {
     // THIS CATCH BLOCK IS BEING HIT

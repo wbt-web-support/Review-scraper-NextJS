@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
 import { apiRequest } from "../lib/queryClient";
@@ -7,7 +7,10 @@ import Layout from "../components/Layout";
 import WidgetCard, { IWidget } from "../components/WidgetCard";
 import CreateWidgetModal from "../components/CreateWidgetModal";
 import { useToast } from "../hooks/use-toast";
+import { usePaginatedWidgets } from "../hooks/use-paginated-widgets";
 import { Button } from "../components/ui/button";
+import { Pagination } from "../components/ui/pagination";
+import { WidgetSkeleton } from "../components/ui/widget-skeleton";
 import {
   Tabs,
   TabsContent,
@@ -63,15 +66,28 @@ const Widgets = () => {
     }
   }, [authStatus, router]);
 
-  const { data: widgetsData, isLoading: isWidgetsLoading } = useQuery<{
-    widgets: IWidget[];
-  }>({
-    queryKey: ["widgets"],
-    queryFn: () => apiRequest<{ widgets: IWidget[] }>("GET", "/api/widgets"),
-    enabled: authStatus === "authenticated",
+  // Use paginated widgets hook
+  const {
+    widgets: allWidgets,
+    pagination,
+    isLoading: isWidgetsLoading,
+    isSearchPending,
+    currentPage,
+    setCurrentPage,
+    limit,
+    setLimit,
+    source,
+    setSource,
+    search,
+    setSearch,
+    invalidateQueries,
+  } = usePaginatedWidgets({
+    limit: 12,
+    source: activeTab === 'all' ? 'all' : activeTab,
+    search: searchQuery,
   });
-  const allWidgets = useMemo(() => widgetsData?.widgets || [], [widgetsData]);
 
+  // Get business URLs for the modal
   const { data: businessUrlsData, isLoading: isBusinessUrlsLoading } =
     useQuery<{ businessUrls: IBusinessUrlForDropdown[] }>({
       queryKey: ["businessUrls"],
@@ -96,7 +112,7 @@ const Widgets = () => {
       return apiRequest("DELETE", `/api/widgets/${widgetId}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["widgets"] });
+      invalidateQueries();
       queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
 
       toast({
@@ -113,46 +129,34 @@ const Widgets = () => {
       });
     },
   });
-  const filteredWidgets = useMemo(() => {
-    console.log(
-      "Filtering widgets. Active tab:",
-      activeTab,
-      "allWidgets count:",
-      allWidgets.length
-    );
-    if (activeTab === "all") {
-      return allWidgets;
-    }
-    return allWidgets.filter(
-      (widget: IWidget) => widget.businessUrl?.source === activeTab
-    );
-  }, [allWidgets, activeTab]);
+  // Update source filter when activeTab changes
+  useEffect(() => {
+    setSource(activeTab === 'all' ? 'all' : activeTab);
+  }, [activeTab, setSource]);
 
-  // Filter by search query (case-insensitive, by name)
-  const searchedWidgets = useMemo(() => {
-    if (!searchQuery.trim()) return filteredWidgets;
-    return filteredWidgets.filter(widget =>
-      widget.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
-    );
-  }, [filteredWidgets, searchQuery]);
+  // Update search when searchQuery changes
+  useEffect(() => {
+    setSearch(searchQuery);
+  }, [searchQuery, setSearch]);
 
   // Group widgets by business name
   const groupedWidgets = useMemo(() => {
     const map = new Map<string, IWidget[]>();
-    for (const widget of searchedWidgets) {
+    for (const widget of allWidgets) {
       const businessName = widget.businessUrl?.name || widget.name;
       if (!map.has(businessName)) map.set(businessName, []);
       map.get(businessName)!.push(widget);
     }
     return Array.from(map.entries()); // [businessName, widgets[]]
-  }, [searchedWidgets]);
+  }, [allWidgets]);
 
   const handleWidgetSaved = (widget: IWidget) => {
     setIsCreateModalOpen(false);
     setEditingWidget(null);
     setModalMode('create');
     setModalInitialTab('create');
-    // Modal will automatically switch to embed tab after creation/update
+    // Invalidate paginated queries to refresh the list
+    invalidateQueries();
   };
 
   const handleEditWidget = (widgetId: string) => {
@@ -290,23 +294,31 @@ const Widgets = () => {
 
   return (
     <Layout>
+      <div className="flex flex-row-reverse justify-between">
       {/* Hero Section */}
+     
       <div className="mb-6">
-        <div className="p-0">
+        <div className="p-0 ">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-            <div className="flex-1">
+            {/* <div className="flex-1">
               
               <div className="flex items-center gap-6 mt-6 text-sm text-gray-500">
                 <span className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                  {allWidgets.filter(w => w.isActive).length} Active Widgets
+                  {allWidgets.filter((w: IWidget) => w.isActive).length} Active Widgets
                 </span>
                 <span className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                  {allWidgets.reduce((acc, w) => acc + (w.totalReviewCount || 0), 0)} Total Reviews
+                  {allWidgets.reduce((acc: number, w: IWidget) => acc + (w.totalReviewCount || 0), 0)} Total Reviews
                 </span>
+                {pagination && (
+                  <span className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                    Page {pagination.page} of {pagination.totalPages} ({pagination.total} total)
+                  </span>
+                )}
               </div>
-            </div>
+            </div> */}
             <div className="flex flex-col sm:flex-row gap-3">
           <Button
                 onClick={() => handleCreateWidget()}
@@ -325,21 +337,28 @@ const Widgets = () => {
       <div className=" mb-8">
         <div className="flex flex-col lg:flex-row lg:items-center gap-4 lg:gap-6">
         {/* Search Bar */}
+        <div className="flex flex-col lg:flex-row gap-4 mr-4">
+          
+      
           <div className="flex-1 max-w-md">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-                className="pl-11 pr-4 py-3 border border-gray-200 rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="pl-11 pr-12 py-3 border border-gray-200 rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 placeholder="Search widgets by name..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
             />
+            {isSearchPending && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+              </div>
+            )}
           </div>
         </div>
-
-          {/* View Mode Toggle */}
-          <div className="flex items-center bg-gray-50 rounded-xl p-1 border border-gray-200">
+        {/* View Mode Toggle */}
+        <div className="flex items-center bg-gray-50 rounded-xl p-1 border w-fit border-gray-200">
             <Button
               variant={viewMode === "grid" ? "default" : "ghost"}
               size="sm"
@@ -366,8 +385,10 @@ const Widgets = () => {
             </Button>
           </div>
         </div>
+          
+        </div>
       </div>
-
+      </div>
       {/* Content Section */}
       <div className="">
         {/* Filter Tabs */}
@@ -401,19 +422,7 @@ const Widgets = () => {
 
             <TabsContent value={activeTab} className="mt-0">
               {isWidgetsLoading ? (
-              <div className={viewMode === "grid" 
-                ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" 
-                : "space-y-4"
-              }>
-                {Array.from({ length: viewMode === "grid" ? 6 : 4 }).map((_, index) => (
-                    <div
-                      key={index}
-                    className={`bg-gray-50 rounded-2xl animate-pulse ${
-                      viewMode === "grid" ? "h-64" : "h-24"
-                    }`}
-                    ></div>
-                  ))}
-                </div>
+                <WidgetSkeleton viewMode={viewMode} count={limit} />
               ) : groupedWidgets.length > 0 ? (
               viewMode === "grid" ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -571,6 +580,21 @@ const Widgets = () => {
               )}
             </TabsContent>
           </Tabs>
+
+          {/* Pagination */}
+          {pagination && (
+            <div className="mt-8">
+              <Pagination
+                currentPage={pagination.page}
+                totalPages={pagination.totalPages}
+                onPageChange={setCurrentPage}
+                showPageSize={true}
+                pageSize={limit}
+                onPageSizeChange={setLimit}
+                className="mb-4"
+              />
+            </div>
+          )}
         </div>
 
       {/* Unified Modal */}
