@@ -48,14 +48,7 @@
     buildId: Date.now(),
 
     log: function(level, message, data) {
-      if (window.console && window.console[level]) {
-        const prefix = `[ReviewHubV2 v${this.version}]`;
-        if (data) {
-          console[level](prefix, message, data);
-        } else {
-          console[level](prefix, message);
-        }
-      }
+      // Console logging disabled for production
     },
 
     escapeHtml: function(text) {
@@ -102,7 +95,6 @@
         if (diffYears === 1) return '1 year ago';
         return `${diffYears} year${diffYears === 1 ? '' : 's'} ago`;
       } catch (e) {
-        this.log('error', 'Error formatting date', e);
         return dateString || 'Recently';
       }
     },
@@ -918,17 +910,14 @@
         } catch (error) {
           attempt++;
           if (attempt > retries) {
-            this.log('error', `Failed to fetch ${url} after ${retries + 1} attempts`, error);
             throw error;
           }
-          this.log('warn', `Retrying request to ${url}. Attempt ${attempt} of ${retries}. Error: ${error.message}`);
           await new Promise(resolve => setTimeout(resolve, CONFIG.RETRY_DELAY * Math.pow(2, attempt -1))); // Exponential backoff
         }
       }
     },
 
     showError: function(container, error, config, retryCallback) {
-      this.log('error', 'Displaying error in widget', { error: error.message, config });
       const themeColor = config.themeColor || '#007bff';
       container.style.setProperty('--rh-theme-color', themeColor);
       container.style.setProperty('--rh-theme-color-dark', this.darkenColor(themeColor, 15));
@@ -1001,7 +990,6 @@
     },
 
     renderWidget: function(container, data, config) {
-      this.log('info', 'Rendering widget V2', { data, config });
       const { widgetSettings, reviews, businessName, businessUrlLink, totalReviewCount } = data;
       // Filter out reviews with empty content or text
       const filteredReviews = reviews.filter(r => (r.content && r.content.trim()) || (r.text && r.text.trim()));
@@ -1042,7 +1030,6 @@
       } else {
         // Fallback or message for other layouts not yet implemented in V2
         container.innerHTML = `<div class="reviewhub-v2-error"><div class="reviewhub-v2-error-title">Layout "${defaultWidgetSettings.layout}" is not yet available in this version.</div></div>`;
-        this.log('warn', `Layout ${defaultWidgetSettings.layout} not implemented in V2 yet.`);
       }
     },
 
@@ -1733,8 +1720,6 @@
           ...userConfig 
       };
 
-      this.log('info', 'Initializing widget V2', config);
-      
       // Prevent duplicate initializations - create a unique identifier for this widget instance
       const widgetInstanceId = config.containerId ? 
         `${config.widgetId}-${config.containerId}` : 
@@ -1743,7 +1728,6 @@
       // Check if this widget instance has already been initialized
       this._initializedWidgets = this._initializedWidgets || new Set();
       if (this._initializedWidgets.has(widgetInstanceId)) {
-        this.log('warn', `Widget instance ${widgetInstanceId} already initialized, skipping.`);
         return;
       }
       this._initializedWidgets.add(widgetInstanceId);
@@ -1753,7 +1737,6 @@
       if (config.containerId) {
         container = document.getElementById(config.containerId);
         if (!container) {
-          this.log('error', `Container element #${config.containerId} not found.`);
           // Remove from initialized set since we failed
           this._initializedWidgets.delete(widgetInstanceId);
           return; // Don't create fallback containers when containerId is explicitly specified
@@ -1761,9 +1744,7 @@
       } else if (config._scriptTag) { // If initialized from script tag without explicit container
           container = document.createElement('div');
           config._scriptTag.parentNode.insertBefore(container, config._scriptTag.nextSibling);
-          this.log('info', `No containerId, created one after script tag: ${config._scriptTag.src}`);
       } else {
-        this.log('error', 'No containerId provided and cannot infer container. Widget will not render.');
         // Remove from initialized set since we failed
         this._initializedWidgets.delete(widgetInstanceId);
         return; // Cannot proceed without a container
@@ -1800,10 +1781,8 @@
       
       const queryString = params.toString();
       const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${config.widgetId}${queryString ? '?' + queryString : ''}`;
-      this.log('info', `Fetching data from: ${apiUrl}`);
 
       const retryLoad = () => {
-        this.log('info', 'Retrying widget load V2', { widgetId: config.widgetId });
         // Clear container and re-init. Be careful of infinite loops if API always fails.
         container.innerHTML = ''; // Clear previous error/loading
         // Remove from initialized set to allow retry
@@ -1814,7 +1793,6 @@
       try {
         const data = await this.fetchWithRetry(apiUrl);
         if (data && data.reviews) {
-          this.log('info', 'Widget data loaded successfully V2', { widgetId: config.widgetId, reviewCount: data.reviews.length });
           // Ensure widgetSettings exists, even if empty, to avoid errors
           data.widgetSettings = data.widgetSettings || {}; 
            // Merge script tag data-attributes into widgetSettings if they exist and are not already set by API
@@ -1836,7 +1814,6 @@
           throw new Error('No reviews data received from API.');
         }
       } catch (error) {
-        this.log('error', 'Failed to load widget data V2', { widgetId: config.widgetId, error: error.message });
         this.showError(container, error, config, retryLoad);
       }
     },
@@ -1848,7 +1825,6 @@
       
       // Add some basic validation
       if (!config || !config.widgetId) {
-        this.log('error', 'Invalid config provided to init method', config);
         return;
       }
       
@@ -1866,13 +1842,11 @@
   function initializeWidgetsFromScripts() {
     // Prevent multiple executions
     if (window.ReviewHubV2._autoInitialized) {
-      window.ReviewHubV2.log('info', 'Auto-initialization already completed, skipping.');
       return;
     }
     window.ReviewHubV2._autoInitialized = true;
     
     const scriptTags = document.querySelectorAll('script[data-reviewhub-widget-id]:not([data-reviewhub-processed])');
-    window.ReviewHubV2.log('info', `Found ${scriptTags.length} V2 widget script tag(s) for auto-initialization.`);
     scriptTags.forEach(script => {
       // Mark script as processed to prevent duplicate processing
       script.setAttribute('data-reviewhub-processed', 'true');
@@ -1899,9 +1873,6 @@
       // Only add _scriptTag if there's no containerId specified
       if (config.containerId) {
         delete config._scriptTag;
-        window.ReviewHubV2.log('info', `Using specified container: ${config.containerId} for widget: ${config.widgetId}`);
-      } else {
-        window.ReviewHubV2.log('info', `No container specified, will create container after script tag for widget: ${config.widgetId}`);
       }
       
       window.ReviewHubV2.initWidget(config);
@@ -1911,7 +1882,6 @@
   // Handle pending initializations if DOM was already ready
   function processPendingInitializations() {
       if (window.ReviewHubV2._pendingInitializations && window.ReviewHubV2._pendingInitializations.length > 0) {
-          window.ReviewHubV2.log('info', `Processing ${window.ReviewHubV2._pendingInitializations.length} pending widget initializations.`);
           window.ReviewHubV2._pendingInitializations.forEach(config => window.ReviewHubV2.initWidget(config));
           window.ReviewHubV2._pendingInitializations = []; // Clear after processing
       }

@@ -29,14 +29,7 @@
     lastUpdated: '2024-12-19T11:00:00Z',
     buildId: Date.now(),
     log: function(level, message, data) {
-      if (window.console && window.console[level]) {
-        const prefix = `[ReviewHub v${this.version}]`;
-        if (data) {
-          console[level](prefix, message, data);
-        } else {
-          console[level](prefix, message);
-        }
-      }
+      // Console logging disabled for production
     },
     injectStyles: function() {
       if (document.getElementById('reviewhub-widget-styles')) return;
@@ -1108,9 +1101,7 @@
       return (words[0].charAt(0) + words[words.length - 1].charAt(0)).toUpperCase();
     },
     renderWidget: function(container, widgetData, config) {
-      console.log("WIDGET DATA", widgetData);
-      console.log("CONFIG", config);
-      console.log("CONTAINER", container);
+      
       const { widgetSettings, reviews, businessName, businessUrlLink, totalReviewCount } = widgetData;
       const themeColor = config.themeColor || widgetSettings.themeColor || '#3B82F6';
       const themeColorDark = this.darkenColor(themeColor, 20);
@@ -1985,7 +1976,6 @@
         .catch(error => {
           clearTimeout(timeoutId);
           if (retries > 0) {
-            this.log('warn', `Retrying request to ${url}. Attempts left: ${retries - 1}`, error);
             setTimeout(() => {
               this.fetchWithRetry(url, options, retries - 1).then(resolve).catch(reject);
             }, CONFIG.RETRY_DELAY);
@@ -2019,16 +2009,13 @@
     
     initWidget: function(config) {
       let container = null;
-      this.log('info', 'Initializing widget', config);
       this.injectStyles();
       if (config.containerId) {
         container = document.getElementById(config.containerId);
         if (!container) {
-          this.log('error', `Container element not found: ${config.containerId}`);
           return;
         }
       } else {
-        this.log('error', 'No data-container-id provided for widget. Widget will not be rendered.');
         return;
       }
       container.className = 'reviewhub-widget-container';
@@ -2045,18 +2032,15 @@
       if (config.layout) params.append('layout', config.layout);
       const queryString = params.toString();
       const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${config.widgetId}${queryString ? '?' + queryString : ''}`;
-      console.log("API URL", apiUrl);
+
       const retryLoad = () => {
-        this.log('info', 'Retrying widget load', { widgetId: config.widgetId });
         this.initWidget(config);
       };
       this.fetchWithRetry(apiUrl)
         .then(data => {
-          this.log('info', 'Widget data loaded successfully', { widgetId: config.widgetId, reviewCount: data.reviews?.length });
           this.renderWidget(container, data, config);
         })
         .catch(error => {
-          this.log('error', 'Failed to load widget data', { widgetId: config.widgetId, error: error.message });
           this.showError(container, error, config, retryLoad);
         });
     },
