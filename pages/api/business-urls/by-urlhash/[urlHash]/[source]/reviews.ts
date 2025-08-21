@@ -42,7 +42,7 @@ export default async function handler(
     
     // Get a sample of documents to see what urlHashes exist
     const sampleDocs = await ModelToUse.find({}).limit(5).select('urlHash businessUrlId').lean().exec();
-    console.log('Sample documents:', sampleDocs);
+    // console.log('Sample documents:', sampleDocs);
     
     // Check if business URL exists
     const businessUrl = await (BusinessUrlModel as any).findOne({ urlHash }).lean().exec();
@@ -53,7 +53,7 @@ export default async function handler(
       const reviewsByBusinessId = await ModelToUse.find({ businessUrlId: businessUrl._id }).lean().exec();
       console.log(`Reviews found by businessUrlId ${businessUrl._id}:`, reviewsByBusinessId.length);
       if (reviewsByBusinessId.length > 0) {
-        console.log('Sample review by businessUrlId:', reviewsByBusinessId[0]);
+        // console.log('Sample review by businessUrlId:', reviewsByBusinessId[0]);
       }
     }
     

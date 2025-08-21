@@ -15,7 +15,7 @@ export interface IReviewItem {
 const ReviewItemSchema: Schema<IReviewItem> = new Schema({
   reviewId: { type: String, index: true },
   author: { type: String, required: true },
-  content: { type: String, required: true },
+  content: { type: String, required: false }, // Changed from required: true to allow empty content
   rating: { type: Number },
   postedAt: { type: String, required: true }, 
   profilePicture: { type: String },

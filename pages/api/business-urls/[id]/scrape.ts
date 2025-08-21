@@ -35,13 +35,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ? parseInt(maxReviewsQueryParam)
       : undefined; 
 
-    console.log(`[API /scrape] Starting scrape for business URL: ${businessUrlId_param}`);
+    // Check if this is a manual scrape (no date filtering)
+    const isManualScrape = req.query.manual === 'true';
+    const fromDate = isManualScrape ? 'NO_FILTER' : undefined; // 'NO_FILTER' means no date filtering, undefined means use latest date
+
+    console.log(`[API /scrape] Starting scrape for business URL: ${businessUrlId_param}${isManualScrape ? ' (MANUAL - no date filtering)' : ' (with date filtering)'}`);
     let result;
     if (businessUrl.source === 'google') {
       console.log(`[API /scrape] Calling apify.scrapeGoogleReviews for ID: ${businessUrlId_param}`);
-      result = await apify.scrapeGoogleReviews(businessUrlId_param, maxReviews);
+      result = await apify.scrapeGoogleReviews(businessUrlId_param, maxReviews, fromDate);
     } else if (businessUrl.source === 'facebook') {
-      result = await apify.scrapeFacebookReviews(businessUrlId_param, maxReviews);
+      result = await apify.scrapeFacebookReviews(businessUrlId_param, maxReviews, fromDate);
     } else {
       return res.status(400).json({ message: `Unsupported source: ${businessUrl.source}` });
     }
