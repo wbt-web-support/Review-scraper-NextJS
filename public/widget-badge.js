@@ -30,14 +30,7 @@
     buildId: Date.now(),
 
     log: function(level, message, data) {
-      if (window.console && window.console[level]) {
-        const prefix = `[ReviewHubBadge v${this.version}]`;
-        if (data) {
-          console[level](prefix, message, data);
-        } else {
-          console[level](prefix, message);
-        }
-      }
+      // Console logging disabled for production
     },
 
     escapeHtml: function(text) {
@@ -84,7 +77,6 @@
         if (diffYears === 1) return '1 year ago';
         return `${diffYears} year${diffYears === 1 ? '' : 's'} ago`;
       } catch (e) {
-        this.log('error', 'Error formatting date', e);
         return dateString || 'Recently';
       }
     },
@@ -908,17 +900,14 @@
         } catch (error) {
           attempt++;
           if (attempt > retries) {
-            this.log('error', `Failed to fetch ${url} after ${retries + 1} attempts`, error);
             throw error;
           }
-          this.log('warn', `Retrying request to ${url}. Attempt ${attempt} of ${retries}. Error: ${error.message}`);
           await new Promise(resolve => setTimeout(resolve, CONFIG.RETRY_DELAY * Math.pow(2, attempt -1))); // Exponential backoff
         }
       }
     },
 
     showError: function(container, error, config, retryCallback) {
-      this.log('error', 'Displaying error in badge widget', { error: error.message, config });
       const themeColor = config.themeColor || '#3B82F6';
       container.style.setProperty('--badge-theme-color', themeColor);
       container.style.setProperty('--badge-theme-color-dark', this.darkenColor(themeColor, 15));
@@ -989,7 +978,6 @@
     },
 
     renderWidget: function(container, data, config) {
-      this.log('info', 'Rendering badge widget', { data, config });
       const { widgetSettings, reviews, businessName, businessUrlLink, totalReviewCount } = data;
       // Filter out reviews with empty content or text
       const filteredReviews = reviews.filter(r => (r.content && r.content.trim()) || (r.text && r.text.trim()));
@@ -1259,13 +1247,11 @@
           ...userConfig 
       };
 
-      this.log('info', 'Initializing badge widget', config);
       this.injectStyles();
 
       if (config.containerId) {
         container = document.getElementById(config.containerId);
         if (!container) {
-          this.log('error', `Container element #${config.containerId} not found.`);
           const errDiv = document.createElement('div');
           errDiv.className = 'reviewhub-badge-widget-container';
           this.showError(errDiv, new Error(`Container #${config.containerId} not found.`), config, null);
@@ -1275,9 +1261,7 @@
       } else if (config._scriptTag) {
           container = document.createElement('div');
           config._scriptTag.parentNode.insertBefore(container, config._scriptTag.nextSibling);
-          this.log('info', `No containerId, created one after script tag: ${config._scriptTag.src}`);
       } else {
-        this.log('error', 'No containerId provided and cannot infer container. Badge widget will not render.');
         return;
       }
       
@@ -1301,10 +1285,8 @@
       const params = new URLSearchParams();
       const queryString = params.toString();
       const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${config.widgetId}${queryString ? '?' + queryString : ''}`;
-      this.log('info', `Fetching data from: ${apiUrl}`);
 
       const retryLoad = () => {
-        this.log('info', 'Retrying badge widget load', { widgetId: config.widgetId });
         container.innerHTML = '';
         this.initWidget(config); 
       };
@@ -1312,14 +1294,12 @@
       try {
         const data = await this.fetchWithRetry(apiUrl);
         if (data && data.reviews) {
-          this.log('info', 'Badge widget data loaded successfully', { widgetId: config.widgetId, reviewCount: data.reviews.length });
           data.widgetSettings = data.widgetSettings || {}; 
           this.renderWidget(container, data, config);
         } else {
           throw new Error('No reviews data received from API.');
         }
       } catch (error) {
-        this.log('error', 'Failed to load badge widget data', { widgetId: config.widgetId, error: error.message });
         this.showError(container, error, config, retryLoad);
       }
     },
@@ -1340,7 +1320,6 @@
   // Auto-initialize widgets from script tags
   function initializeWidgetsFromScripts() {
     const scriptTags = document.querySelectorAll('script[data-widget-id][src*="widget-badge.js"]');
-    window.ReviewHubBadge.log('info', `Found ${scriptTags.length} badge widget script tag(s) for auto-initialization.`);
     scriptTags.forEach(script => {
       const config = {
         widgetId: script.getAttribute('data-widget-id'),

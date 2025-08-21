@@ -51,14 +51,7 @@
     pendingLoads: new Map(),
 
     log: function(level, message, data) {
-      if (window.console && window.console[level]) {
-        const prefix = `[ReviewHubMain v${this.version}]`;
-        if (data) {
-          console[level](prefix, message, data);
-        } else {
-          console[level](prefix, message);
-        }
-      }
+      // Console logging disabled for production
     },
 
     // Dynamically load widget script
@@ -84,7 +77,7 @@
           return;
         }
 
-        this.log('info', `Loading widget script for layout: ${layout}`, { file: widgetFile });
+
 
         // Create promise for this load
         const loadPromise = new Promise((resolveLoad, rejectLoad) => {
@@ -112,7 +105,6 @@
             setTimeout(() => {
               if (window[widgetClass]) {
                 this.loadedWidgets.add(layout);
-                this.log('info', `Successfully loaded widget: ${layout}`);
                 resolveLoad(window[widgetClass]);
               } else {
                 rejectLoad(new Error(`Widget class ${widgetClass} not found after loading ${widgetFile}`));
@@ -146,7 +138,7 @@
     initWidget: async function(config) {
       const layout = config.layout || CONFIG.DEFAULT_LAYOUT;
       
-      this.log('info', 'Initializing widget via main router', { layout, config });
+
 
       let attempt = 0;
       while (attempt < CONFIG.RETRY_ATTEMPTS) {
@@ -157,23 +149,19 @@
           // Initialize the widget
           if (WidgetClass && typeof WidgetClass.initWidget === 'function') {
             await WidgetClass.initWidget(config);
-            this.log('info', `Widget initialized successfully: ${layout}`);
             return;
           } else if (WidgetClass && typeof WidgetClass.init === 'function') {
             WidgetClass.init(config);
-            this.log('info', `Widget initialized successfully: ${layout}`);
             return;
           } else {
             throw new Error(`Widget class for ${layout} does not have init method`);
           }
         } catch (error) {
           attempt++;
-          this.log('error', `Attempt ${attempt} failed for layout ${layout}`, { error: error.message });
           
           if (attempt >= CONFIG.RETRY_ATTEMPTS) {
             // Fallback to default layout if current layout fails
             if (layout !== CONFIG.DEFAULT_LAYOUT) {
-              this.log('warn', `Falling back to default layout: ${CONFIG.DEFAULT_LAYOUT}`);
               config.layout = CONFIG.DEFAULT_LAYOUT;
               return this.initWidget(config);
             } else {
@@ -190,8 +178,6 @@
 
     // Show error when all attempts fail
     showError: function(config, error) {
-      this.log('error', 'All widget initialization attempts failed', { config, error: error.message });
-      
       let container;
       if (config.containerId) {
         container = document.getElementById(config.containerId);
