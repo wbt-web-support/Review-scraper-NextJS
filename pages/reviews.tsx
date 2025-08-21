@@ -184,7 +184,7 @@ const Reviews = () => {
         message: string;
         reviews?: IReviewItem[]; 
       }
-      const result = await apiRequest<ApiScrapeResponse>("POST", `/api/business-urls/${businessUrlId}/scrape`);
+      const result = await apiRequest<ApiScrapeResponse>("POST", `/api/business-urls/${businessUrlId}/scrape?manual=true`);
       if (!result || !result.success || typeof result.message !== 'string') {
         console.error("Invalid scrape response format or scraping failed:", result);
         throw new Error(result?.message || 'Scraping process reported an issue or returned an invalid format.');

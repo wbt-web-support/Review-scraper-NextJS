@@ -86,7 +86,7 @@ interface ScrapeResult {
     reviews?: IReviewItem[];
 }
 
-export const scrapeGoogleReviews = async (businessUrlId: string, maxReviewsParam?: number, fromDate?: Date): Promise<ScrapeResult> => {
+export const scrapeGoogleReviews = async (businessUrlId: string, maxReviewsParam?: number, fromDate?: Date | 'NO_FILTER'): Promise<ScrapeResult> => {
     if (!GOOGLE_APIFY_TOKEN) {
       return { success: false, message: "Google Apify token not configured." };
     }
@@ -96,9 +96,18 @@ export const scrapeGoogleReviews = async (businessUrlId: string, maxReviewsParam
       if (businessUrlDoc.source !== 'google') throw new Error('Business URL source is not Google.');
       if (!businessUrlDoc.url) throw new Error('Business URL is missing.');
      
-      // If no fromDate provided, get the latest review date from database
-      let effectiveFromDate: Date | null | undefined = fromDate;
-      if (!effectiveFromDate) {
+      // Handle date filtering logic
+      let effectiveFromDate: Date | null | undefined;
+      if (fromDate === 'NO_FILTER') {
+        // Manual scrape - no date filtering
+        effectiveFromDate = null;
+        console.log(`[Apify/scrapeGoogleReviews] Manual scrape requested - no date filtering will be applied`);
+      } else if (fromDate) {
+        // Specific date provided
+        effectiveFromDate = fromDate;
+        console.log(`[Apify/scrapeGoogleReviews] Using provided date filter: ${effectiveFromDate.toISOString()}`);
+      } else {
+        // Get the latest review date from database (default behavior for cron)
         effectiveFromDate = await getLatestReviewDateForBusiness(businessUrlId, 'google');
         if (effectiveFromDate) {
           console.log(`[Apify/scrapeGoogleReviews] Using latest review date from database: ${effectiveFromDate.toISOString()}`);
@@ -129,9 +138,15 @@ export const scrapeGoogleReviews = async (businessUrlId: string, maxReviewsParam
   
       console.log(`Found ${items.length} Google reviews from Apify for business ID: ${businessUrlId}. Parsing...`);
       // Always set content, and filter out reviews with empty content
-      const parsedApifyReviews: IReviewItem[] = items
-        .map(item => parseGoogleReviewFromApify(item as ApifyGoogleReviewItem))
-        .filter(review => review.content && review.content.trim().length > 0);
+      const allParsedReviews = items.map(item => parseGoogleReviewFromApify(item as ApifyGoogleReviewItem));
+      // const parsedApifyReviews: IReviewItem[] = allParsedReviews.filter(review => review.content && review.content.trim().length > 0);
+      const parsedApifyReviews: IReviewItem[] = allParsedReviews; // Store all reviews without filtering
+      
+      // const filteredOutCount = allParsedReviews.length - parsedApifyReviews.length;
+      // console.log('filteredOutCount', filteredOutCount);
+      // if (filteredOutCount > 0) {
+      //   console.log(`[Apify/scrapeGoogleReviews] Filtered out ${filteredOutCount} reviews with empty content, ${parsedApifyReviews.length} reviews remain after content filter.`);
+      // }
       
       // No need to filter client-side since we're using Apify's built-in date filtering
       console.log(`Using Apify's built-in date filtering - all ${parsedApifyReviews.length} reviews are newer than ${effectiveFromDate?.toISOString().split('T')[0] || 'all dates'}`);
@@ -156,7 +171,7 @@ export const scrapeGoogleReviews = async (businessUrlId: string, maxReviewsParam
     }
 };
   
-export const scrapeFacebookReviews = async (businessUrlId: string, maxReviewsParam?: number, fromDate?: Date): Promise<ScrapeResult> => {
+export const scrapeFacebookReviews = async (businessUrlId: string, maxReviewsParam?: number, fromDate?: Date | 'NO_FILTER'): Promise<ScrapeResult> => {
     if (!FACEBOOK_APIFY_TOKEN) {
       return { success: false, message: "Facebook Apify token not configured." };
     }
@@ -166,9 +181,18 @@ export const scrapeFacebookReviews = async (businessUrlId: string, maxReviewsPar
       if (businessUrlDoc.source !== 'facebook') throw new Error('Business URL source is not Facebook.');
       if (!businessUrlDoc.url) throw new Error('Business URL is missing.');
   
-      // If no fromDate provided, get the latest review date from database
-      let effectiveFromDate: Date | null | undefined = fromDate;
-      if (!effectiveFromDate) {
+      // Handle date filtering logic
+      let effectiveFromDate: Date | null | undefined;
+      if (fromDate === 'NO_FILTER') {
+        // Manual scrape - no date filtering
+        effectiveFromDate = null;
+        console.log(`[Apify/scrapeFacebookReviews] Manual scrape requested - no date filtering will be applied`);
+      } else if (fromDate) {
+        // Specific date provided
+        effectiveFromDate = fromDate;
+        console.log(`[Apify/scrapeFacebookReviews] Using provided date filter: ${effectiveFromDate.toISOString()}`);
+      } else {
+        // Get the latest review date from database (default behavior for cron)
         effectiveFromDate = await getLatestReviewDateForBusiness(businessUrlId, 'facebook');
         if (effectiveFromDate) {
           console.log(`[Apify/scrapeFacebookReviews] Using latest review date from database: ${effectiveFromDate.toISOString()}`);
@@ -195,8 +219,15 @@ export const scrapeFacebookReviews = async (businessUrlId: string, maxReviewsPar
         console.log(`No new Facebook reviews found from Apify for business ID: ${businessUrlId}`);
         return { success: true, message: 'No new reviews found from Apify.', reviews: [] };
       }
-      console.log(`Found ${items.length} Facebook reviews from Apify for business ID: ${businessUrlId}. Parsing...`);
-      const parsedApifyReviews: IReviewItem[] = items.map(item => parseFacebookReviewFromApify(item as ApifyFacebookReviewItem));
+             console.log(`Found ${items.length} Facebook reviews from Apify for business ID: ${businessUrlId}. Parsing...`);
+       const allParsedReviews = items.map(item => parseFacebookReviewFromApify(item as ApifyFacebookReviewItem));
+       // const parsedApifyReviews: IReviewItem[] = allParsedReviews.filter(review => review.content && review.content.trim().length > 0);
+       const parsedApifyReviews: IReviewItem[] = allParsedReviews; // Store all reviews without filtering
+       
+       // const filteredOutCount = allParsedReviews.length - parsedApifyReviews.length;
+       // if (filteredOutCount > 0) {
+       //   console.log(`[Apify/scrapeFacebookReviews] Filtered out ${filteredOutCount} reviews with empty content, ${parsedApifyReviews.length} reviews remain after content filter.`);
+       // }
       
       // Client-side date filtering for Facebook reviews
       let filteredReviews = parsedApifyReviews;

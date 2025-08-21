@@ -495,15 +495,18 @@ export const mergeNewReviews = async (data: UpsertReviewsArgs): Promise<IReviewB
   }
 
   // Clean existing reviews: remove any with missing or empty content
-  existingBatch.reviews = existingBatch.reviews.filter(
-    review => typeof review.content === 'string' && review.content.trim().length > 0
-  );
+  // existingBatch.reviews = existingBatch.reviews.filter(
+  //   review => typeof review.content === 'string' && review.content.trim().length > 0
+  // );
 
   // Merge new reviews with existing ones
   const existingReviewIds = new Set(existingBatch.reviews.map(review => review.reviewId));
   // Also filter new reviews for valid content (defensive)
+  // const newReviews = data.reviews.filter(
+  //   review => !existingReviewIds.has(review.reviewId) && typeof review.content === 'string' && review.content.trim().length > 0
+  // );
   const newReviews = data.reviews.filter(
-    review => !existingReviewIds.has(review.reviewId) && typeof review.content === 'string' && review.content.trim().length > 0
+    review => !existingReviewIds.has(review.reviewId)
   );
   
   console.log(`[Storage/mergeNewReviews] Existing batch has ${existingBatch.reviews.length} reviews, ${data.reviews.length} new reviews provided, ${newReviews.length} are actually new`);
