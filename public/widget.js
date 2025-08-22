@@ -77,8 +77,6 @@
           return;
         }
 
-
-
         // Create promise for this load
         const loadPromise = new Promise((resolveLoad, rejectLoad) => {
           // Check if script already exists
@@ -134,12 +132,22 @@
       });
     },
 
+    // Preload common widget scripts for better performance
+    preloadCommonWidgets: function() {
+      // Preload badge and grid widgets as they're commonly used together
+      const commonLayouts = ['badge', 'grid'];
+      commonLayouts.forEach(layout => {
+        // Start loading but don't wait for it
+        this.loadWidgetScript(layout).catch(() => {
+          // Silently fail preloading - widgets will load when needed
+        });
+      });
+    },
+
     // Initialize widget with retry logic
     initWidget: async function(config) {
       const layout = config.layout || CONFIG.DEFAULT_LAYOUT;
       
-
-
       let attempt = 0;
       while (attempt < CONFIG.RETRY_ATTEMPTS) {
         try {
@@ -172,6 +180,44 @@
           
           // Wait before retry
           await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+        }
+      }
+    },
+
+    // Initialize multiple widgets in parallel
+    initWidgetsParallel: async function(configs) {
+      // Group configs by layout to load scripts efficiently
+      const layoutGroups = new Map();
+      configs.forEach(config => {
+        const layout = config.layout || CONFIG.DEFAULT_LAYOUT;
+        if (!layoutGroups.has(layout)) {
+          layoutGroups.set(layout, []);
+        }
+        layoutGroups.get(layout).push(config);
+      });
+
+      // Load all required scripts in parallel
+      const scriptLoadPromises = Array.from(layoutGroups.keys()).map(layout => 
+        this.loadWidgetScript(layout)
+      );
+
+      try {
+        // Wait for all scripts to load
+        await Promise.all(scriptLoadPromises);
+        
+        // Initialize all widgets in parallel
+        const initPromises = configs.map(config => this.initWidget(config));
+        await Promise.allSettled(initPromises);
+        
+      } catch (error) {
+        console.error('Error loading widgets in parallel:', error);
+        // Fallback to sequential loading
+        for (const config of configs) {
+          try {
+            await this.initWidget(config);
+          } catch (widgetError) {
+            console.error(`Failed to initialize widget ${config.widgetId}:`, widgetError);
+          }
         }
       }
     },
@@ -326,6 +372,10 @@
         );
         
         window.ReviewHubMain.log('info', `Found ${scriptTags.length} widget script tag(s) for auto-initialization.`);
+        
+        // Collect all widget configs first
+        const widgetConfigs = [];
+        
         scriptTags.forEach(script => {
           // Get layout first to determine which attribute to use
           const layout = script.getAttribute('data-layout') || CONFIG.DEFAULT_LAYOUT;
@@ -372,13 +422,18 @@
             config.layout = CONFIG.DEFAULT_LAYOUT;
           }
           
-          window.ReviewHubMain.initWidget(config);
+          widgetConfigs.push(config);
         });
+        
+        // Initialize all widgets in parallel
+        if (widgetConfigs.length > 0) {
+          window.ReviewHubMain.initWidgetsParallel(widgetConfigs);
+        }
       }
   
   function processPendingInitializations() {
       if (window.ReviewHubMain._pendingInitializations) {
-          window.ReviewHubMain._pendingInitializations.forEach(config => window.ReviewHubMain.initWidget(config));
+          window.ReviewHubMain.initWidgetsParallel(window.ReviewHubMain._pendingInitializations);
           delete window.ReviewHubMain._pendingInitializations;
       }
   }
@@ -413,11 +468,15 @@
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
+        // Start preloading common widgets
+        window.ReviewHubMain.preloadCommonWidgets();
         initializeWidgetsFromScripts();
         processPendingInitializations();
     });
   } else {
     setTimeout(() => {
+        // Start preloading common widgets
+        window.ReviewHubMain.preloadCommonWidgets();
         initializeWidgetsFromScripts();
         processPendingInitializations();
     }, 0);
