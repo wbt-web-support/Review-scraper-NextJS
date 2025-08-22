@@ -47,6 +47,9 @@
     
     // State tracking for each widget instance
     widgetStates: new Map(),
+    
+    // Cache for fetched reviews to avoid re-fetching
+    reviewCache: new Map(),
 
     log: function(level, message, data) {
       // Console logging disabled for production
@@ -913,6 +916,19 @@
       }
     },
 
+    // New function to fetch reviews with pagination
+    fetchReviewsWithPagination: async function(widgetId, offset = 0, limit = 12) {
+      const params = new URLSearchParams();
+      params.append('limit', limit.toString());
+      params.append('offset', offset.toString());
+      params.append('layout', 'grid');
+      
+      const queryString = params.toString();
+      const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${widgetId}?${queryString}`;
+      
+      return await this.fetchWithRetry(apiUrl);
+    },
+
     showError: function(container, error, config, retryCallback) {
       const themeColor = config.themeColor || '#3B82F6';
       container.style.setProperty('--grid-theme-color', themeColor);
@@ -991,17 +1007,30 @@
       if (!this.widgetStates.has(widgetId)) {
         this.widgetStates.set(widgetId, {
           displayCount: displayCount || CONFIG.GRID_SETTINGS.INITIAL_REVIEW_COUNT,
-          isExpanded: false
+          isExpanded: false,
+          loadedReviews: [], // Track all loaded reviews
+          currentOffset: 0   // Track current offset for pagination
         });
       }
       
       const widgetState = this.widgetStates.get(widgetId);
+      
+      // If this is the initial load, store the reviews
+      if (widgetState.loadedReviews.length === 0) {
+        widgetState.loadedReviews = reviews;
+        widgetState.currentOffset = reviews.length;
+      } else if (displayCount !== null) {
+        // This is a load more request, append new reviews
+        widgetState.loadedReviews = [...widgetState.loadedReviews, ...reviews];
+        widgetState.currentOffset += reviews.length;
+      }
+      
       if (displayCount !== null) {
         widgetState.displayCount = displayCount;
       }
       
       // Filter reviews based on widget settings
-      const filteredReviews = this.filterReviews(reviews, widgetSettings);
+      const filteredReviews = this.filterReviews(widgetState.loadedReviews, widgetSettings);
       
       // Detect platform from first review or widget settings
       const platformSource = filteredReviews.length > 0 ? this.detectReviewSource(filteredReviews[0], widgetSettings) : 'google';
@@ -1022,10 +1051,10 @@
       }
       
       // Determine how many reviews to show
-      const totalReviews = filteredReviews.length;
-      const currentDisplayCount = Math.min(widgetState.displayCount, totalReviews);
+      const totalReviews = totalReviewCount || filteredReviews.length;
+      const currentDisplayCount = Math.min(widgetState.displayCount, filteredReviews.length);
       const reviewsToShow = filteredReviews.slice(0, currentDisplayCount);
-      const hasMoreReviews = totalReviews > currentDisplayCount;
+      const hasMoreReviews = totalReviews > widgetState.currentOffset;
       const canShowLess = currentDisplayCount > CONFIG.GRID_SETTINGS.INITIAL_REVIEW_COUNT;
       
       const reviewCardsHtml = reviewsToShow.map((review, index) => {
@@ -1093,15 +1122,16 @@
       // Generate load more/show less buttons
       let loadMoreButtonsHtml = '';
       if (hasMoreReviews || canShowLess) {
+        const remainingReviews = totalReviews - widgetState.currentOffset;
         const loadMoreButton = hasMoreReviews ? 
-          `<button class="reviewhub-grid-load-more-btn" data-action="load-more">Load More Reviews (${totalReviews - currentDisplayCount} remaining)</button>` : '';
+          `<button class="reviewhub-grid-load-more-btn" data-action="load-more">Load More Reviews</button>` : '';
         const showLessButton = canShowLess ? 
-          `<button class="reviewhub-grid-show-less-btn" data-action="show-less">Show Less</button>` : '';
+          `<button class="reviewhub-grid-show-less-btn" data-action="show-less">At Top</button>` : '';
         
         loadMoreButtonsHtml = `
           <div class="reviewhub-grid-load-more-container">
             ${loadMoreButton}
-            ${showLessButton}
+         
           </div>
         `;
       }
@@ -1137,12 +1167,52 @@
         const showLessBtn = container.querySelector('.reviewhub-grid-show-less-btn');
         
         if (loadMoreBtn) {
-            loadMoreBtn.addEventListener('click', (e) => {
+            loadMoreBtn.addEventListener('click', async (e) => {
                 e.preventDefault();
                 const widgetState = this.widgetStates.get(config.widgetId);
-                const newDisplayCount = widgetState.displayCount + CONFIG.GRID_SETTINGS.LOAD_MORE_INCREMENT;
-                widgetState.isExpanded = true;
-                this.renderWidget(container, data, config, newDisplayCount);
+                
+                // Show loading state
+                loadMoreBtn.textContent = 'Loading...';
+                loadMoreBtn.disabled = true;
+                
+                try {
+                    // Fetch more reviews from the database
+                    const newData = await this.fetchReviewsWithPagination(
+                        config.widgetId, 
+                        widgetState.currentOffset, 
+                        CONFIG.GRID_SETTINGS.LOAD_MORE_INCREMENT
+                    );
+                    
+                    if (newData && newData.reviews && newData.reviews.length > 0) {
+                        // Add new reviews to the state
+                        widgetState.loadedReviews.push(...newData.reviews);
+                        widgetState.currentOffset += newData.reviews.length;
+                        widgetState.displayCount += CONFIG.GRID_SETTINGS.LOAD_MORE_INCREMENT;
+                        widgetState.isExpanded = true;
+                        
+                        // Update the widget with new data
+                        this.renderWidget(container, newData, config, widgetState.displayCount);
+                        
+                        // Check if there are more reviews to load
+                        const hasMoreReviews = data.totalReviewCount > widgetState.loadedReviews.length;
+                        if (!hasMoreReviews) {
+                            loadMoreBtn.textContent = 'No More Reviews';
+                            loadMoreBtn.disabled = true;
+                        } else {
+                            loadMoreBtn.textContent = 'Load More Reviews';
+                            loadMoreBtn.disabled = false;
+                        }
+                    } else {
+                        // No more reviews to load
+                        loadMoreBtn.textContent = 'No More Reviews';
+                        loadMoreBtn.disabled = true;
+                    }
+                    
+                } catch (error) {
+                    console.error('Error loading more reviews:', error);
+                    loadMoreBtn.textContent = 'Load More Reviews';
+                    loadMoreBtn.disabled = false;
+                }
             });
         }
         
@@ -1298,9 +1368,25 @@
           return;
       }
 
-      const params = new URLSearchParams();
-      const queryString = params.toString();
-      const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${config.widgetId}${queryString ? '?' + queryString : ''}`;
+      // For grid layout, use pagination for initial load
+      let data;
+      if (config.layout === 'grid') {
+        try {
+          data = await this.fetchReviewsWithPagination(config.widgetId, 0, CONFIG.GRID_SETTINGS.INITIAL_REVIEW_COUNT);
+        } catch (error) {
+          // Fallback to old method if pagination fails
+          const params = new URLSearchParams();
+          const queryString = params.toString();
+          const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${config.widgetId}${queryString ? '?' + queryString : ''}`;
+          data = await this.fetchWithRetry(apiUrl);
+        }
+      } else {
+        // For other layouts, use the old method
+        const params = new URLSearchParams();
+        const queryString = params.toString();
+        const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${config.widgetId}${queryString ? '?' + queryString : ''}`;
+        data = await this.fetchWithRetry(apiUrl);
+      }
 
       const retryLoad = () => {
         container.innerHTML = '';
@@ -1308,9 +1394,13 @@
       };
 
       try {
-        const data = await this.fetchWithRetry(apiUrl);
         if (data && data.reviews) {
           data.widgetSettings = data.widgetSettings || {}; 
+          
+          // Log the number of reviews fetched from database
+          const reviewCount = data.reviews.length;
+          console.log(`📊 Reviews fetched from database: ${reviewCount} reviews for widget ${config.widgetId} (layout: ${config.layout})`);
+          
           this.renderWidget(container, data, config);
         } else {
           throw new Error('No reviews data received from API.');

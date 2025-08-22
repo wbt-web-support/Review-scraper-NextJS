@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Masonry Widget Pagination - Fixed</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-instructions {
+            background: #e8f5e8;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #4caf50;
+        }
+        .test-instructions h3 {
+            margin-top: 0;
+            color: #2e7d32;
+        }
+        .test-instructions ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .test-instructions li {
+            margin: 5px 0;
+        }
+        .debug-panel {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        .debug-panel h4 {
+            margin-top: 0;
+            color: #333;
+        }
+        .debug-log {
+            background: #000;
+            color: #0f0;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 5px 0;
+            word-wrap: break-word;
+        }
+        .widget-container {
+            margin: 20px 0;
+            min-height: 400px;
+        }
+        .status-panel {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #2196f3;
+        }
+        .status-panel h4 {
+            margin-top: 0;
+            color: #1976d2;
+        }
+        .status-info {
+            font-family: 'Courier New', monospace;
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧱 Masonry Widget Pagination - Fixed</h1>
+        
+        <div class="test-instructions">
+            <h3>✅ Fixed Issues:</h3>
+            <ul>
+                <li><strong>Complete Pagination:</strong> Now fetches ALL remaining reviews (including the last 4)</li>
+                <li><strong>Improved Button Design:</strong> Matches the grid widget's modern design</li>
+                <li><strong>Better Logic:</strong> Properly calculates remaining reviews to fetch</li>
+                <li><strong>Enhanced Debugging:</strong> More detailed console logs for troubleshooting</li>
+            </ul>
+        </div>
+
+        <div class="status-panel">
+            <h4>Expected Behavior:</h4>
+            <div class="status-info">
+                • Initial load: 12 reviews<br>
+                • First "Load More": 12 more reviews (total: 24)<br>
+                • Second "Load More": 4 remaining reviews (total: 28)<br>
+                • Button disappears when all reviews are loaded
+            </div>
+        </div>
+
+        <div class="debug-panel">
+            <h4>Debug Logs:</h4>
+            <div id="debug-logs"></div>
+        </div>
+
+        <div class="widget-container">
+            <!-- Masonry Widget will be loaded here -->
+            <script 
+                src="widget-masonry.js" 
+                data-widget-id="6832c330dd506564ff9d8b8d"
+                data-layout="masonry"
+                data-theme-color="#3B82F6">
+            </script>
+        </div>
+    </div>
+
+    <script>
+        // Capture console logs for debugging
+        const debugLogs = document.getElementById('debug-logs');
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+
+        function addLogEntry(type, message, data) {
+            const logEntry = document.createElement('div');
+            logEntry.className = 'debug-log';
+            const timestamp = new Date().toLocaleTimeString();
+            let logMessage = `[${timestamp}] ${type.toUpperCase()}: ${message}`;
+            
+            if (data) {
+                logMessage += '\n' + JSON.stringify(data, null, 2);
+            }
+            
+            logEntry.textContent = logMessage;
+            debugLogs.appendChild(logEntry);
+            debugLogs.scrollTop = debugLogs.scrollHeight;
+        }
+
+        console.log = function(message, data) {
+            originalLog.apply(console, arguments);
+            addLogEntry('log', message, data);
+        };
+
+        console.error = function(message, data) {
+            originalError.apply(console, arguments);
+            addLogEntry('error', message, data);
+        };
+
+        console.warn = function(message, data) {
+            originalWarn.apply(console, arguments);
+            addLogEntry('warn', message, data);
+        };
+
+        // Add initial log
+        console.log('Masonry Widget Pagination Test - FIXED VERSION');
+        console.log('Widget ID: 6832c330dd506564ff9d8b8d');
+        console.log('Expected: Load 12 → Load 12 → Load 4 → Button disappears');
+        console.log('Button design now matches grid widget');
+    </script>
+</body>
+</html>

@@ -21,13 +21,23 @@
     })(),
     RETRY_ATTEMPTS: 3,
     RETRY_DELAY: 3000,
-    TIMEOUT: 10000
+    TIMEOUT: 10000,
+    BADGE_SETTINGS: {
+      INITIAL_REVIEW_COUNT: 8, // Show first 8 reviews initially in modal
+      LOAD_MORE_INCREMENT: 6   // Load 6 more reviews each time
+    }
   };
 
   window.ReviewHubBadge = {
     isInitialized: true,
     version: '1.0.0',
     buildId: Date.now(),
+    
+    // State tracking for modal pagination
+    modalStates: new Map(),
+    
+    // Cache for fetched reviews to avoid re-fetching
+    reviewCache: new Map(),
 
     log: function(level, message, data) {
       // Console logging disabled for production
@@ -149,18 +159,127 @@
     },
 
     getPlatformThemeColor: function(source, userThemeColor) {
-      // If user provided a theme color, use it
-      if (userThemeColor && userThemeColor !== '#3B82F6') {
+      // Always use user-provided theme color if available
+      if (userThemeColor) {
         return userThemeColor;
       }
       
-      // Use platform-specific colors
+      // Use platform-specific colors only as fallback
       if (source === 'facebook') {
         return '#1877F2'; // Facebook blue
       } else {
         return '#4285F4'; // Google blue
       }
     },
+
+         // New function to fetch reviews with pagination
+     fetchReviewsWithPagination: async function(widgetId, offset = 0, limit = 8) {
+       const params = new URLSearchParams();
+       params.append('limit', limit.toString());
+       params.append('offset', offset.toString());
+       params.append('layout', 'badge');
+       
+       const queryString = params.toString();
+       const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${widgetId}?${queryString}`;
+       
+       console.log(`[Badge Pagination] Fetching reviews: ${apiUrl}`);
+       const data = await this.fetchWithRetry(apiUrl);
+       console.log(`[Badge Pagination] Received ${data.reviews?.length || 0} reviews, total: ${data.totalReviewCount || 0}`);
+       
+       return data;
+     },
+
+     // New function to fetch all reviews for initial load
+     fetchAllReviews: async function(widgetId) {
+       const params = new URLSearchParams();
+       params.append('limit', '100'); // Fetch a large number to get all reviews
+       params.append('offset', '0');
+       params.append('layout', 'badge');
+       
+       const queryString = params.toString();
+       const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${widgetId}?${queryString}`;
+       
+       console.log(`[Badge Initial Load] Fetching all reviews: ${apiUrl}`);
+       const data = await this.fetchWithRetry(apiUrl);
+       console.log(`[Badge Initial Load] Received ${data.reviews?.length || 0} reviews, total: ${data.totalReviewCount || 0}`);
+       
+       return data;
+     },
+
+         filterReviews: function(reviews, widgetSettings) {
+       if (!reviews || reviews.length === 0) return reviews;
+       // Filter out reviews with empty content or text
+       return reviews.filter(review => ((review.content && review.content.trim()) || (review.text && review.text.trim())) && (function() {
+         const reviewSource = this.detectReviewSource(review, widgetSettings);
+         if (reviewSource === 'facebook') {
+           const reviewFilterDisplay = widgetSettings.reviewFilterDisplay;
+           if (reviewFilterDisplay) {
+             if (reviewFilterDisplay === 'recommended' && review.recommendationStatus !== 'recommended') {
+               return false;
+             }
+             if (reviewFilterDisplay === 'not_recommended' && review.recommendationStatus !== 'not_recommended') {
+               return false;
+             }
+           }
+         } else {
+           const minRating = widgetSettings.minRating;
+           if (minRating && typeof minRating === 'number') {
+             const reviewRating = parseFloat(review.rating) || 0;
+             if (reviewRating < minRating) {
+               return false;
+             }
+           }
+         }
+         return true;
+       }).call(this, review));
+     },
+
+     // Helper function to generate reviews HTML
+     generateReviewsHtml: function(reviews, widgetSettings) {
+       return reviews.map((review) => {
+         const formattedDate = this.formatDate(review.postedAt);
+         const initials = this.getInitials(review.author);
+         
+         // Detect individual review source
+         const reviewSource = this.detectReviewSource(review, widgetSettings);
+         const reviewPlatformLogo = this.getPlatformLogo(reviewSource);
+         const reviewPlatformName = reviewSource === 'facebook' ? 'Facebook' : 'Google';
+         
+         // Generate rating display based on platform
+         let reviewRatingDisplay = '';
+         if (reviewSource === 'facebook') {
+           reviewRatingDisplay = this.generateRecommendationStatus(review);
+         } else {
+           const reviewStars = this.generateStars(review.rating || 0);
+           reviewRatingDisplay = `<div class="reviewhub-badge-modal-review-rating">${reviewStars}</div>`;
+         }
+         
+         return `
+           <div class="reviewhub-badge-modal-review">
+             <div class="reviewhub-badge-modal-review-header">
+               ${review.profilePicture ? 
+                 `<img src="${review.profilePicture}" alt="${this.escapeHtml(review.author)}" class="reviewhub-badge-modal-review-avatar" />` :
+                 `<div class="reviewhub-badge-modal-review-avatar">${initials}</div>`
+               }
+               <div class="reviewhub-badge-modal-review-info">
+                 <div class="reviewhub-badge-modal-review-author">${this.escapeHtml(review.author)}</div>
+                 <div class="reviewhub-badge-modal-review-date-label">${widgetSettings.showDates}</div>
+                   ${widgetSettings.showDates !== false && formattedDate ? `
+                   <div class="reviewhub-badge-modal-review-date">
+                  ${formattedDate}
+                   </div>` : ''}
+               </div>
+             </div>
+             ${reviewRatingDisplay}
+             <div class="reviewhub-badge-modal-review-content">${this.escapeHtml(review.content)}</div>
+             <div class="reviewhub-badge-modal-review-source">
+               <img src="${reviewPlatformLogo}" alt="${reviewPlatformName}" class="reviewhub-badge-modal-review-source-logo" />
+               Posted on ${reviewPlatformName}
+             </div>
+           </div>
+         `;
+       }).join('');
+     },
 
     injectStyles: function() {
       if (document.getElementById('reviewhub-badge-widget-styles')) return;
@@ -801,6 +920,50 @@
           height: 14px;
         }
 
+        /* Load More Button Styles for Modal */
+        .reviewhub-badge-modal-load-more-container {
+          display: flex;
+          justify-content: center;
+          margin-top: 24px;
+          padding-top: 16px;
+          border-top: 1px solid #E5E7EB;
+        }
+
+        .reviewhub-badge-modal-load-more-btn {
+          background: var(--badge-theme-color, #3B82F6);
+          color: white;
+          border: none;
+          padding: 12px 24px;
+          border-radius: 8px;
+          font-size: 0.9rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .reviewhub-badge-modal-load-more-btn:hover {
+          background: var(--badge-theme-color-dark, #2563EB);
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+        }
+
+        .reviewhub-badge-modal-load-more-btn:disabled {
+          opacity: 0.7 !important;
+          cursor: not-allowed !important;
+          transform: none !important;
+          background: #9CA3AF !important;
+          color: #6B7280 !important;
+        }
+
+        .reviewhub-badge-modal-load-more-btn:disabled:hover {
+          background: #9CA3AF !important;
+          transform: none !important;
+          box-shadow: 0 2px 8px rgba(156, 163, 175, 0.15) !important;
+          color: #6B7280 !important;
+        }
+
         /* Mobile responsive */
         @media (max-width: 640px) {
           .reviewhub-badge-widget {
@@ -979,8 +1142,8 @@
 
     renderWidget: function(container, data, config) {
       const { widgetSettings, reviews, businessName, businessUrlLink, totalReviewCount } = data;
-      // Filter out reviews with empty content or text
-      const filteredReviews = reviews.filter(r => (r.content && r.content.trim()) || (r.text && r.text.trim()));
+      // Filter reviews based on widget settings
+      const filteredReviews = this.filterReviews(reviews, widgetSettings);
       // Detect platform from first review or widget settings
       const platformSource = filteredReviews.length > 0 ? this.detectReviewSource(filteredReviews[0], widgetSettings) : 'google';
       const platformLogo = this.getPlatformLogo(platformSource);
@@ -1072,25 +1235,40 @@
       const modalBtn = container.querySelector('.reviewhub-badge-modal-btn');
       if (!modalBtn) return;
 
-      const openModal = (e) => {
+      const openModal = async (e) => {
         e.preventDefault();
-        this.showReviewsModal(data, config);
+        await this.showReviewsModal(data, config);
       };
 
       modalBtn.addEventListener('click', openModal);
       
       // Add keyboard support for accessibility
-      modalBtn.addEventListener('keydown', (e) => {
+      modalBtn.addEventListener('keydown', async (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
-          openModal(e);
+          await openModal(e);
         }
       });
     },
 
-    showReviewsModal: function(data, config) {
+    showReviewsModal: async function(data, config) {
       const { widgetSettings, reviews, businessName, businessUrlLink, totalReviewCount } = data;
-      // Filter out reviews with empty content or text
-      const filteredReviews = reviews.filter(r => (r.content && r.content.trim()) || (r.text && r.text.trim()));
+      
+             // Initialize modal state for pagination
+       const modalId = `modal-${config.widgetId}`;
+       if (!this.modalStates.has(modalId)) {
+         this.modalStates.set(modalId, {
+           loadedReviews: reviews || [],
+           currentOffset: reviews ? reviews.length : 0,
+           totalReviews: totalReviewCount || (reviews ? reviews.length : 0), // Use actual total or loaded count
+           displayCount: Math.min(CONFIG.BADGE_SETTINGS.INITIAL_REVIEW_COUNT, (reviews ? reviews.length : 0)),
+           isFetching: false
+         });
+       }
+      
+      const modalState = this.modalStates.get(modalId);
+      
+      // Filter reviews based on widget settings
+      const filteredReviews = this.filterReviews(modalState.loadedReviews, widgetSettings);
       
       // Detect platform from first review or widget settings
       const platformSource = filteredReviews.length > 0 ? this.detectReviewSource(filteredReviews[0], widgetSettings) : 'google';
@@ -1099,7 +1277,7 @@
       
       // Calculate appropriate rating display for modal summary
       let avgRating, reviewCount, summaryRatingDisplay;
-      reviewCount = totalReviewCount || filteredReviews.length;
+      reviewCount = modalState.totalReviews || filteredReviews.length;
       
       if (platformSource === 'facebook') {
         // For Facebook, calculate percentage of recommended reviews
@@ -1130,48 +1308,23 @@
         reviewUrl = platformSource === 'facebook' ? 'https://www.facebook.com' : 'https://www.google.com/maps';
       }
 
-      const reviewsHtml = filteredReviews.map((review) => {
-        const formattedDate = this.formatDate(review.postedAt);
-        const initials = this.getInitials(review.author);
-        
-        // Detect individual review source
-        const reviewSource = this.detectReviewSource(review, widgetSettings);
-        const reviewPlatformLogo = this.getPlatformLogo(reviewSource);
-        const reviewPlatformName = reviewSource === 'facebook' ? 'Facebook' : 'Google';
-        
-        // Generate rating display based on platform
-        let reviewRatingDisplay = '';
-        if (reviewSource === 'facebook') {
-          reviewRatingDisplay = this.generateRecommendationStatus(review);
-        } else {
-          const reviewStars = this.generateStars(review.rating || 0);
-          reviewRatingDisplay = `<div class="reviewhub-badge-modal-review-rating">${reviewStars}</div>`;
-        }
-        
-        return `
-          <div class="reviewhub-badge-modal-review">
-            <div class="reviewhub-badge-modal-review-header">
-              ${review.profilePicture ? 
-                `<img src="${review.profilePicture}" alt="${this.escapeHtml(review.author)}" class="reviewhub-badge-modal-review-avatar" />` :
-                `<div class="reviewhub-badge-modal-review-avatar">${initials}</div>`
-              }
-              <div class="reviewhub-badge-modal-review-info">
-                <div class="reviewhub-badge-modal-review-author">${this.escapeHtml(review.author)}</div>
-                ${widgetSettings.showDates !== false && formattedDate ? `
-                  <div class="reviewhub-badge-modal-review-date">
-                 ${formattedDate}
-                  </div>` : ''}
-              </div>
-            </div>
-            ${reviewRatingDisplay}
-            <div class="reviewhub-badge-modal-review-content">${this.escapeHtml(review.content)}</div>
-            <div class="reviewhub-badge-modal-review-source">
-              <img src="${reviewPlatformLogo}" alt="${reviewPlatformName}" class="reviewhub-badge-modal-review-source-logo" />
-              Posted on ${reviewPlatformName}
-            </div>
-          </div>
-        `;
-      }).join('');
+             // Determine how many reviews to show
+      const currentDisplayCount = Math.min(modalState.displayCount, filteredReviews.length);
+      const reviewsToShow = filteredReviews.slice(0, currentDisplayCount);
+      
+      // Check if there are more reviews to display (since we loaded all reviews initially)
+      const hasMoreReviews = currentDisplayCount < filteredReviews.length;
+
+      const reviewsHtml = this.generateReviewsHtml(reviewsToShow, widgetSettings);
+
+             // Generate load more button - only show if there are more reviews to load
+      const loadMoreButton = hasMoreReviews ? 
+        `<div class="reviewhub-badge-modal-load-more-container">
+          <button class="reviewhub-badge-modal-load-more-btn" data-action="load-more">Load More Reviews</button>
+        </div>` : 
+        `<div class="reviewhub-badge-modal-load-more-container">
+          <button class="reviewhub-badge-modal-load-more-btn" data-action="load-more" disabled>No More Reviews</button>
+        </div>`;
 
       const modalHtml = `
         <div class="reviewhub-badge-modal-overlay">
@@ -1200,6 +1353,7 @@
             <div class="reviewhub-badge-modal-reviews">
               ${reviewsHtml}
             </div>
+            ${loadMoreButton}
           </div>
         </div>
       `;
@@ -1211,6 +1365,7 @@
 
       const overlay = modalElement.querySelector('.reviewhub-badge-modal-overlay');
       const closeBtn = modalElement.querySelector('.reviewhub-badge-modal-close');
+      const loadMoreBtn = modalElement.querySelector('.reviewhub-badge-modal-load-more-btn');
 
       // Show modal with animation
       setTimeout(() => overlay.classList.add('visible'), 10);
@@ -1220,8 +1375,56 @@
         setTimeout(() => {
           document.body.removeChild(modalElement);
           document.body.style.overflow = '';
+          // Clean up modal state when closing
+          this.modalStates.delete(modalId);
         }, 350);
       };
+
+             // Load more functionality
+       if (loadMoreBtn) {
+         loadMoreBtn.addEventListener('click', async (e) => {
+           e.preventDefault();
+           if (modalState.isFetching) return;
+
+           modalState.isFetching = true;
+           loadMoreBtn.textContent = 'Loading...';
+           loadMoreBtn.disabled = true;
+
+                        try {
+               // Since we loaded all reviews initially, just increase the display count
+               modalState.displayCount += CONFIG.BADGE_SETTINGS.LOAD_MORE_INCREMENT;
+
+               // Update the reviews section without recreating the modal
+               const reviewsContainer = modalElement.querySelector('.reviewhub-badge-modal-reviews');
+               const newReviewsHtml = this.generateReviewsHtml(
+                 modalState.loadedReviews.slice(0, modalState.displayCount),
+                 widgetSettings
+               );
+               reviewsContainer.innerHTML = newReviewsHtml;
+
+               // Update load more button visibility
+               const hasMoreReviews = modalState.displayCount < modalState.loadedReviews.length;
+               
+               if (!hasMoreReviews) {
+                 loadMoreBtn.textContent = 'No More Reviews';
+                 loadMoreBtn.disabled = true;
+                 loadMoreBtn.style.opacity = '0.7';
+                 loadMoreBtn.style.cursor = 'not-allowed';
+               } else {
+                 loadMoreBtn.textContent = 'Load More Reviews';
+                 loadMoreBtn.disabled = false;
+                 loadMoreBtn.style.opacity = '1';
+                 loadMoreBtn.style.cursor = 'pointer';
+               }
+           } catch (error) {
+             console.error('Error loading more reviews:', error);
+             loadMoreBtn.textContent = 'Load More Reviews';
+             loadMoreBtn.disabled = false;
+           } finally {
+             modalState.isFetching = false;
+           }
+         });
+       }
 
       closeBtn.addEventListener('click', closeModal);
       overlay.addEventListener('click', (e) => {
@@ -1291,17 +1494,29 @@
         this.initWidget(config); 
       };
 
-      try {
-        const data = await this.fetchWithRetry(apiUrl);
-        if (data && data.reviews) {
-          data.widgetSettings = data.widgetSettings || {}; 
-          this.renderWidget(container, data, config);
-        } else {
-          throw new Error('No reviews data received from API.');
-        }
-      } catch (error) {
-        this.showError(container, error, config, retryLoad);
-      }
+             try {
+         // For badge layout, fetch all reviews initially
+         let data;
+         if (config.layout === 'badge') {
+           try {
+             data = await this.fetchAllReviews(config.widgetId);
+           } catch (allReviewsError) {
+             console.warn('Fetch all reviews failed, falling back to regular fetch:', allReviewsError);
+             data = await this.fetchWithRetry(apiUrl);
+           }
+         } else {
+           data = await this.fetchWithRetry(apiUrl);
+         }
+         
+         if (data && data.reviews) {
+           data.widgetSettings = data.widgetSettings || {}; 
+           this.renderWidget(container, data, config);
+         } else {
+           throw new Error('No reviews data received from API.');
+         }
+       } catch (error) {
+         this.showError(container, error, config, retryLoad);
+       }
     },
 
     // Public init method

@@ -363,24 +363,27 @@ export const getReviewBatchForBusinessUrl = async (
   await ensureDbConnected();
   const ModelToUse = source === 'google' ? GoogleReviewBatchModel : FacebookReviewBatchModel;
   
+  console.log(`[Storage] 📊 Database Query: Fetching review batch for urlHash=${urlHash}, source=${source}`);
+  
   // First try to find by urlHash
   let reviewBatch = await ModelToUse.findOne({ urlHash }).lean().exec();
   
   // If not found by urlHash, try to find the business URL and then look up by businessUrlId
   if (!reviewBatch) {
-    console.log(`[getReviewBatchForBusinessUrl] No batch found by urlHash ${urlHash}, trying businessUrlId lookup`);
+    console.log(`[Storage] 📊 No batch found by urlHash ${urlHash}, trying businessUrlId lookup`);
     
     // Find the business URL by urlHash to get the businessUrlId
     const BusinessUrlModel = source === 'google' ? GoogleBusinessUrlModel : FacebookBusinessUrlModel;
     const businessUrl = await (BusinessUrlModel as any).findOne({ urlHash }).lean().exec();
     
     if (businessUrl) {
-      console.log(`[getReviewBatchForBusinessUrl] Found business URL with ID ${businessUrl._id}, looking for reviews`);
+      console.log(`[Storage] 📊 Found business URL with ID ${businessUrl._id}, looking for reviews`);
       reviewBatch = await ModelToUse.findOne({ businessUrlId: businessUrl._id }).lean().exec();
     }
   }
   
   if (!reviewBatch) {
+    console.log(`[Storage] 📊 No review batch found in database for urlHash=${urlHash}, source=${source}`);
     return null;
   }
   
@@ -389,6 +392,8 @@ export const getReviewBatchForBusinessUrl = async (
     ...review,
     source
   })) || [];
+  
+  console.log(`[Storage] 📊 Database Query Success: Found ${reviewsWithSource.length} reviews in database for urlHash=${urlHash}, source=${source}`);
   
   return { 
     ...reviewBatch, 
@@ -401,10 +406,18 @@ export const getFilteredReviewsFromBatch = (
   options: GetReviewsOptions = {}
 ): IReviewItem[] => {
   if (!reviewBatch || !reviewBatch.reviews || reviewBatch.reviews.length === 0) {
+    console.log(`[Storage] 📊 No reviews available in batch`);
     return [];
   }
+  
   let items = reviewBatch.reviews;
+  const initialCount = items.length;
+  
+  // Log initial state
+  console.log(`[Storage] 📊 Processing ${initialCount} reviews from database batch`);
+  
   if (options.minRating !== undefined) {
+    const beforeFilterCount = items.length;
     items = items.filter(review => {
       // Handle Facebook reviews that use recommendationStatus instead of numeric rating
       if (reviewBatch.source === 'facebook') {
@@ -420,13 +433,28 @@ export const getFilteredReviewsFromBatch = (
       // Handle Google reviews with numeric ratings
       return review.rating !== undefined && review.rating >= options.minRating!;
     });
+    
+    const afterFilterCount = items.length;
+    console.log(`[Storage] 📊 Rating filter applied: ${beforeFilterCount} → ${afterFilterCount} reviews (minRating: ${options.minRating})`);
   }
+  
   const offset = options.offset || 0;
-  if (options.limit !== undefined) {
-    items = items.slice(offset, offset + options.limit);
+  const limit = options.limit;
+  
+  // Log pagination details
+  if (limit !== undefined) {
+    const beforePaginationCount = items.length;
+    items = items.slice(offset, offset + limit);
+    const afterPaginationCount = items.length;
+    console.log(`[Storage] 📊 Pagination applied: offset=${offset}, limit=${limit}, ${beforePaginationCount} → ${afterPaginationCount} reviews`);
   } else if (offset > 0) {
+    const beforePaginationCount = items.length;
     items = items.slice(offset);
+    const afterPaginationCount = items.length;
+    console.log(`[Storage] 📊 Offset applied: offset=${offset}, ${beforePaginationCount} → ${afterPaginationCount} reviews`);
   }
+  
+  console.log(`[Storage] 📊 Final result: Returning ${items.length} reviews from database`);
   return items;
 };
 interface UpsertReviewsArgs {

@@ -34,7 +34,9 @@
         tablet: 768,
         desktop: 1024,
         wide: 1280
-      }
+      },
+      INITIAL_REVIEW_COUNT: 12, // Show first 12 reviews initially
+      LOAD_MORE_INCREMENT: 8    // Load 8 more reviews each time
     }
   };
 
@@ -42,6 +44,12 @@
     isInitialized: true,
     version: '1.0.0',
     buildId: Date.now(),
+    
+    // State tracking for each widget instance
+    widgetStates: new Map(),
+    
+    // Cache for fetched reviews to avoid re-fetching
+    reviewCache: new Map(),
 
     log: function(level, message, data) {
       // Console logging disabled for production
@@ -163,17 +171,45 @@
     },
 
     getPlatformThemeColor: function(source, userThemeColor) {
-      // If user provided a theme color, use it
-      if (userThemeColor && userThemeColor !== '#3B82F6') {
+      // Always use user-provided theme color if available
+      if (userThemeColor) {
         return userThemeColor;
       }
       
-      // Use platform-specific colors
+      // Use platform-specific colors only as fallback
       if (source === 'facebook') {
         return '#1877F2'; // Facebook blue
       } else {
         return '#4285F4'; // Google blue
       }
+    },
+
+    filterReviews: function(reviews, widgetSettings) {
+      if (!reviews || reviews.length === 0) return reviews;
+      // Filter out reviews with empty content or text
+      return reviews.filter(review => ((review.content && review.content.trim()) || (review.text && review.text.trim())) && (function() {
+        const reviewSource = this.detectReviewSource(review, widgetSettings);
+        if (reviewSource === 'facebook') {
+          const reviewFilterDisplay = widgetSettings.reviewFilterDisplay;
+          if (reviewFilterDisplay) {
+            if (reviewFilterDisplay === 'recommended' && review.recommendationStatus !== 'recommended') {
+              return false;
+            }
+            if (reviewFilterDisplay === 'not_recommended' && review.recommendationStatus !== 'not_recommended') {
+              return false;
+            }
+          }
+        } else {
+          const minRating = widgetSettings.minRating;
+          if (minRating && typeof minRating === 'number') {
+            const reviewRating = parseFloat(review.rating) || 0;
+            if (reviewRating < minRating) {
+              return false;
+            }
+          }
+        }
+        return true;
+      }).call(this, review));
     },
 
     injectStyles: function() {
@@ -236,17 +272,17 @@
           color: inherit !important;
         }
         
-        .reviewhub-masonry-widget-container button {
-          background: none !important;
-          border: none !important;
-          padding: 0 !important;
-          margin: 0 !important;
-          font-family: inherit !important;
-          font-size: inherit !important;
-          line-height: inherit !important;
-          color: inherit !important;
-          cursor: pointer !important;
-        }
+                 .reviewhub-masonry-widget-container button:not(.rh-masonry-load-more-btn) {
+           background: none !important;
+           border: none !important;
+           padding: 0 !important;
+           margin: 0 !important;
+           font-family: inherit !important;
+           font-size: inherit !important;
+           line-height: inherit !important;
+           color: inherit !important;
+           cursor: pointer !important;
+         }
         
         .reviewhub-masonry-widget-container a {
           color: inherit !important;
@@ -779,6 +815,59 @@
             font-size: 0.95rem;
           }
         }
+
+                 /* Load More Button Styles - Matching Badge Widget */
+         .rh-masonry-load-more-container {
+           display: flex;
+           justify-content: center;
+           margin-top: 24px;
+         }
+
+                   .reviewhub-masonry-widget-container .rh-masonry-load-more-btn {
+            background: var(--masonry-theme-color, #3B82F6) !important;
+            color: white !important;
+            border: none !important;
+            padding: 12px 24px !important;
+            border-radius: 8px !important;
+            font-size: 0.9rem !important;
+            font-weight: 600 !important;
+            cursor: pointer !important;
+            transition: all 0.3s ease !important;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15) !important;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+            margin: 0 !important;
+            line-height: normal !important;
+          }
+
+                 .reviewhub-masonry-widget-container .rh-masonry-load-more-btn:hover {
+           background: var(--masonry-theme-color-dark, #2563EB) !important;
+           transform: translateY(-1px) !important;
+           box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25) !important;
+         }
+
+         .reviewhub-masonry-widget-container .rh-masonry-load-more-btn:disabled {
+           opacity: 0.7 !important;
+           cursor: not-allowed !important;
+           transform: none !important;
+         }
+
+         .reviewhub-masonry-widget-container .rh-masonry-load-more-btn:disabled:hover {
+           background: var(--masonry-theme-color, #3B82F6) !important;
+           transform: none !important;
+           box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15) !important;
+         }
+
+                 @media (max-width: ${CONFIG.MASONRY_SETTINGS.BREAKPOINTS.mobile}px) {
+           .rh-masonry-load-more-container {
+             margin-top: 24px;
+           }
+           
+           .reviewhub-masonry-widget-container .rh-masonry-load-more-btn {
+             padding: 12px 24px !important;
+             font-size: 0.9rem !important;
+             min-width: 100px !important;
+           }
+         }
       `;
       document.head.appendChild(style);
     },
@@ -823,6 +912,21 @@
         }
       }
     },
+
+    // New function to fetch reviews with pagination
+    fetchReviewsWithPagination: async function(widgetId, offset = 0, limit = 12) {
+      const params = new URLSearchParams();
+      params.append('limit', limit.toString());
+      params.append('offset', offset.toString());
+      params.append('layout', 'masonry');
+      
+      const queryString = params.toString();
+      const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${widgetId}?${queryString}`;
+      
+      return await this.fetchWithRetry(apiUrl);
+    },
+
+
 
     showError: function(container, error, config, retryCallback) {
       const themeColor = config.themeColor || '#3B82F6';
@@ -894,13 +998,43 @@
         return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
     },
 
-    renderWidget: function(container, data, config) {
+    renderWidget: function(container, data, config, displayCount = null) {
       const { widgetSettings, reviews, businessName, businessUrlLink, totalReviewCount } = data;
-      // Filter out reviews with empty content or text
-      const filteredReviews = reviews.filter(r => (r.content && r.content.trim()) || (r.text && r.text.trim()));
+      
+      // Get or create widget state
+      const widgetId = config.widgetId;
+      if (!this.widgetStates.has(widgetId)) {
+        this.widgetStates.set(widgetId, {
+          displayCount: displayCount || CONFIG.MASONRY_SETTINGS.INITIAL_REVIEW_COUNT,
+          isExpanded: false,
+          loadedReviews: [], // Track all loaded reviews
+          currentOffset: 0   // Track current offset for pagination
+        });
+      }
+      
+      const widgetState = this.widgetStates.get(widgetId);
+      
+      // If this is the initial load, store the reviews
+      if (widgetState.loadedReviews.length === 0) {
+        widgetState.loadedReviews = reviews;
+        widgetState.currentOffset = reviews.length;
+      } else if (displayCount !== null) {
+        // This is a load more request, append new reviews
+        widgetState.loadedReviews = [...widgetState.loadedReviews, ...reviews];
+        widgetState.currentOffset += reviews.length;
+      }
+      
+      if (displayCount !== null) {
+        widgetState.displayCount = displayCount;
+      }
+      
+      // Filter reviews based on widget settings
+      const filteredReviews = this.filterReviews(widgetState.loadedReviews, widgetSettings);
       
       // Detect platform from first review or widget settings
       const platformSource = filteredReviews.length > 0 ? this.detectReviewSource(filteredReviews[0], widgetSettings) : 'google';
+      const platformLogo = this.getPlatformLogo(platformSource);
+      const platformName = platformSource === 'facebook' ? 'Facebook' : 'Google';
       
       // Get appropriate theme color
       const userThemeColor = config.themeColor || widgetSettings.themeColor;
@@ -915,7 +1049,22 @@
         return;
       }
       
-      const reviewCardsHtml = filteredReviews.map((review, index) => {
+      // Determine how many reviews to show
+      const totalReviews = totalReviewCount || filteredReviews.length;
+      const currentDisplayCount = Math.min(widgetState.displayCount, filteredReviews.length);
+      const reviewsToShow = filteredReviews.slice(0, currentDisplayCount);
+      const hasMoreReviews = totalReviews > widgetState.currentOffset;
+      
+      // Debug logging for button visibility
+      console.log(`[Masonry Widget] Button visibility check:`, {
+        totalReviews,
+        currentOffset: widgetState.currentOffset,
+        currentDisplayCount,
+        hasMoreReviews,
+        shouldShowButtons: hasMoreReviews
+      });
+      
+      const reviewCardsHtml = reviewsToShow.map((review, index) => {
         const author = this.escapeHtml(review.author || 'Anonymous');
         const initials = this.getInitials(review.author);
         const profilePicture = review.profilePicture;
@@ -925,7 +1074,7 @@
         const content = this.escapeHtml(review.content || review.text || '');
         const isVerified = true;
         const isLongText = content.length > 200;
-
+        
         // Detect individual review source
         const reviewSource = this.detectReviewSource(review, widgetSettings);
         const reviewPlatformLogo = this.getPlatformLogo(reviewSource);
@@ -974,16 +1123,28 @@
         `;
       }).join('');
 
+      // Generate load more button - only show if there are more reviews to load
+      let loadMoreButtonsHtml = '';
+      if (hasMoreReviews) {
+        loadMoreButtonsHtml = `
+          <div class="rh-masonry-load-more-container">
+            <button class="rh-masonry-load-more-btn" data-action="load-more">Load More Reviews</button>
+          </div>
+        `;
+      }
+
       const masonryHtml = `
         <div class="reviewhub-masonry-widget">
           <div class="reviewhub-masonry-container">
             ${reviewCardsHtml}
           </div>
+          ${loadMoreButtonsHtml}
         </div>
       `;
 
       container.innerHTML = masonryHtml;
       this.attachModalEventListeners(container, filteredReviews, data, config);
+      this.attachLoadMoreEventListeners(container, data, config);
     },
 
     attachModalEventListeners: function(container, reviews, allData, config) {
@@ -996,6 +1157,46 @@
                 }
             });
         });
+    },
+
+    attachLoadMoreEventListeners: function(container, data, config) {
+        const loadMoreBtn = container.querySelector('.rh-masonry-load-more-btn');
+        
+        if (loadMoreBtn) {
+            loadMoreBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const widgetState = this.widgetStates.get(config.widgetId);
+                
+                // Show loading state
+                loadMoreBtn.textContent = 'Loading...';
+                loadMoreBtn.disabled = true;
+                
+                try {
+                    // Fetch more reviews from the database
+                    const newData = await this.fetchReviewsWithPagination(
+                        config.widgetId, 
+                        widgetState.currentOffset, 
+                        CONFIG.MASONRY_SETTINGS.LOAD_MORE_INCREMENT
+                    );
+                    
+                    if (newData && newData.reviews && newData.reviews.length > 0) {
+                        // Update the widget with new data
+                        const newDisplayCount = widgetState.displayCount + CONFIG.MASONRY_SETTINGS.LOAD_MORE_INCREMENT;
+                        widgetState.isExpanded = true;
+                        this.renderWidget(container, newData, config, newDisplayCount);
+                    } else {
+                        // No more reviews to load
+                        loadMoreBtn.textContent = 'No More Reviews';
+                        loadMoreBtn.disabled = true;
+                    }
+                    
+                } catch (error) {
+                    console.error('Error loading more reviews:', error);
+                    loadMoreBtn.textContent = 'Load More Reviews';
+                    loadMoreBtn.disabled = false;
+                }
+            });
+        }
     },
 
     showReviewModal: function(review, allData, config) {
@@ -1134,19 +1335,39 @@
           return;
       }
 
-      const params = new URLSearchParams();
-      const queryString = params.toString();
-      const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${config.widgetId}${queryString ? '?' + queryString : ''}`;
-
       const retryLoad = () => {
         container.innerHTML = '';
         this.initWidget(config); 
       };
 
       try {
-        const data = await this.fetchWithRetry(apiUrl);
+        // For masonry layout, use pagination for initial load
+        let data;
+        if (config.layout === 'masonry') {
+          try {
+            data = await this.fetchReviewsWithPagination(config.widgetId, 0, CONFIG.MASONRY_SETTINGS.INITIAL_REVIEW_COUNT);
+          } catch (error) {
+            // Fallback to old method if pagination fails
+            const params = new URLSearchParams();
+            const queryString = params.toString();
+            const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${config.widgetId}${queryString ? '?' + queryString : ''}`;
+            data = await this.fetchWithRetry(apiUrl);
+          }
+        } else {
+          // For other layouts, use the old method
+          const params = new URLSearchParams();
+          const queryString = params.toString();
+          const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${config.widgetId}${queryString ? '?' + queryString : ''}`;
+          data = await this.fetchWithRetry(apiUrl);
+        }
+
         if (data && data.reviews) {
           data.widgetSettings = data.widgetSettings || {}; 
+          
+          // Log the number of reviews fetched from database
+          const reviewCount = data.reviews.length;
+          console.log(`📊 Reviews fetched from database: ${reviewCount} reviews for widget ${config.widgetId} (layout: ${config.layout})`);
+          
           this.renderWidget(container, data, config);
         } else {
           throw new Error('No reviews data received from API.');

@@ -1,10 +1,10 @@
-(function () {
+(function() {
   if (window.ReviewHubV2 && window.ReviewHubV2.isInitialized) {
     return;
   }
 
   const CONFIG = {
-    API_DOMAIN: (function () {
+    API_DOMAIN: (function() {
       const scripts = document.querySelectorAll('script[src*="widget-new.js"]');
       if (scripts.length > 0) {
         const scriptSrc = scripts[scripts.length - 1].src;
@@ -38,6 +38,10 @@
         tablet: 3,        // Tablet (1024px - 1365px)
         foldable: 2,      // Foldable devices (900px - 1023px)
         mobile: 1         // Mobile (< 900px)
+      },
+      PAGINATION: {
+        INITIAL_REVIEW_COUNT: 12,  // Show 12 reviews initially for carousel
+        LOAD_MORE_INCREMENT: 8     // Load 8 more reviews when needed
       }
     }
   };
@@ -47,18 +51,24 @@
     version: '2.0.0',
     buildId: Date.now(),
 
+    // State tracking for each widget instance
+    widgetStates: new Map(),
+    
+    // Cache for fetched reviews to avoid re-fetching
+    reviewCache: new Map(),
+
     log: function(level, message, data) {
       // Console logging disabled for production
     },
 
-    escapeHtml: function (text) {
+    escapeHtml: function(text) {
       if (typeof text !== 'string') return '';
       const div = document.createElement('div');
       div.textContent = text;
       return div.innerHTML;
     },
 
-    getInitials: function (name) {
+    getInitials: function(name) {
       if (!name) return '?';
       const words = name.trim().split(' ').filter(word => word.length > 0);
       if (words.length === 0) return '?';
@@ -66,7 +76,7 @@
       return (words[0].charAt(0) + words[words.length - 1].charAt(0)).toUpperCase();
     },
 
-    formatDate: function (dateString) {
+    formatDate: function(dateString) {
       try {
         if (typeof dateString === 'string' && dateString.includes('ago')) {
           return dateString;
@@ -98,42 +108,42 @@
         return dateString || 'Recently';
       }
     },
-
-    generateStars: function (rating) {
-      // Uses Font Awesome 5
-      // fas fa-star for full, fas fa-star-half-alt for half, far fa-star for empty
-      let starsHtml = '';
-      for (let i = 1; i <= 5; i++) {
-        if (rating >= i) {
-          starsHtml += '<i class="rh-fas rh-fa-star"></i>'; // Full star
-        } else if (rating >= i - 0.7 && rating < i - 0.2) { // Range for half star e.g. 4.3 to 4.7 for 4.5 stars
-          starsHtml += '<i class="rh-fas rh-fa-star-half-alt"></i>'; // Half star
-        } else if (rating >= i - 0.2) { // consider .8 .9 as full star for rounding
-          starsHtml += '<i class="rh-fas rh-fa-star"></i>';
-        }
-        else {
-          starsHtml += '<i class="rh-far rh-fa-star"></i>'; // Empty star
-        }
-      }
-      // Safety check if logic produced more than 5 stars due to rounding/half star complexities
-      const starElementsCount = (starsHtml.match(/<i/g) || []).length;
-      if (starElementsCount > 5) {
-        starsHtml = ''; // Reset
-        const roundedRating = Math.round(rating * 2) / 2; // Round to nearest 0.5
+    
+    generateStars: function(rating) {
+        // Uses Font Awesome 5
+        // fas fa-star for full, fas fa-star-half-alt for half, far fa-star for empty
+        let starsHtml = '';
         for (let i = 1; i <= 5; i++) {
-          if (roundedRating >= i) {
-            starsHtml += '<i class="rh-fas rh-fa-star"></i>';
-          } else if (roundedRating >= i - 0.5) {
-            starsHtml += '<i class="rh-fas rh-fa-star-half-alt"></i>';
-          } else {
-            starsHtml += '<i class="rh-far rh-fa-star"></i>';
-          }
+            if (rating >= i) {
+                starsHtml += '<i class="rh-fas rh-fa-star"></i>'; // Full star
+            } else if (rating >= i - 0.7 && rating < i - 0.2) { // Range for half star e.g. 4.3 to 4.7 for 4.5 stars
+                 starsHtml += '<i class="rh-fas rh-fa-star-half-alt"></i>'; // Half star
+            } else if (rating >= i - 0.2) { // consider .8 .9 as full star for rounding
+                 starsHtml += '<i class="rh-fas rh-fa-star"></i>';
+            }
+             else {
+                starsHtml += '<i class="rh-far rh-fa-star"></i>'; // Empty star
+            }
         }
-      }
-      return starsHtml;
+        // Safety check if logic produced more than 5 stars due to rounding/half star complexities
+        const starElementsCount = (starsHtml.match(/<i/g) || []).length;
+        if (starElementsCount > 5) {
+            starsHtml = ''; // Reset
+            const roundedRating = Math.round(rating * 2) / 2; // Round to nearest 0.5
+            for (let i = 1; i <= 5; i++) {
+                if (roundedRating >= i) {
+                    starsHtml += '<i class="rh-fas rh-fa-star"></i>';
+                } else if (roundedRating >= i - 0.5) {
+                    starsHtml += '<i class="rh-fas rh-fa-star-half-alt"></i>';
+                } else {
+                    starsHtml += '<i class="rh-far rh-fa-star"></i>';
+                }
+            }
+        }
+        return starsHtml;
     },
 
-    generateRecommendationStatus: function (review) {
+    generateRecommendationStatus: function(review) {
       // For Facebook reviews, show recommendation status instead of stars
       const recommendationStatus = review.recommendationStatus || '';
       if (recommendationStatus === 'recommended') {
@@ -144,7 +154,7 @@
       return '';
     },
 
-    detectReviewSource: function (review, widgetSettings) {
+    detectReviewSource: function(review, widgetSettings) {
       // Check review source or widget settings to determine platform
       if (review.source) {
         return review.source.toLowerCase();
@@ -159,7 +169,7 @@
       return 'google';
     },
 
-    getPlatformLogo: function (source) {
+    getPlatformLogo: function(source) {
       if (source === 'facebook') {
         return `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%231877F2' d='M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z'/%3E%3C/svg%3E`;
       } else {
@@ -168,12 +178,12 @@
       }
     },
 
-    getPlatformThemeColor: function (source, userThemeColor) {
+    getPlatformThemeColor: function(source, userThemeColor) {
       // If user provided a theme color, use it
       if (userThemeColor && userThemeColor !== '#007bff') {
         return userThemeColor;
       }
-
+      
       // Use platform-specific colors
       if (source === 'facebook') {
         return '#1877F2'; // Facebook blue
@@ -182,7 +192,7 @@
       }
     },
 
-    injectStyles: function () {
+    injectStyles: function() {
       if (document.getElementById('reviewhub-v2-widget-styles')) return;
 
       // Font Awesome for stars and icons
@@ -195,7 +205,7 @@
         fontAwesome.referrerPolicy = 'no-referrer';
         document.head.appendChild(fontAwesome);
       }
-
+      
       // Google Fonts (Inter for modern typography)
       if (!document.querySelector('link[href*="fonts.googleapis.com/css2?family=Inter"]')) {
         const preconnect1 = document.createElement('link');
@@ -383,9 +393,7 @@
           flex: 0 0 auto;
           padding: 0 10px;
           display: flex; 
-          align-items: stretch;
-          min-width: 40% !important;
-          
+          align-items: stretch; 
         }
 
         /* Review Card - Modern Design */
@@ -673,6 +681,8 @@
             box-shadow: 0 3px 10px rgba(59, 130, 246, 0.4);
         }
 
+
+
         /* Modal styles - Modern Design */
         .rh-modal-overlay {
           position: fixed;
@@ -878,13 +888,13 @@
       document.head.appendChild(style);
     },
 
-    fetchWithRetry: async function (url, options, retries = CONFIG.RETRY_ATTEMPTS) {
+    fetchWithRetry: async function(url, options, retries = CONFIG.RETRY_ATTEMPTS) {
       let attempt = 0;
       while (attempt <= retries) {
         try {
           const response = await new Promise((resolve, reject) => {
             const timeoutId = setTimeout(() => reject(new Error('Request timeout')), CONFIG.TIMEOUT);
-
+            
             fetch(url, {
               ...options,
               mode: 'cors',
@@ -895,18 +905,18 @@
                 ...options?.headers
               }
             })
-              .then(res => {
-                clearTimeout(timeoutId);
-                if (!res.ok) {
-                  throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-                }
-                return res.json();
-              })
-              .then(resolve)
-              .catch(err => {
+            .then(res => {
+              clearTimeout(timeoutId);
+              if (!res.ok) {
+                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+              }
+              return res.json();
+            })
+            .then(resolve)
+            .catch(err => {
                 clearTimeout(timeoutId);
                 reject(err);
-              });
+            });
           });
           return response;
         } catch (error) {
@@ -944,65 +954,305 @@
         }
       }
     },
+    
+    darkenColor: function(color, percent) {
+        let r, g, b, a;
+        if (color.startsWith('#')) {
+            const num = parseInt(color.slice(1), 16);
+            r = (num >> 16) & 0xFF;
+            g = (num >>  8) & 0xFF;
+            b =  num       & 0xFF;
+        } else if (color.startsWith('rgb')) { // rgb(r, g, b) or rgba(r, g, b, a)
+            const parts = color.match(/[\d.]+/g).map(Number);
+            [r, g, b, a] = parts;
+        } else { return color; } // Can't parse
 
-    darkenColor: function (color, percent) {
-      let r, g, b, a;
-      if (color.startsWith('#')) {
-        const num = parseInt(color.slice(1), 16);
-        r = (num >> 16) & 0xFF;
-        g = (num >> 8) & 0xFF;
-        b = num & 0xFF;
-      } else if (color.startsWith('rgb')) { // rgb(r, g, b) or rgba(r, g, b, a)
-        const parts = color.match(/[\d.]+/g).map(Number);
-        [r, g, b, a] = parts;
-      } else { return color; } // Can't parse
+        const factor = 1 - (percent / 100);
+        r = Math.max(0, Math.min(255, Math.round(r * factor)));
+        g = Math.max(0, Math.min(255, Math.round(g * factor)));
+        b = Math.max(0, Math.min(255, Math.round(b * factor)));
 
-      const factor = 1 - (percent / 100);
-      r = Math.max(0, Math.min(255, Math.round(r * factor)));
-      g = Math.max(0, Math.min(255, Math.round(g * factor)));
-      b = Math.max(0, Math.min(255, Math.round(b * factor)));
-
-      if (a !== undefined) {
-        return `rgba(${r}, ${g}, ${b}, ${a})`;
-      }
-      return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+        if (a !== undefined) {
+            return `rgba(${r}, ${g}, ${b}, ${a})`;
+        }
+        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
     },
 
-    lightenColor: function (color, percent) {
-      let r, g, b, a;
-      if (color.startsWith('#')) {
-        const num = parseInt(color.slice(1), 16);
-        r = (num >> 16) & 0xFF;
-        g = (num >> 8) & 0xFF;
-        b = num & 0xFF;
-      } else if (color.startsWith('rgb')) {
-        const parts = color.match(/[\d.]+/g).map(Number);
-        [r, g, b, a] = parts;
-      } else { return color; }
+    lightenColor: function(color, percent) {
+        let r, g, b, a;
+        if (color.startsWith('#')) {
+            const num = parseInt(color.slice(1), 16);
+            r = (num >> 16) & 0xFF;
+            g = (num >>  8) & 0xFF;
+            b =  num       & 0xFF;
+        } else if (color.startsWith('rgb')) {
+            const parts = color.match(/[\d.]+/g).map(Number);
+            [r, g, b, a] = parts;
+        } else { return color; }
 
-      const factor = percent / 100;
-      r = Math.max(0, Math.min(255, Math.round(r + (255 - r) * factor)));
-      g = Math.max(0, Math.min(255, Math.round(g + (255 - g) * factor)));
-      b = Math.max(0, Math.min(255, Math.round(b + (255 - b) * factor)));
+        const factor = percent / 100;
+        r = Math.max(0, Math.min(255, Math.round(r + (255 - r) * factor)));
+        g = Math.max(0, Math.min(255, Math.round(g + (255 - g) * factor)));
+        b = Math.max(0, Math.min(255, Math.round(b + (255 - b) * factor)));
+        
+        if (a !== undefined) {
+            return `rgba(${r}, ${g}, ${b}, ${a})`;
+        }
+        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+    },
 
-      if (a !== undefined) {
-        return `rgba(${r}, ${g}, ${b}, ${a})`;
+    // Pagination functions
+    fetchReviewsWithPagination: async function(config, offset, limit) {
+      const cacheKey = `${config.widgetId}-${offset}-${limit}`;
+      
+      // Check cache first
+      if (this.reviewCache.has(cacheKey)) {
+        console.log(`📊 Reviews fetched from cache: ${limit} reviews for widget ${config.widgetId} (offset: ${offset})`);
+        return this.reviewCache.get(cacheKey);
       }
-      return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+
+      const params = new URLSearchParams({
+        limit: limit.toString(),
+        offset: offset.toString(),
+        layout: 'carousel'
+      });
+      
+      const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${config.widgetId}?${params.toString()}`;
+      
+      console.log(`🌐 Making API request to: ${apiUrl}`);
+      
+      try {
+        const data = await this.fetchWithRetry(apiUrl);
+        console.log(`📡 API response:`, data);
+        
+        if (data && data.reviews) {
+          // Cache the result
+          this.reviewCache.set(cacheKey, data);
+          console.log(`📊 Reviews fetched from database: ${data.reviews.length} reviews for widget ${config.widgetId} (layout: carousel, offset: ${offset})`);
+          return data;
+        } else {
+          console.log(`❌ No reviews data in API response`);
+          throw new Error('No reviews data received from API.');
+        }
+      } catch (error) {
+        console.error(`Error fetching reviews with pagination:`, error);
+        throw error;
+      }
+    },
+
+    // New function to check if we need to fetch more reviews
+    shouldFetchMoreReviews: function(widgetState, currentIndex, visibleSlides, totalReviews) {
+      // Calculate how many slides are left before reaching the end of currently loaded reviews
+      const loadedReviewsCount = widgetState.loadedReviews.length;
+      const slidesLeft = loadedReviewsCount - (currentIndex + visibleSlides);
+      
+      // Fetch more reviews when we're 2 slides away from the end of loaded reviews
+      // AND there are more reviews available in the database
+      const hasMoreReviewsAvailable = loadedReviewsCount < totalReviews;
+      
+      console.log(`🔍 Auto-fetch check: currentIndex=${currentIndex}, visibleSlides=${visibleSlides}, loadedReviews=${loadedReviewsCount}, totalReviews=${totalReviews}, slidesLeft=${slidesLeft}, shouldFetch=${slidesLeft <= 2 && hasMoreReviewsAvailable}`);
+      
+      return slidesLeft <= 2 && hasMoreReviewsAvailable;
+    },
+
+    // New function to fetch and append more reviews
+    fetchAndAppendReviews: async function(container, config, widgetState, currentReviews) {
+      try {
+        console.log(`🔄 Starting auto-fetch: currentOffset=${widgetState.currentOffset}, currentReviews=${currentReviews.length}`);
+        
+        // Calculate how many more reviews to fetch
+        const fetchCount = CONFIG.CAROUSEL_SETTINGS.PAGINATION.LOAD_MORE_INCREMENT;
+        const newOffset = widgetState.currentOffset;
+        
+        console.log(`📡 Fetching ${fetchCount} reviews from offset ${newOffset}`);
+        
+        // Fetch new reviews
+        const newData = await this.fetchReviewsWithPagination(config, newOffset, fetchCount);
+        
+        console.log(`📦 Received data:`, newData);
+        
+        if (newData && newData.reviews && newData.reviews.length > 0) {
+          console.log(`✅ Got ${newData.reviews.length} new reviews`);
+          
+          // Update widget state
+          widgetState.currentOffset = newOffset + newData.reviews.length;
+          widgetState.loadedReviews = [...currentReviews, ...newData.reviews];
+          
+          console.log(`📝 Updated widget state: newOffset=${widgetState.currentOffset}, totalLoaded=${widgetState.loadedReviews.length}`);
+          
+          // Update the carousel with new reviews
+          this.updateCarouselWithNewReviews(container, config, widgetState, newData.reviews);
+          
+          console.log(`📊 Auto-fetched ${newData.reviews.length} more reviews for widget ${config.widgetId}`);
+          return true;
+        } else {
+          console.log(`❌ No new reviews received or empty response`);
+          return false;
+        }
+      } catch (error) {
+        console.error('Error auto-fetching more reviews:', error);
+        return false;
+      }
+    },
+
+    // New function to update carousel with new reviews
+    updateCarouselWithNewReviews: function(container, config, widgetState, newReviews) {
+      const carouselWrapper = container.querySelector('.rh-carousel-wrapper');
+      if (!carouselWrapper) return;
+      
+      const track = carouselWrapper.querySelector('.rh-carousel-track');
+      if (!track) return;
+      
+      // Filter new reviews
+      const filteredNewReviews = this.filterReviews(newReviews, widgetState.widgetSettings);
+      
+      // Create new slide elements for the new reviews
+      const newSlides = filteredNewReviews.map((review, index) => {
+        const slideIndex = widgetState.loadedReviews.length - newReviews.length + index;
+        return this.createReviewSlide(review, slideIndex, widgetState.widgetSettings);
+      });
+      
+      // Append new slides to the track
+      newSlides.forEach(slide => {
+        track.appendChild(slide);
+      });
+      
+      // Update the carousel logic to handle new slides
+      this.updateCarouselAfterNewReviews(carouselWrapper, newSlides.length);
+    },
+
+    // New function to create a review slide element
+    createReviewSlide: function(review, index, widgetSettings) {
+      const author = this.escapeHtml(review.author || 'Anonymous');
+      const initials = this.getInitials(review.author);
+      const profilePicture = review.profilePicture;
+      const date = this.formatDate(review.postedAt);
+      const rating = parseFloat(review.rating) || 0;
+      const stars = this.generateStars(rating);
+      const content = this.escapeHtml(review.content || review.text || '');
+      const isVerified = true;
+
+      // Detect individual review source
+      const reviewSource = this.detectReviewSource(review, widgetSettings);
+      const reviewPlatformLogo = this.getPlatformLogo(reviewSource);
+      const reviewPlatformName = reviewSource === 'facebook' ? 'Facebook' : 'Google';
+
+      // Generate rating display based on platform
+      let ratingDisplay = '';
+      if (widgetSettings.showRatings) {
+        if (reviewSource === 'facebook') {
+          ratingDisplay = this.generateRecommendationStatus(review);
+        } else if (rating > 0) {
+          ratingDisplay = `<div class="rh-card-rating">${stars}</div>`;
+        }
+      }
+
+      const slideElement = document.createElement('div');
+      slideElement.className = 'rh-carousel-slide';
+      slideElement.setAttribute('data-index', index);
+      slideElement.innerHTML = `
+        <div class="rh-review-card">
+          <img src="${reviewPlatformLogo}" alt="${reviewPlatformName}" class="rh-google-logo-corner">
+          <div class="rh-card-header">
+            <div class="rh-card-avatar">
+              ${profilePicture && widgetSettings.showProfilePictures ? `<img src="${this.escapeHtml(profilePicture)}" alt="${author}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><span style="display:none;">${initials}</span>` : `<span>${initials}</span>`}
+            </div>
+            <div class="rh-card-author-details">
+              <div class="rh-card-author-line">
+                <h4 class="rh-card-author-name">${author}</h4>
+                ${isVerified ? '<span class="rh-verified-badge"><i class="rh-fas rh-fa-check-circle"></i></span>' : ''}
+              </div>
+              ${widgetSettings.showDates && date ? `
+                <div class="rh-card-review-meta">
+                  ${date}
+                </div>` : ''}
+            </div>
+          </div>
+          ${ratingDisplay}
+          <div class="rh-card-content-wrapper">
+              <p class="rh-card-content">${content}</p>
+              ${content.length > 120 ? `<button class="rh-read-more" data-review-index="${index}">Read More</button>` : ''} 
+          </div>
+        </div>
+      `;
+      
+      return slideElement;
+    },
+
+    // New function to update carousel after adding new reviews
+    updateCarouselAfterNewReviews: function(carouselWrapper, newSlidesCount) {
+      // Re-initialize carousel logic with updated slides
+      const track = carouselWrapper.querySelector('.rh-carousel-track');
+      const slides = Array.from(track.querySelectorAll('.rh-carousel-slide'));
+      
+      // Update slide dimensions for new slides
+      const trackContainer = carouselWrapper.querySelector('.rh-carousel-track-container');
+      const slideWidth = trackContainer.clientWidth / this.calculateVisibleSlides(trackContainer.clientWidth);
+      
+      // Set width for new slides
+      for (let i = slides.length - newSlidesCount; i < slides.length; i++) {
+        slides[i].style.width = `${slideWidth}px`;
+      }
+      
+      // Re-attach event listeners for new slides (only for the new slides)
+      const newSlides = slides.slice(-newSlidesCount);
+      newSlides.forEach(slide => {
+        const readMoreBtn = slide.querySelector('.rh-read-more');
+        if (readMoreBtn) {
+          const reviewIndex = parseInt(readMoreBtn.getAttribute('data-review-index'));
+          readMoreBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            // Get the review data from the widget state
+            const widgetId = carouselWrapper.getAttribute('data-widget-id');
+            const widgetState = this.widgetStates.get(widgetId);
+            if (widgetState && widgetState.loadedReviews[reviewIndex]) {
+              this.showReviewModal(widgetState.loadedReviews[reviewIndex], { widgetSettings: widgetState.widgetSettings }, { widgetId });
+            }
+          });
+        }
+      });
+    },
+
+    // Helper function to calculate visible slides
+    calculateVisibleSlides: function(containerWidth) {
+      const screenWidth = containerWidth;
+      let num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.mobile;
+      
+      if (screenWidth >= CONFIG.CAROUSEL_SETTINGS.WIDE_SCREEN_BREAKPOINT) {
+        num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.wideScreen;
+      } else if (screenWidth >= CONFIG.CAROUSEL_SETTINGS.DESKTOP_BREAKPOINT) {
+        num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.desktop;
+      } else if (screenWidth >= CONFIG.CAROUSEL_SETTINGS.LAPTOP_BREAKPOINT) {
+        num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.laptop;
+      } else if (screenWidth >= CONFIG.CAROUSEL_SETTINGS.TABLET_BREAKPOINT) {
+        num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.tablet;
+      } else if (screenWidth >= CONFIG.CAROUSEL_SETTINGS.FOLDABLE_BREAKPOINT) {
+        num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.foldable;
+      } else {
+        num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.mobile;
+      }
+      
+      return Math.max(1, num);
+    },
+
+    filterReviews: function(reviews, widgetSettings) {
+      // Filter out reviews with empty content or text
+      return reviews.filter(r => (r.content && r.content.trim()) || (r.text && r.text.trim()));
     },
 
     renderWidget: function(container, data, config) {
       const { widgetSettings, reviews, businessName, businessUrlLink, totalReviewCount } = data;
-      // Filter out reviews with empty content or text
-      const filteredReviews = reviews.filter(r => (r.content && r.content.trim()) || (r.text && r.text.trim()));
-
+      
+      // Filter reviews based on widget settings
+      const filteredReviews = this.filterReviews(reviews, widgetSettings);
+      
       // Detect platform from first review or widget settings
       const platformSource = filteredReviews.length > 0 ? this.detectReviewSource(filteredReviews[0], widgetSettings) : 'google';
-
+      
       // Get appropriate theme color
       const userThemeColor = config.themeColor || widgetSettings.themeColor;
       const themeColor = this.getPlatformThemeColor(platformSource, userThemeColor);
-
+      
       // Set default values for autoplay and loop if not provided
       const defaultWidgetSettings = {
         autoplay: true,
@@ -1013,7 +1263,7 @@
         showDates: true,
         ...widgetSettings // Override with actual settings if provided
       };
-
+      
       container.style.setProperty('--rh-theme-color', themeColor);
       container.style.setProperty('--rh-theme-color-dark', this.darkenColor(themeColor, 15));
       container.style.setProperty('--rh-theme-color-light', this.lightenColor(themeColor, 90)); // For very light backgrounds or accents
@@ -1035,17 +1285,41 @@
       }
     },
 
-    renderCarouselWidget: function (container, data, config) {
-      const { reviews, widgetSettings, businessName } = data;
+    renderCarouselWidget: function(container, data, config) {
+      const { reviews, widgetSettings, businessName, totalReviewCount } = data;
       // Filter out reviews with empty content or text
-      const filteredReviews = reviews.filter(r => (r.content && r.content.trim()) || (r.text && r.text.trim()));
+      const filteredReviews = this.filterReviews(reviews, widgetSettings);
       const carouselId = `rh-carousel-${config.widgetId}-${Date.now()}`;
+
+      // Get or create widget state for pagination
+      const widgetId = config.widgetId;
+      if (!this.widgetStates.has(widgetId)) {
+        console.log(`🆕 Creating new widget state for ${widgetId}`);
+        this.widgetStates.set(widgetId, {
+          loadedReviews: filteredReviews,
+          currentOffset: filteredReviews.length,
+          totalReviews: totalReviewCount || filteredReviews.length,
+          widgetSettings: widgetSettings,
+          isFetching: false
+        });
+      }
+      
+      const widgetState = this.widgetStates.get(widgetId);
+      // Update widget state with latest data
+      widgetState.loadedReviews = filteredReviews;
+      widgetState.totalReviews = totalReviewCount || filteredReviews.length;
+      widgetState.widgetSettings = widgetSettings;
+      
+      console.log(`📊 Widget state initialized: loadedReviews=${widgetState.loadedReviews.length}, totalReviews=${widgetState.totalReviews}, currentOffset=${widgetState.currentOffset}`);
+      
+      const reviewsToShow = widgetState.loadedReviews;
+      const totalReviews = widgetState.totalReviews;
 
       // Detect platform from first review or widget settings
       const platformSource = filteredReviews.length > 0 ? this.detectReviewSource(filteredReviews[0], widgetSettings) : 'google';
       const platformName = platformSource === 'facebook' ? 'Facebook' : 'Google';
 
-      let reviewItemsHtml = filteredReviews.map((review, index) => {
+      let reviewItemsHtml = reviewsToShow.map((review, index) => {
         const author = this.escapeHtml(review.author || 'Anonymous');
         const initials = this.getInitials(review.author);
         const profilePicture = review.profilePicture;
@@ -1100,7 +1374,7 @@
       }).join('');
 
       const carouselHtml = `
-        <div class="rh-carousel-wrapper" id="${carouselId}-wrapper">
+        <div class="rh-carousel-wrapper" id="${carouselId}-wrapper" data-widget-id="${config.widgetId}">
           <div class="rh-carousel-track-container">
             <div class="rh-carousel-track">
               ${reviewItemsHtml}
@@ -1111,554 +1385,590 @@
           <ul class="rh-carousel-dots" id="${carouselId}-dots"></ul>
         </div>
       `;
-
+      
       container.innerHTML = carouselHtml;
-      this.initCarouselLogic(carouselId, container, filteredReviews, config, widgetSettings);
-      this.attachModalEventListeners(container, filteredReviews, data, config);
+      this.initCarouselLogic(carouselId, container, reviewsToShow, config, widgetSettings, widgetState);
+      this.attachModalEventListeners(container, reviewsToShow, data, config);
     },
 
-    initCarouselLogic: function (carouselId, containerElem, reviews, globalConfig, widgetSettings) {
-      const wrapper = containerElem.querySelector(`#${carouselId}-wrapper`);
-      const trackContainer = wrapper.querySelector('.rh-carousel-track-container');
-      const track = wrapper.querySelector('.rh-carousel-track');
-      const slides = Array.from(track.querySelectorAll('.rh-carousel-slide'));
-      const prevBtn = wrapper.querySelector('.rh-carousel-arrow.rh-prev');
-      const nextBtn = wrapper.querySelector('.rh-carousel-arrow.rh-next');
-      const dotsContainer = wrapper.querySelector(`#${carouselId}-dots`);
+    initCarouselLogic: function(carouselId, containerElem, reviews, globalConfig, widgetSettings, widgetState) {
+        const wrapper = containerElem.querySelector(`#${carouselId}-wrapper`);
+        const trackContainer = wrapper.querySelector('.rh-carousel-track-container');
+        const track = wrapper.querySelector('.rh-carousel-track');
+        const slides = Array.from(track.querySelectorAll('.rh-carousel-slide'));
+        const prevBtn = wrapper.querySelector('.rh-carousel-arrow.rh-prev');
+        const nextBtn = wrapper.querySelector('.rh-carousel-arrow.rh-next');
+        const dotsContainer = wrapper.querySelector(`#${carouselId}-dots`);
 
-      if (!slides.length) return;
+        if (!slides.length) return;
 
-      let currentIndex = 0;
-      let visibleSlides = 1; // Default to 1, will be calculated
-      let slideWidth = 0;
-      let isDragging = false,
-        isPointerDown = false,
-        startPos = 0,
-        currentTranslate = 0,
-        prevTranslate = 0,
-        animationID;
-      let totalDots = 0;
-      let dragThreshold = 50; // Minimum pixels to drag to change slide
-      let dragStartThreshold = 10; // Minimum pixels to move before considering it a drag
+        let currentIndex = 0;
+        let visibleSlides = 1; // Default to 1, will be calculated
+        let slideWidth = 0;
+        let isDragging = false,
+            isPointerDown = false,
+            startPos = 0,
+            currentTranslate = 0,
+            prevTranslate = 0,
+            animationID;
+        let totalDots = 0;
+        let dragThreshold = 50; // Minimum pixels to drag to change slide
+        let dragStartThreshold = 10; // Minimum pixels to move before considering it a drag
 
-      const calculateVisibleSlides = (containerWidth) => {
-        const screenWidth = containerWidth;
-        let num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.mobile; // Default fallback
-
-        // Determine breakpoint and corresponding visible cards
-        if (screenWidth >= CONFIG.CAROUSEL_SETTINGS.WIDE_SCREEN_BREAKPOINT) {
-          num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.wideScreen;
-        } else if (screenWidth >= CONFIG.CAROUSEL_SETTINGS.DESKTOP_BREAKPOINT) {
-          num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.desktop;
-        } else if (screenWidth >= CONFIG.CAROUSEL_SETTINGS.LAPTOP_BREAKPOINT) {
-          num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.laptop;
-        } else if (screenWidth >= CONFIG.CAROUSEL_SETTINGS.TABLET_BREAKPOINT) {
-          num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.tablet;
-        } else if (screenWidth >= CONFIG.CAROUSEL_SETTINGS.FOLDABLE_BREAKPOINT) {
-          num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.foldable;
-        } else {
-          num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.mobile;
-        }
-
-        // Allow override from widget settings based on current breakpoint
-        if (screenWidth >= CONFIG.CAROUSEL_SETTINGS.DESKTOP_BREAKPOINT && widgetSettings.cardsToShowDesktop) {
-          num = widgetSettings.cardsToShowDesktop;
-        } else if (screenWidth >= CONFIG.CAROUSEL_SETTINGS.TABLET_BREAKPOINT && screenWidth < CONFIG.CAROUSEL_SETTINGS.LAPTOP_BREAKPOINT && widgetSettings.cardsToShowTablet) {
-          num = widgetSettings.cardsToShowTablet;
-        } else if (screenWidth >= CONFIG.CAROUSEL_SETTINGS.FOLDABLE_BREAKPOINT && screenWidth < CONFIG.CAROUSEL_SETTINGS.TABLET_BREAKPOINT && widgetSettings.cardsToShowFoldable) {
-          num = widgetSettings.cardsToShowFoldable;
-        } else if (screenWidth < CONFIG.CAROUSEL_SETTINGS.FOLDABLE_BREAKPOINT && widgetSettings.cardsToShowMobile) {
-          num = widgetSettings.cardsToShowMobile;
-        }
-
-        // Ensure we don't show more cards than available reviews
-        const maxPossible = Math.min(parseInt(num, 10), slides.length);
-        return Math.max(1, maxPossible);
-      };
-
-      const setSlideDimensions = () => {
-        const trackContainerClientWidth = trackContainer.clientWidth;
-        visibleSlides = calculateVisibleSlides(trackContainerClientWidth);
-
-        // For single slide movement, each slide takes the full container width divided by visible slides
-        slideWidth = trackContainerClientWidth / visibleSlides;
-
-        slides.forEach(slide => {
-          slide.style.width = `${slideWidth}px`;
-        });
-
-        adjustCardHeights();
-        updateCarouselPosition(false); // No animation on resize/init
-        setupDots();
-        updateArrowStates(); // Update arrows after dimensions are set
-      };
-
-      const adjustCardHeights = () => {
-        if (!slides.length || !visibleSlides) return;
-        let relevantSlides = [];
-        // Get the slides that are currently visible
-        for (let i = 0; i < visibleSlides; i++) {
-          const slideIndex = currentIndex + i;
-          if (slideIndex < slides.length && slideIndex >= 0) {
-            relevantSlides.push(slides[slideIndex]);
-          }
-        }
-
-        if (!relevantSlides.length) return;
-
-        // Reset heights for relevant slides only before recalculating
-        relevantSlides.forEach(slide => {
-          const card = slide.querySelector('.rh-review-card');
-          if (card) card.style.minHeight = 'auto';
-        });
-
-        let maxHeight = 0;
-        relevantSlides.forEach(slide => {
-          const card = slide.querySelector('.rh-review-card');
-          if (card) maxHeight = Math.max(maxHeight, card.offsetHeight);
-        });
-
-        if (maxHeight > 0) {
-          relevantSlides.forEach(slide => {
-            const card = slide.querySelector('.rh-review-card');
-            if (card) card.style.minHeight = `${maxHeight}px`;
-          });
-        }
-      };
-
-      const setupDots = () => {
-        if (!dotsContainer) return;
-
-        // Always show exactly 3 dots for navigation
-        const totalReviews = slides.length;
-        dotsContainer.innerHTML = '';
-
-        if (totalReviews <= 1) {
-          dotsContainer.style.display = 'none';
-          return;
-        }
-        dotsContainer.style.display = 'flex';
-
-        // Create exactly 3 dots: previous, current, next
-        for (let i = 0; i < 3; i++) {
-          const li = document.createElement('li');
-          const button = document.createElement('button');
-          let label = '';
-          if (i === 0) label = 'Previous review';
-          else if (i === 1) label = 'Current review';
-          else label = 'Next review';
-
-          button.setAttribute('aria-label', label);
-          button.setAttribute('data-dot-position', i); // 0=left, 1=center, 2=right
-          button.addEventListener('click', handleDotClick);
-          li.appendChild(button);
-          dotsContainer.appendChild(li);
-        }
-        updateDots();
-      };
-
-      const handleDotClick = (event) => {
-        const clickedPosition = parseInt(event.target.getAttribute('data-dot-position'));
-
-        if (clickedPosition === 0) {
-          // Clicked left dot - move to previous review
-          changeSlide(-1);
-        } else if (clickedPosition === 2) {
-          // Clicked right dot - move to next review  
-          changeSlide(1);
-        }
-        // Center dot (position 1) does nothing as it's already active
-
-        stopAutoPlay();
-        setTimeout(startAutoPlay, (widgetSettings.autoplayDelay || 5000) * 1.5);
-      };
-
-      const updateDots = () => {
-        if (!dotsContainer) return;
-
-        const dots = Array.from(dotsContainer.children);
-        const totalReviews = slides.length;
-
-        if (dots.length !== 3) return;
-
-        dots.forEach((li, position) => {
-          const button = li.querySelector('button');
-          button.classList.remove('rh-active', 'rh-near-active', 'rh-far');
-
-          if (position === 1) {
-            // Center dot is always active
-            button.classList.add('rh-active');
-          } else {
-            // Left and right dots are clickable
-            button.classList.add('rh-near-active');
-          }
-
-          // With infinite loop, all dots are always enabled
-          li.style.opacity = (position === 1) ? '1' : '0.7';
-          li.style.pointerEvents = 'auto';
-        });
-      };
-
-      const updateCarouselPosition = (animate = true) => {
-        track.style.transition = animate ? `transform 0.45s cubic-bezier(0.65, 0, 0.35, 1)` : 'none';
-
-        // Ensure currentIndex is within valid bounds, especially for non-looping
-        if (!widgetSettings.loop) {
-          currentIndex = Math.max(0, Math.min(currentIndex, slides.length - visibleSlides));
-        }
-        // For looping, currentIndex can exceed bounds temporarily before snapping back.
-
-        const newTranslate = -currentIndex * slideWidth;
-        track.style.transform = `translateX(${newTranslate}px)`;
-        currentTranslate = newTranslate;
-
-        updateArrowStates();
-        updateDots();
-
-        // Adjust heights after transition for accuracy, or before if no animation.
-        // Need to make sure adjustCardHeights refers to the correct set of slides after potential index change.
-        const callAdjustHeights = () => {
-          // We need to calculate heights based on the slides that WILL be visible at the new currentIndex
-          let relevantSlidesForHeight = [];
-          for (let i = 0; i < visibleSlides; i++) {
-            let slideIndexForHeightCalc = (currentIndex + i) % slides.length; // Basic loop for indices
-            if (!widgetSettings.loop) {
-              slideIndexForHeightCalc = Math.min(slides.length - 1, currentIndex + i);
+        const calculateVisibleSlides = (containerWidth) => {
+            const screenWidth = containerWidth;
+            let num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.mobile; // Default fallback
+            
+            // Determine breakpoint and corresponding visible cards
+            if (screenWidth >= CONFIG.CAROUSEL_SETTINGS.WIDE_SCREEN_BREAKPOINT) {
+                num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.wideScreen;
+            } else if (screenWidth >= CONFIG.CAROUSEL_SETTINGS.DESKTOP_BREAKPOINT) {
+                num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.desktop;
+            } else if (screenWidth >= CONFIG.CAROUSEL_SETTINGS.LAPTOP_BREAKPOINT) {
+                num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.laptop;
+            } else if (screenWidth >= CONFIG.CAROUSEL_SETTINGS.TABLET_BREAKPOINT) {
+                num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.tablet;
+            } else if (screenWidth >= CONFIG.CAROUSEL_SETTINGS.FOLDABLE_BREAKPOINT) {
+                num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.foldable;
+            } else {
+                num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.mobile;
             }
-            if (slides[slideIndexForHeightCalc]) {
-              relevantSlidesForHeight.push(slides[slideIndexForHeightCalc]);
+            
+            // Allow override from widget settings based on current breakpoint
+            if (screenWidth >= CONFIG.CAROUSEL_SETTINGS.DESKTOP_BREAKPOINT && widgetSettings.cardsToShowDesktop) {
+                num = widgetSettings.cardsToShowDesktop;
+            } else if (screenWidth >= CONFIG.CAROUSEL_SETTINGS.TABLET_BREAKPOINT && screenWidth < CONFIG.CAROUSEL_SETTINGS.LAPTOP_BREAKPOINT && widgetSettings.cardsToShowTablet) {
+                num = widgetSettings.cardsToShowTablet;
+            } else if (screenWidth >= CONFIG.CAROUSEL_SETTINGS.FOLDABLE_BREAKPOINT && screenWidth < CONFIG.CAROUSEL_SETTINGS.TABLET_BREAKPOINT && widgetSettings.cardsToShowFoldable) {
+                num = widgetSettings.cardsToShowFoldable;
+            } else if (screenWidth < CONFIG.CAROUSEL_SETTINGS.FOLDABLE_BREAKPOINT && widgetSettings.cardsToShowMobile) {
+                num = widgetSettings.cardsToShowMobile;
             }
-          }
+            
+            // Ensure we don't show more cards than available reviews
+            const maxPossible = Math.min(parseInt(num, 10), slides.length);
+            return Math.max(1, maxPossible);
+        };
+        
+        const setSlideDimensions = () => {
+            const trackContainerClientWidth = trackContainer.clientWidth;
+            visibleSlides = calculateVisibleSlides(trackContainerClientWidth);
+            
+            // For single slide movement, each slide takes the full container width divided by visible slides
+            slideWidth = trackContainerClientWidth / visibleSlides;
 
-          // Reset first
-          slides.forEach(s => { const c = s.querySelector('.rh-review-card'); if (c) c.style.minHeight = 'auto'; });
-
-          let maxHeight = 0;
-          relevantSlidesForHeight.forEach(s => {
-            const card = s.querySelector('.rh-review-card');
-            if (card) maxHeight = Math.max(maxHeight, card.offsetHeight);
-          });
-          if (maxHeight > 0) {
-            relevantSlidesForHeight.forEach(s => {
-              const card = s.querySelector('.rh-review-card');
-              if (card) card.style.minHeight = `${maxHeight}px`;
+            slides.forEach(slide => {
+                slide.style.width = `${slideWidth}px`;
             });
-          }
+            
+            adjustCardHeights(); 
+            updateCarouselPosition(false); // No animation on resize/init
+            setupDots();
+            updateArrowStates(); // Update arrows after dimensions are set
         };
 
-        if (animate) {
-          setTimeout(callAdjustHeights, 450); // Match transition
-        } else {
-          callAdjustHeights();
-        }
-      };
-
-      const updateArrowStates = () => {
-        if (!prevBtn || !nextBtn) return;
-        const totalReviews = reviews.length;
-
-        // Arrows are hidden if there are not enough reviews to scroll
-        if (totalReviews <= visibleSlides) {
-          prevBtn.style.display = 'none';
-          nextBtn.style.display = 'none';
-          return;
-        } else {
-          prevBtn.style.display = 'flex';
-          nextBtn.style.display = 'flex';
-        }
-
-        // Update arrow states based on current position
-        prevBtn.classList.remove('rh-disabled');
-        nextBtn.classList.remove('rh-disabled');
-
-        // Disable prev button when on first slide
-        if (currentIndex <= 0) {
-          prevBtn.classList.add('rh-disabled');
-        }
-
-        // Next button is never disabled since we allow wrap from last to first
-      };
-
-      const changeSlide = (direction) => {
-        // Handle wrapping logic
-        let newIndex = currentIndex + direction;
-        let shouldSnapInstantly = false;
-
-        // Handle bounds and wrapping
-        if (direction > 0) {
-          // Moving right/forward
-          if (newIndex > slides.length - visibleSlides) {
-            newIndex = 0; // Wrap to beginning when going right from last
-            shouldSnapInstantly = false;
-          }
-        } else {
-          // Moving left/backward  
-          if (newIndex < 0) {
-            // Don't wrap when going left from first slide - just stay at 0
-            newIndex = 0;
-            return; // Exit early, don't animate
-          }
-        }
-
-        currentIndex = newIndex;
-
-        // Use instant transition for wrapping, smooth transition for normal movement
-        if (shouldSnapInstantly) {
-          track.style.transition = 'none';
-          track.style.transform = `translateX(${-currentIndex * slideWidth}px)`;
-
-          // Force reflow to ensure the instant transition is applied
-          track.offsetHeight;
-
-          // Re-enable transitions for future movements
-          setTimeout(() => {
-            track.style.transition = 'transform 0.45s cubic-bezier(0.65, 0, 0.35, 1)';
-          }, 10);
-        } else {
-          // Normal smooth transition
-          track.style.transition = 'transform 0.45s cubic-bezier(0.65, 0, 0.35, 1)';
-          track.style.transform = `translateX(${-currentIndex * slideWidth}px)`;
-        }
-
-        updateDots();
-        updateArrowStates();
-
-        // Adjust heights after slide change
-        setTimeout(adjustCardHeights, shouldSnapInstantly ? 50 : 450);
-      };
-
-      prevBtn.addEventListener('click', () => {
-        changeSlide(-1);
-        stopAutoPlay();
-        setTimeout(startAutoPlay, (widgetSettings.autoplayDelay || 5000) * 1.5);
-      });
-      nextBtn.addEventListener('click', () => {
-        changeSlide(1);
-        stopAutoPlay();
-        setTimeout(startAutoPlay, (widgetSettings.autoplayDelay || 5000) * 1.5);
-      });
-
-      // Touch/Drag functionality with improved click detection
-      const getPositionX = (event) => event.type.includes('mouse') ? event.pageX : event.touches[0].clientX;
-
-      const touchStart = (event) => {
-        isPointerDown = true;
-        isDragging = false; // Don't set dragging immediately
-        startPos = getPositionX(event);
-        prevTranslate = -currentIndex * slideWidth;
-        track.style.transition = 'none';
-        stopAutoPlay();
-      };
-
-      const touchMove = (event) => {
-        if (!isPointerDown) return;
-
-        const currentPosition = getPositionX(event);
-        const deltaX = currentPosition - startPos;
-
-        // Only start dragging if we've moved beyond the threshold
-        if (!isDragging && Math.abs(deltaX) > dragStartThreshold) {
-          isDragging = true;
-          track.classList.add('rh-dragging');
-          animationID = requestAnimationFrame(dragAnimation);
-
-          // Prevent default behavior only when we're actually dragging
-          if (event.cancelable) {
-            event.preventDefault();
-          }
-        }
-
-        if (isDragging) {
-          let newTranslate = prevTranslate + deltaX;
-
-          // Apply boundary constraints with elastic resistance
-          const minTranslate = -(slides.length - visibleSlides) * slideWidth;
-          const maxTranslate = 0;
-
-          // Add resistance when dragging beyond boundaries
-          if (newTranslate > maxTranslate) {
-            // Dragging right from first slide - add resistance
-            const excess = newTranslate - maxTranslate;
-            newTranslate = maxTranslate + (excess * 0.3); // 30% resistance
-          } else if (newTranslate < minTranslate) {
-            // Dragging left from last slide - add resistance  
-            const excess = minTranslate - newTranslate;
-            newTranslate = minTranslate - (excess * 0.3); // 30% resistance
-          }
-
-          currentTranslate = newTranslate;
-        }
-      };
-
-      function dragAnimation() {
-        if (isDragging) {
-          track.style.transform = `translateX(${currentTranslate}px)`;
-          requestAnimationFrame(dragAnimation);
-        }
-      }
-
-      const touchEnd = (event) => {
-        if (!isPointerDown) return;
-
-        isPointerDown = false;
-
-        if (isDragging) {
-          isDragging = false;
-          track.classList.remove('rh-dragging');
-          cancelAnimationFrame(animationID);
-
-          const movedBy = currentTranslate - prevTranslate;
-          const minTranslate = -(slides.length - visibleSlides) * slideWidth;
-          const maxTranslate = 0;
-
-          // Check if we're outside boundaries and need to snap back
-          if (currentTranslate > maxTranslate) {
-            // Beyond right boundary (first slide) - snap back to first slide
-            currentIndex = 0;
-            updateCarouselPosition(true);
-          } else if (currentTranslate < minTranslate) {
-            // Beyond left boundary (last slide) - snap back to last possible position  
-            currentIndex = slides.length - visibleSlides;
-            updateCarouselPosition(true);
-          } else {
-            // Within boundaries - check if movement threshold was met for slide change
-            let direction = 0;
-            if (movedBy < -dragThreshold) direction = 1; // Swiped left
-            if (movedBy > dragThreshold) direction = -1; // Swiped right
-
-            if (direction !== 0) {
-              changeSlide(direction);
-            } else {
-              // Not moved enough - snap back to current slide
-              updateCarouselPosition(true);
+        const adjustCardHeights = () => {
+            if (!slides.length || !visibleSlides) return;
+            let relevantSlides = [];
+            // Get the slides that are currently visible
+            for (let i = 0; i < visibleSlides; i++) {
+                const slideIndex = currentIndex + i;
+                if (slideIndex < slides.length && slideIndex >= 0) {
+                    relevantSlides.push(slides[slideIndex]);
+                }
             }
-          }
 
-          // Prevent click events from firing after drag
-          track.style.pointerEvents = 'none';
-          setTimeout(() => {
-            track.style.pointerEvents = 'auto';
-          }, 100);
-        } else {
-          // If we didn't drag, restore transition for smooth snapping
-          track.style.transition = 'transform 0.45s cubic-bezier(0.65, 0, 0.35, 1)';
-        }
+            if (!relevantSlides.length) return;
 
-        setTimeout(startAutoPlay, (widgetSettings.autoplayDelay || 5000) * 1.5);
-      };
+            // Reset heights for relevant slides only before recalculating
+            relevantSlides.forEach(slide => {
+                const card = slide.querySelector('.rh-review-card');
+                if (card) card.style.minHeight = 'auto';
+            });
 
-      track.addEventListener('mousedown', touchStart);
-      track.addEventListener('touchstart', touchStart, { passive: true });
+            let maxHeight = 0;
+            relevantSlides.forEach(slide => {
+                const card = slide.querySelector('.rh-review-card');
+                if (card) maxHeight = Math.max(maxHeight, card.offsetHeight);
+            });
+            
+            if (maxHeight > 0) {
+                relevantSlides.forEach(slide => {
+                    const card = slide.querySelector('.rh-review-card');
+                    if (card) card.style.minHeight = `${maxHeight}px`;
+                });
+            }
+        };
+        
+        const setupDots = () => {
+            if (!dotsContainer) return;
+            
+            // Always show exactly 3 dots for navigation
+            const totalReviews = slides.length;
+            dotsContainer.innerHTML = ''; 
 
-      document.addEventListener('mousemove', touchMove); // Listen on document for wider drag area
-      document.addEventListener('touchmove', touchMove, { passive: false }); // Need to be able to preventDefault
+            if (totalReviews <= 1) { 
+                dotsContainer.style.display = 'none';
+                return;
+            }
+            dotsContainer.style.display = 'flex';
 
-      document.addEventListener('mouseup', touchEnd);
-      document.addEventListener('touchend', touchEnd);
-      document.addEventListener('mouseleave', (e) => {
-        // Only end drag if mouse leaves the document entirely
-        if (e.target === document.documentElement) {
-          touchEnd(e);
-        }
-      });
+            // Create exactly 3 dots: previous, current, next
+            for (let i = 0; i < 3; i++) {
+                const li = document.createElement('li');
+                const button = document.createElement('button');
+                let label = '';
+                if (i === 0) label = 'Previous review';
+                else if (i === 1) label = 'Current review';
+                else label = 'Next review';
+                
+                button.setAttribute('aria-label', label);
+                button.setAttribute('data-dot-position', i); // 0=left, 1=center, 2=right
+                button.addEventListener('click', handleDotClick);
+                li.appendChild(button);
+                dotsContainer.appendChild(li);
+            }
+            updateDots();
+        };
 
-      // Prevent context menu on long press for mobile
-      track.addEventListener('contextmenu', (e) => {
-        if (isDragging) {
-          e.preventDefault();
-        }
-      });
+        const handleDotClick = (event) => {
+            const clickedPosition = parseInt(event.target.getAttribute('data-dot-position'));
+            
+            if (clickedPosition === 0) {
+                // Clicked left dot - move to previous review
+                changeSlide(-1);
+            } else if (clickedPosition === 2) {
+                // Clicked right dot - move to next review  
+                changeSlide(1);
+            }
+            // Center dot (position 1) does nothing as it's already active
+            
+            stopAutoPlay();
+            setTimeout(startAutoPlay, (widgetSettings.autoplayDelay || 5000) * 1.5);
+        };
 
-      // Prevent text selection during drag
-      track.addEventListener('selectstart', (e) => {
-        if (isDragging) {
-          e.preventDefault();
-        }
-      });
+        const updateDots = () => {
+            if (!dotsContainer) return;
+            
+            const dots = Array.from(dotsContainer.children);
+            const totalReviews = slides.length;
+            
+            if (dots.length !== 3) return;
+            
+            dots.forEach((li, position) => {
+                const button = li.querySelector('button');
+                button.classList.remove('rh-active', 'rh-near-active', 'rh-far');
+                
+                if (position === 1) {
+                    // Center dot is always active
+                    button.classList.add('rh-active');
+                } else {
+                    // Left and right dots are clickable
+                    button.classList.add('rh-near-active');
+                }
+                
+                // With infinite loop, all dots are always enabled
+                li.style.opacity = (position === 1) ? '1' : '0.7';
+                li.style.pointerEvents = 'auto';
+            });
+        };
 
-      let autoPlayInterval;
-      const startAutoPlay = () => {
-        // Check if autoplay is enabled
-        if (!(widgetSettings.autoplay === true || String(widgetSettings.autoplay) === 'true')) {
-          return;
-        }
-        // Don't autoplay if there's only one review
-        if (reviews.length <= 1) {
-          return;
-        }
+        const updateCarouselPosition = (animate = true) => {
+            track.style.transition = animate ? `transform 0.45s cubic-bezier(0.65, 0, 0.35, 1)` : 'none';
+            
+            // Ensure currentIndex is within valid bounds, especially for non-looping
+            if (!widgetSettings.loop) {
+                currentIndex = Math.max(0, Math.min(currentIndex, slides.length - visibleSlides));
+            }
+            // For looping, currentIndex can exceed bounds temporarily before snapping back.
 
-        const delay = parseInt(widgetSettings.autoplayDelay, 10) || 5000;
-        clearInterval(autoPlayInterval);
-        autoPlayInterval = setInterval(() => {
-          changeSlide(1); // Always move to next with infinite loop
-        }, delay);
-      };
+            const newTranslate = -currentIndex * slideWidth;
+            track.style.transform = `translateX(${newTranslate}px)`;
+            currentTranslate = newTranslate;
+            
+            updateArrowStates();
+            updateDots();
+            
+            // Adjust heights after transition for accuracy, or before if no animation.
+            // Need to make sure adjustCardHeights refers to the correct set of slides after potential index change.
+            const callAdjustHeights = () => {
+                // We need to calculate heights based on the slides that WILL be visible at the new currentIndex
+                let relevantSlidesForHeight = [];
+                for (let i = 0; i < visibleSlides; i++) {
+                    let slideIndexForHeightCalc = (currentIndex + i) % slides.length; // Basic loop for indices
+                    if (!widgetSettings.loop) {
+                        slideIndexForHeightCalc = Math.min(slides.length -1, currentIndex +i);
+                    }
+                    if (slides[slideIndexForHeightCalc]) {
+                         relevantSlidesForHeight.push(slides[slideIndexForHeightCalc]);
+                    }
+                }
 
-      const stopAutoPlay = () => clearInterval(autoPlayInterval);
+                // Reset first
+                slides.forEach(s => {const c = s.querySelector('.rh-review-card'); if(c) c.style.minHeight='auto';});
 
-      wrapper.addEventListener('mouseenter', stopAutoPlay);
-      wrapper.addEventListener('mouseleave', startAutoPlay);
+                let maxHeight = 0;
+                relevantSlidesForHeight.forEach(s => {
+                    const card = s.querySelector('.rh-review-card');
+                    if (card) maxHeight = Math.max(maxHeight, card.offsetHeight);
+                });
+                if (maxHeight > 0) {
+                    relevantSlidesForHeight.forEach(s => {
+                        const card = s.querySelector('.rh-review-card');
+                        if (card) card.style.minHeight = `${maxHeight}px`;
+                    });
+                }
+            };
 
-      window.addEventListener('resize', () => {
-        stopAutoPlay();
-        setSlideDimensions();
-        // updateCarouselPosition(false) is called within setSlideDimensions
-        startAutoPlay();
-      });
+            if (animate) {
+                setTimeout(callAdjustHeights, 450); // Match transition
+            } else {
+                callAdjustHeights();
+            }
+        };
 
-      // Initial setup call
-      setSlideDimensions();
-      startAutoPlay();
-    },
+        const updateArrowStates = () => {
+            if (!prevBtn || !nextBtn) return;
+            const totalReviews = reviews.length;
 
-    attachModalEventListeners: function (container, reviews, allData, config) {
-      container.querySelectorAll('.rh-read-more').forEach(button => {
-        button.addEventListener('click', (e) => {
-          e.preventDefault();
-          const reviewIndex = parseInt(button.getAttribute('data-review-index'));
-          if (!isNaN(reviewIndex) && reviews[reviewIndex]) {
-            this.showReviewModal(reviews[reviewIndex], allData, config);
-          }
+            // Arrows are hidden if there are not enough reviews to scroll
+            if (totalReviews <= visibleSlides) {
+                prevBtn.style.display = 'none';
+                nextBtn.style.display = 'none';
+                return;
+            } else {
+                prevBtn.style.display = 'flex';
+                nextBtn.style.display = 'flex';
+            }
+
+            // Update arrow states based on current position
+            prevBtn.classList.remove('rh-disabled');
+            nextBtn.classList.remove('rh-disabled');
+            
+            // Disable prev button when on first slide
+            if (currentIndex <= 0) {
+                prevBtn.classList.add('rh-disabled');
+            }
+            
+            // Next button is never disabled since we allow wrap from last to first
+        };
+        
+        const changeSlide = async (direction) => {
+            // Handle wrapping logic
+            let newIndex = currentIndex + direction;
+            let shouldSnapInstantly = false;
+            
+            // Handle bounds and wrapping
+            if (direction > 0) {
+                // Moving right/forward
+                if (newIndex > slides.length - visibleSlides) {
+                    newIndex = 0; // Wrap to beginning when going right from last
+                    shouldSnapInstantly = false;
+                }
+            } else {
+                // Moving left/backward  
+                if (newIndex < 0) {
+                    // Don't wrap when going left from first slide - just stay at 0
+                    newIndex = 0;
+                    return; // Exit early, don't animate
+                }
+            }
+            
+            currentIndex = newIndex;
+            
+            // Use instant transition for wrapping, smooth transition for normal movement
+            if (shouldSnapInstantly) {
+                track.style.transition = 'none';
+                track.style.transform = `translateX(${-currentIndex * slideWidth}px)`;
+                
+                // Force reflow to ensure the instant transition is applied
+                track.offsetHeight;
+                
+                // Re-enable transitions for future movements
+                setTimeout(() => {
+                    track.style.transition = 'transform 0.45s cubic-bezier(0.65, 0, 0.35, 1)';
+                }, 10);
+            } else {
+                // Normal smooth transition
+                track.style.transition = 'transform 0.45s cubic-bezier(0.65, 0, 0.35, 1)';
+                track.style.transform = `translateX(${-currentIndex * slideWidth}px)`;
+            }
+            
+            updateDots();
+            updateArrowStates();
+            
+            // Adjust heights after slide change
+            setTimeout(adjustCardHeights, shouldSnapInstantly ? 50 : 450);
+            
+            // Check if we need to fetch more reviews
+            if (widgetState && !widgetState.isFetching) {
+                console.log(`🎯 Checking auto-fetch: currentIndex=${currentIndex}, visibleSlides=${visibleSlides}, loadedReviews=${widgetState.loadedReviews.length}, totalReviews=${widgetState.totalReviews}`);
+                
+                const shouldFetch = window.ReviewHubV2.shouldFetchMoreReviews(
+                    widgetState, 
+                    currentIndex, 
+                    visibleSlides, 
+                    widgetState.totalReviews
+                );
+                
+                if (shouldFetch) {
+                    console.log(`🚀 Auto-fetch triggered! Fetching more reviews...`);
+                    widgetState.isFetching = true;
+                    const success = await window.ReviewHubV2.fetchAndAppendReviews(
+                        containerElem, 
+                        globalConfig, 
+                        widgetState, 
+                        widgetState.loadedReviews
+                    );
+                    widgetState.isFetching = false;
+                    
+                    if (success) {
+                        console.log(`✅ Auto-fetch successful! Updated slides array`);
+                        // Update slides array after new reviews are added
+                        const updatedSlides = Array.from(track.querySelectorAll('.rh-carousel-slide'));
+                        slides.length = 0;
+                        slides.push(...updatedSlides);
+                    } else {
+                        console.log(`❌ Auto-fetch failed`);
+                    }
+                }
+            }
+        };
+
+        prevBtn.addEventListener('click', () => {
+            changeSlide(-1);
+            stopAutoPlay();
+            setTimeout(startAutoPlay, (widgetSettings.autoplayDelay || 5000) * 1.5);
         });
-      });
+        nextBtn.addEventListener('click', () => {
+            changeSlide(1);
+            stopAutoPlay();
+            setTimeout(startAutoPlay, (widgetSettings.autoplayDelay || 5000) * 1.5);
+        });
+
+        // Touch/Drag functionality with improved click detection
+        const getPositionX = (event) => event.type.includes('mouse') ? event.pageX : event.touches[0].clientX;
+
+        const touchStart = (event) => {
+            isPointerDown = true;
+            isDragging = false; // Don't set dragging immediately
+            startPos = getPositionX(event);
+            prevTranslate = -currentIndex * slideWidth;
+            track.style.transition = 'none';
+            stopAutoPlay();
+        };
+
+        const touchMove = (event) => {
+            if (!isPointerDown) return;
+            
+            const currentPosition = getPositionX(event);
+            const deltaX = currentPosition - startPos;
+            
+            // Only start dragging if we've moved beyond the threshold
+            if (!isDragging && Math.abs(deltaX) > dragStartThreshold) {
+                isDragging = true;
+                track.classList.add('rh-dragging');
+                animationID = requestAnimationFrame(dragAnimation);
+                
+                // Prevent default behavior only when we're actually dragging
+                if (event.cancelable) {
+                    event.preventDefault();
+                }
+            }
+            
+            if (isDragging) {
+                let newTranslate = prevTranslate + deltaX;
+                
+                // Apply boundary constraints with elastic resistance
+                const minTranslate = -(slides.length - visibleSlides) * slideWidth;
+                const maxTranslate = 0;
+                
+                // Add resistance when dragging beyond boundaries
+                if (newTranslate > maxTranslate) {
+                    // Dragging right from first slide - add resistance
+                    const excess = newTranslate - maxTranslate;
+                    newTranslate = maxTranslate + (excess * 0.3); // 30% resistance
+                } else if (newTranslate < minTranslate) {
+                    // Dragging left from last slide - add resistance  
+                    const excess = minTranslate - newTranslate;
+                    newTranslate = minTranslate - (excess * 0.3); // 30% resistance
+                }
+                
+                currentTranslate = newTranslate;
+            }
+        };
+
+        function dragAnimation() {
+            if (isDragging) {
+                track.style.transform = `translateX(${currentTranslate}px)`;
+                requestAnimationFrame(dragAnimation);
+            }
+        }
+        
+        const touchEnd = (event) => {
+            if (!isPointerDown) return;
+            
+            isPointerDown = false;
+            
+            if (isDragging) {
+                isDragging = false;
+                track.classList.remove('rh-dragging');
+                cancelAnimationFrame(animationID);
+
+                const movedBy = currentTranslate - prevTranslate;
+                const minTranslate = -(slides.length - visibleSlides) * slideWidth;
+                const maxTranslate = 0;
+                
+                // Check if we're outside boundaries and need to snap back
+                if (currentTranslate > maxTranslate) {
+                    // Beyond right boundary (first slide) - snap back to first slide
+                    currentIndex = 0;
+                    updateCarouselPosition(true);
+                } else if (currentTranslate < minTranslate) {
+                    // Beyond left boundary (last slide) - snap back to last possible position  
+                    currentIndex = slides.length - visibleSlides;
+                    updateCarouselPosition(true);
+                } else {
+                    // Within boundaries - check if movement threshold was met for slide change
+                    let direction = 0;
+                    if (movedBy < -dragThreshold) direction = 1; // Swiped left
+                    if (movedBy > dragThreshold) direction = -1; // Swiped right
+
+                    if (direction !== 0) {
+                        changeSlide(direction);
+                    } else {
+                        // Not moved enough - snap back to current slide
+                        updateCarouselPosition(true); 
+                    }
+                }
+                
+                // Prevent click events from firing after drag
+                track.style.pointerEvents = 'none';
+                setTimeout(() => {
+                    track.style.pointerEvents = 'auto';
+                }, 100);
+            } else {
+                // If we didn't drag, restore transition for smooth snapping
+                track.style.transition = 'transform 0.45s cubic-bezier(0.65, 0, 0.35, 1)';
+            }
+            
+            setTimeout(startAutoPlay, (widgetSettings.autoplayDelay || 5000) * 1.5);
+        };
+        
+        track.addEventListener('mousedown', touchStart);
+        track.addEventListener('touchstart', touchStart, { passive: true });
+
+        document.addEventListener('mousemove', touchMove); // Listen on document for wider drag area
+        document.addEventListener('touchmove', touchMove, { passive: false }); // Need to be able to preventDefault
+
+        document.addEventListener('mouseup', touchEnd);
+        document.addEventListener('touchend', touchEnd);
+        document.addEventListener('mouseleave', (e) => {
+            // Only end drag if mouse leaves the document entirely
+            if (e.target === document.documentElement) {
+                touchEnd(e);
+            }
+        });
+
+        // Prevent context menu on long press for mobile
+        track.addEventListener('contextmenu', (e) => {
+            if (isDragging) {
+                e.preventDefault();
+            }
+        });
+        
+        // Prevent text selection during drag
+        track.addEventListener('selectstart', (e) => {
+            if (isDragging) {
+                e.preventDefault();
+            }
+        });
+
+        let autoPlayInterval;
+        const startAutoPlay = () => {
+            // Check if autoplay is enabled
+            if (!(widgetSettings.autoplay === true || String(widgetSettings.autoplay) === 'true')) {
+                return;
+            }
+            // Don't autoplay if there's only one review
+            if (reviews.length <= 1) {
+                return;
+            }
+            
+            const delay = parseInt(widgetSettings.autoplayDelay, 10) || 5000;
+            clearInterval(autoPlayInterval);
+            autoPlayInterval = setInterval(() => {
+                changeSlide(1); // Always move to next with infinite loop
+            }, delay);
+        };
+        
+        const stopAutoPlay = () => clearInterval(autoPlayInterval);
+
+        wrapper.addEventListener('mouseenter', stopAutoPlay);
+        wrapper.addEventListener('mouseleave', startAutoPlay);
+
+        window.addEventListener('resize', () => {
+            stopAutoPlay();
+            setSlideDimensions(); 
+            // updateCarouselPosition(false) is called within setSlideDimensions
+            startAutoPlay();
+        });
+
+        // Initial setup call
+        setSlideDimensions(); 
+        startAutoPlay();
     },
 
-    showReviewModal: function (review, allData, config) {
-      if (document.querySelector('.rh-modal-overlay')) return;
+    attachModalEventListeners: function(container, reviews, allData, config) {
+        container.querySelectorAll('.rh-read-more').forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                const reviewIndex = parseInt(button.getAttribute('data-review-index'));
+                if (!isNaN(reviewIndex) && reviews[reviewIndex]) {
+                    this.showReviewModal(reviews[reviewIndex], allData, config);
+                }
+            });
+        });
+    },
 
-      const { widgetSettings } = allData;
-      const globalConfig = config;
 
-      const author = this.escapeHtml(review.author || 'Anonymous');
-      const initials = this.getInitials(review.author);
-      const profilePicture = review.profilePicture;
-      const date = this.formatDate(review.postedAt);
-      const rating = parseFloat(review.rating) || 0;
-      const stars = this.generateStars(rating);
-      const content = this.escapeHtml(review.content || review.text || '');
-      const displayContent = content.replace(/\n/g, '<br>');
-      const source = this.detectReviewSource(review, widgetSettings);
-      const platformName = source === 'facebook' ? 'Facebook' : 'Google';
-      const isVerified = true;
 
-      const modalOverlay = document.createElement('div');
-      modalOverlay.className = 'rh-modal-overlay';
+    showReviewModal: function(review, allData, config) {
+        if (document.querySelector('.rh-modal-overlay')) return; 
 
-      const showAvatarsSetting = widgetSettings.showProfilePictures !== undefined ? widgetSettings.showProfilePictures : globalConfig.showProfilePictures;
-      const showDatesSetting = widgetSettings.showDates !== undefined ? widgetSettings.showDates : globalConfig.showDates;
-      const showRatingsSetting = widgetSettings.showRatings !== undefined ? widgetSettings.showRatings : globalConfig.showRatings;
+        const { widgetSettings } = allData; 
+        const globalConfig = config; 
 
-      // Generate rating display for modal based on platform
-      let modalRatingDisplay = '';
-      if (showRatingsSetting) {
-        if (source === 'facebook') {
-          modalRatingDisplay = this.generateRecommendationStatus(review);
-        } else if (rating > 0) {
-          modalRatingDisplay = `<div class="rh-modal-rating">${stars}</div>`;
+        const author = this.escapeHtml(review.author || 'Anonymous');
+        const initials = this.getInitials(review.author);
+        const profilePicture = review.profilePicture;
+        const date = this.formatDate(review.postedAt);
+        const rating = parseFloat(review.rating) || 0;
+        const stars = this.generateStars(rating);
+        const content = this.escapeHtml(review.content || review.text || '');
+        const displayContent = content.replace(/\n/g, '<br>');
+        const source = this.detectReviewSource(review, widgetSettings);
+        const platformName = source === 'facebook' ? 'Facebook' : 'Google';
+        const isVerified = true;
+
+        const modalOverlay = document.createElement('div');
+        modalOverlay.className = 'rh-modal-overlay';
+        
+        const showAvatarsSetting = widgetSettings.showProfilePictures !== undefined ? widgetSettings.showProfilePictures : globalConfig.showProfilePictures;
+        const showDatesSetting = widgetSettings.showDates !== undefined ? widgetSettings.showDates : globalConfig.showDates;
+        const showRatingsSetting = widgetSettings.showRatings !== undefined ? widgetSettings.showRatings : globalConfig.showRatings;
+
+        // Generate rating display for modal based on platform
+        let modalRatingDisplay = '';
+        if (showRatingsSetting) {
+          if (source === 'facebook') {
+            modalRatingDisplay = this.generateRecommendationStatus(review);
+          } else if (rating > 0) {
+            modalRatingDisplay = `<div class="rh-modal-rating">${stars}</div>`;
+          }
         }
-      }
 
-      const modalHTML = `
+        const modalHTML = `
             <div class="rh-modal">
                 <button class="rh-modal-close" aria-label="Close modal">&times;</button>
                 <div class="rh-modal-header">
@@ -1682,58 +1992,58 @@
                 </div>
             </div>
         `;
-      modalOverlay.innerHTML = modalHTML;
-      document.body.appendChild(modalOverlay);
-      document.body.style.overflow = 'hidden'; // Prevent background scroll
+        modalOverlay.innerHTML = modalHTML;
+        document.body.appendChild(modalOverlay);
+        document.body.style.overflow = 'hidden'; // Prevent background scroll
 
-      // Trigger transition
-      setTimeout(() => modalOverlay.classList.add('rh-visible'), 10);
+        // Trigger transition
+        setTimeout(() => modalOverlay.classList.add('rh-visible'), 10);
 
-      const closeModal = () => {
-        modalOverlay.classList.remove('rh-visible');
-        setTimeout(() => {
-          document.body.removeChild(modalOverlay);
-          document.body.style.overflow = '';
-        }, 300); // Match transition duration
-        document.removeEventListener('keydown', handleEscape);
-      };
+        const closeModal = () => {
+            modalOverlay.classList.remove('rh-visible');
+            setTimeout(() => {
+                document.body.removeChild(modalOverlay);
+                document.body.style.overflow = '';
+            }, 300); // Match transition duration
+            document.removeEventListener('keydown', handleEscape);
+        };
 
-      modalOverlay.querySelector('.rh-modal-close').addEventListener('click', closeModal);
-      modalOverlay.addEventListener('click', (e) => {
-        if (e.target === modalOverlay) { // Click on overlay itself
-          closeModal();
-        }
-      });
-
-      const handleEscape = (e) => {
-        if (e.key === 'Escape') closeModal();
-      };
-      document.addEventListener('keydown', handleEscape);
+        modalOverlay.querySelector('.rh-modal-close').addEventListener('click', closeModal);
+        modalOverlay.addEventListener('click', (e) => {
+            if (e.target === modalOverlay) { // Click on overlay itself
+                closeModal();
+            }
+        });
+        
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') closeModal();
+        };
+        document.addEventListener('keydown', handleEscape);
     },
 
-    initWidget: async function (userConfig) {
+    initWidget: async function(userConfig) {
       let container;
       // Merge userConfig with defaults if necessary, or create a final config object
-      const config = {
-        widgetId: null,
-        containerId: null,
-        themeColor: '#007bff',
-        layout: 'carousel', // Default to carousel for V2 for now
-        ...userConfig
+      const config = { 
+          widgetId: null, 
+          containerId: null, 
+          themeColor: '#007bff', 
+          layout: 'carousel', // Default to carousel for V2 for now
+          ...userConfig 
       };
 
       // Prevent duplicate initializations - create a unique identifier for this widget instance
-      const widgetInstanceId = config.containerId ?
-        `${config.widgetId}-${config.containerId}` :
+      const widgetInstanceId = config.containerId ? 
+        `${config.widgetId}-${config.containerId}` : 
         `${config.widgetId}-script-${config._scriptTag ? Array.from(document.scripts).indexOf(config._scriptTag) : Date.now()}`;
-
+      
       // Check if this widget instance has already been initialized
       this._initializedWidgets = this._initializedWidgets || new Set();
       if (this._initializedWidgets.has(widgetInstanceId)) {
         return;
       }
       this._initializedWidgets.add(widgetInstanceId);
-
+      
       this.injectStyles();
 
       if (config.containerId) {
@@ -1751,11 +2061,11 @@
         this._initializedWidgets.delete(widgetInstanceId);
         return; // Cannot proceed without a container
       }
-
+      
       // Add a data attribute to mark this container as initialized
       container.setAttribute('data-reviewhub-widget-id', config.widgetId);
       container.setAttribute('data-reviewhub-instance-id', widgetInstanceId);
-
+      
       container.className = 'reviewhub-v2-widget-container'; // Base class for all widgets
       container.innerHTML = `
         <div class="reviewhub-v2-loading">
@@ -1763,53 +2073,43 @@
           <div>Loading reviews...</div>
         </div>
       `;
-      // Set theme color variables on the container early for spinner
+       // Set theme color variables on the container early for spinner
       container.style.setProperty('--rh-theme-color', config.themeColor);
       container.style.setProperty('--rh-theme-color-dark', this.darkenColor(config.themeColor, 15));
       container.style.setProperty('--rh-theme-color-light', this.lightenColor(config.themeColor, 90));
 
       if (!config.widgetId) {
-        this.showError(container, new Error('Widget ID is missing.'), config, null);
-        return;
+          this.showError(container, new Error('Widget ID is missing.'), config, null);
+          return;
       }
-
-      const params = new URLSearchParams();
-      // Pass only necessary params for data fetching, not all UI config.
-      // API might not need themeColor or layout for fetching raw data.
-      // if (config.layout) params.append('layout', config.layout); // If API filters by layout
-
-      // Add limit parameter to fetch at least 500 reviews by default
-      params.append('limit', '1000');
-
-      const queryString = params.toString();
-      const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${config.widgetId}${queryString ? '?' + queryString : ''}`;
 
       const retryLoad = () => {
         // Clear container and re-init. Be careful of infinite loops if API always fails.
         container.innerHTML = ''; // Clear previous error/loading
         // Remove from initialized set to allow retry
         this._initializedWidgets.delete(widgetInstanceId);
-        this.initWidget(config);
+        this.initWidget(config); 
       };
 
       try {
-        const data = await this.fetchWithRetry(apiUrl);
+        // Use pagination for initial load
+        console.log(`🚀 Initial widget load: fetching ${CONFIG.CAROUSEL_SETTINGS.PAGINATION.INITIAL_REVIEW_COUNT} reviews`);
+        const data = await this.fetchReviewsWithPagination(config, 0, CONFIG.CAROUSEL_SETTINGS.PAGINATION.INITIAL_REVIEW_COUNT);
         if (data && data.reviews) {
           // Ensure widgetSettings exists, even if empty, to avoid errors
-          data.widgetSettings = data.widgetSettings || {};
-          // Merge script tag data-attributes into widgetSettings if they exist and are not already set by API
-          // This allows overriding API settings via script tag attributes.
-          if (config.cardsToShowDesktop) data.widgetSettings.cardsToShowDesktop = parseInt(config.cardsToShowDesktop, 10);
-          if (config.cardsToShowTablet) data.widgetSettings.cardsToShowTablet = parseInt(config.cardsToShowTablet, 10);
-          if (config.cardsToShowFoldable) data.widgetSettings.cardsToShowFoldable = parseInt(config.cardsToShowFoldable, 10);
-          if (config.cardsToShowMobile) data.widgetSettings.cardsToShowMobile = parseInt(config.cardsToShowMobile, 10);
-          if (config.autoplay !== undefined) data.widgetSettings.autoplay = config.autoplay === 'true' || config.autoplay === true;
-          if (config.autoplayDelay) data.widgetSettings.autoplayDelay = parseInt(config.autoplayDelay, 10);
-          if (config.loop !== undefined) data.widgetSettings.loop = config.loop === 'true' || config.loop === true;
-          if (config.showRatings !== undefined) data.widgetSettings.showRatings = config.showRatings === 'true' || config.showRatings === true;
-          if (config.showDates !== undefined) data.widgetSettings.showDates = config.showDates === 'true' || config.showDates === true;
-          if (config.showProfilePictures !== undefined) data.widgetSettings.showProfilePictures = config.showProfilePictures === 'true' || config.showProfilePictures === true;
-
+          data.widgetSettings = data.widgetSettings || {}; 
+           // Merge script tag data-attributes into widgetSettings if they exist and are not already set by API
+           // This allows overriding API settings via script tag attributes.
+           if(config.cardsToShowDesktop) data.widgetSettings.cardsToShowDesktop = parseInt(config.cardsToShowDesktop, 10);
+           if(config.cardsToShowTablet) data.widgetSettings.cardsToShowTablet = parseInt(config.cardsToShowTablet, 10);
+           if(config.cardsToShowFoldable) data.widgetSettings.cardsToShowFoldable = parseInt(config.cardsToShowFoldable, 10);
+           if(config.cardsToShowMobile) data.widgetSettings.cardsToShowMobile = parseInt(config.cardsToShowMobile, 10);
+           if(config.autoplay !== undefined) data.widgetSettings.autoplay = config.autoplay === 'true' || config.autoplay === true;
+           if(config.autoplayDelay) data.widgetSettings.autoplayDelay = parseInt(config.autoplayDelay, 10);
+           if(config.loop !== undefined) data.widgetSettings.loop = config.loop === 'true' || config.loop === true;
+           if(config.showRatings !== undefined) data.widgetSettings.showRatings = config.showRatings === 'true' || config.showRatings === true;
+           if(config.showDates !== undefined) data.widgetSettings.showDates = config.showDates === 'true' || config.showDates === true;
+           if(config.showProfilePictures !== undefined) data.widgetSettings.showProfilePictures = config.showProfilePictures === 'true' || config.showProfilePictures === true;
 
           this.renderWidget(container, data, config);
         } else {
@@ -1821,21 +2121,21 @@
     },
 
     // Public init method
-    init: function (userConfig) {
+    init: function(userConfig) {
       // Handle string shorthand for widgetId
       const config = typeof userConfig === 'string' ? { widgetId: userConfig } : userConfig;
-
+      
       // Add some basic validation
       if (!config || !config.widgetId) {
         return;
       }
-
+      
       // If script is still loading, defer initialization
       if (document.readyState === 'loading') {
-        window.ReviewHubV2._pendingInitializations = window.ReviewHubV2._pendingInitializations || [];
-        window.ReviewHubV2._pendingInitializations.push(config);
+          window.ReviewHubV2._pendingInitializations = window.ReviewHubV2._pendingInitializations || [];
+          window.ReviewHubV2._pendingInitializations.push(config);
       } else {
-        this.initWidget(config);
+          this.initWidget(config);
       }
     }
   };
@@ -1847,12 +2147,12 @@
       return;
     }
     window.ReviewHubV2._autoInitialized = true;
-
+    
     const scriptTags = document.querySelectorAll('script[data-reviewhub-widget-id]:not([data-reviewhub-processed])');
     scriptTags.forEach(script => {
       // Mark script as processed to prevent duplicate processing
       script.setAttribute('data-reviewhub-processed', 'true');
-
+      
       const config = {
         widgetId: script.getAttribute('data-reviewhub-widget-id'),
         containerId: script.getAttribute('data-container-id') || null,
@@ -1871,16 +2171,16 @@
       };
       // Filter out undefined values from config
       Object.keys(config).forEach(key => config[key] === undefined && delete config[key]);
-
+      
       // Only add _scriptTag if there's no containerId specified
       if (config.containerId) {
         delete config._scriptTag;
       }
-
+      
       window.ReviewHubV2.initWidget(config);
     });
   }
-
+  
   // Handle pending initializations if DOM was already ready
   function processPendingInitializations() {
       if (window.ReviewHubV2._pendingInitializations && window.ReviewHubV2._pendingInitializations.length > 0) {
@@ -1891,16 +2191,16 @@
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-      initializeWidgetsFromScripts();
-      processPendingInitializations();
+        initializeWidgetsFromScripts();
+        processPendingInitializations();
     });
   } else {
     // DOMContentLoaded has already fired
     setTimeout(() => { // Use setTimeout to ensure ReviewHubV2 object is fully parsed
-      initializeWidgetsFromScripts();
-      processPendingInitializations();
+        initializeWidgetsFromScripts();
+        processPendingInitializations();
     }, 0);
   }
 
-})();
+})(); 
 

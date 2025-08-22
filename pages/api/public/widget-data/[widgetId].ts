@@ -35,6 +35,7 @@ export default async function handler(
 
   const { widgetId } = req.query;
   const limitQuery = req.query.limit;
+  const offsetQuery = req.query.offset; // Add offset parameter for pagination
   const layoutQuery = req.query.layout;
 
   if (req.method !== 'GET') {
@@ -168,19 +169,43 @@ export default async function handler(
         console.log(`[Widget API] Sample review:`, reviewBatch.reviews[0]);
         totalReviewCount = reviewBatch.reviews.length;
         
-        // For badge layout, use all available reviews without any limit
+        // Parse pagination parameters
+        const offset = offsetQuery ? parseInt(offsetQuery as string) : 0;
         let requestedLimit;
+        
+        // For badge layout, use all available reviews without any limit
         if (layoutQuery === 'badge' || widgetDoc.type === 'badge') {
           requestedLimit = undefined; // No limit for badge widgets
         } else {
-          requestedLimit = limitQuery ? parseInt(limitQuery as string) : 100000;
+          // For grid layout, use pagination
+          if (layoutQuery === 'grid') {
+            requestedLimit = limitQuery ? parseInt(limitQuery as string) : 12; // Default 12 for grid
+          } else if (layoutQuery === 'carousel') {
+            // For carousel layout, use pagination with default 12
+            requestedLimit = limitQuery ? parseInt(limitQuery as string) : 12; // Default 12 for carousel
+          } else if (layoutQuery === 'masonry') {
+            // For masonry layout, use pagination with default 12
+            requestedLimit = limitQuery ? parseInt(limitQuery as string) : 12; // Default 12 for masonry
+          } else {
+            requestedLimit = limitQuery ? parseInt(limitQuery as string) : 100000; // Default for other layouts
+          }
         }
+        
+        console.log(`[Widget API] Pagination: offset=${offset}, limit=${requestedLimit}, layout=${layoutQuery}`);
+        
+        // Log before filtering
+        console.log(`[Widget API] 📊 Database Query: Fetching reviews with offset=${offset}, limit=${requestedLimit}, total available=${reviewBatch.reviews.length}`);
         
         reviews = storage.getFilteredReviewsFromBatch(reviewBatch, {
           minRating: widgetDoc.minRating,
           limit: requestedLimit,
+          offset: offset, // Add offset for pagination
         });
-        console.log(`[Widget API] Filtered to ${reviews.length} reviews (minRating: ${widgetDoc.minRating}, source: ${reviewBatch.source})`);
+        
+        // Log after filtering with detailed metrics
+        console.log(`[Widget API] 📊 Database Results: Fetched ${reviews.length} reviews from database`);
+        console.log(`[Widget API] 📊 Performance Metrics: offset=${offset}, limit=${requestedLimit}, returned=${reviews.length}, total_available=${totalReviewCount}`);
+        console.log(`[Widget API] Filtered to ${reviews.length} reviews (minRating: ${widgetDoc.minRating}, source: ${reviewBatch.source}, offset: ${offset})`);
         
         if (reviewBatch.source === 'facebook') {
           console.log(`[Widget API] Facebook filtering: minRating=${widgetDoc.minRating} means ${widgetDoc.minRating >= 2 ? 'recommended only' : 'all reviews'}`);
@@ -251,19 +276,43 @@ export default async function handler(
               console.log(`[Widget API] Fallback: Sample review:`, reviewBatch.reviews[0]);
               totalReviewCount = reviewBatch.reviews.length;
               
-              // For badge layout, use all available reviews without any limit
+              // Parse pagination parameters for fallback
+              const offset = offsetQuery ? parseInt(offsetQuery as string) : 0;
               let requestedLimit;
+              
+              // For badge layout, use all available reviews without any limit
               if (layoutQuery === 'badge' || widgetDoc.type === 'badge') {
                 requestedLimit = undefined; // No limit for badge widgets
               } else {
-                requestedLimit = limitQuery ? parseInt(limitQuery as string) : 10;
+                // For grid layout, use pagination
+                if (layoutQuery === 'grid') {
+                  requestedLimit = limitQuery ? parseInt(limitQuery as string) : 12; // Default 12 for grid
+                } else if (layoutQuery === 'carousel') {
+                  // For carousel layout, use pagination with default 12
+                  requestedLimit = limitQuery ? parseInt(limitQuery as string) : 12; // Default 12 for carousel
+                } else if (layoutQuery === 'masonry') {
+                  // For masonry layout, use pagination with default 12
+                  requestedLimit = limitQuery ? parseInt(limitQuery as string) : 12; // Default 12 for masonry
+                } else {
+                  requestedLimit = limitQuery ? parseInt(limitQuery as string) : 10;
+                }
               }
+              
+              console.log(`[Widget API] Fallback Pagination: offset=${offset}, limit=${requestedLimit}, layout=${layoutQuery}`);
+              
+              // Log before filtering for fallback
+              console.log(`[Widget API] 📊 Fallback Database Query: Fetching reviews with offset=${offset}, limit=${requestedLimit}, total available=${reviewBatch.reviews.length}`);
               
               reviews = storage.getFilteredReviewsFromBatch(reviewBatch, {
                 minRating: widgetDoc.minRating,
                 limit: requestedLimit,
+                offset: offset, // Add offset for pagination
               });
-              console.log(`[Widget API] Fallback: Filtered to ${reviews.length} reviews (minRating: ${widgetDoc.minRating}, source: ${reviewBatch.source})`);
+              
+              // Log after filtering for fallback with detailed metrics
+              console.log(`[Widget API] 📊 Fallback Database Results: Fetched ${reviews.length} reviews from database`);
+              console.log(`[Widget API] 📊 Fallback Performance Metrics: offset=${offset}, limit=${requestedLimit}, returned=${reviews.length}, total_available=${totalReviewCount}`);
+              console.log(`[Widget API] Fallback: Filtered to ${reviews.length} reviews (minRating: ${widgetDoc.minRating}, source: ${reviewBatch.source}, offset: ${offset})`);
               
               if (reviewBatch.source === 'facebook') {
                 console.log(`[Widget API] Fallback: Facebook filtering: minRating=${widgetDoc.minRating} means ${widgetDoc.minRating >= 2 ? 'recommended only' : 'all reviews'}`);
@@ -311,9 +360,15 @@ export default async function handler(
       })
     };
 
-    console.log(`[Widget API] Returning ${reviews.length} reviews for widget ${widgetId}`);
-    console.log(`[Widget API] totalReviewCount being returned: ${totalReviewCount}`);
-    console.log(`[Widget API] Widget settings being returned:`, JSON.stringify(widgetSettingsForPublic, null, 2));
+    // Log comprehensive summary
+    console.log(`[Widget API] 📊 === DATABASE FETCH SUMMARY ===`);
+    console.log(`[Widget API] 📊 Widget ID: ${widgetId}`);
+    console.log(`[Widget API] 📊 Layout: ${layoutQuery || 'default'}`);
+    console.log(`[Widget API] 📊 Total reviews in database: ${totalReviewCount}`);
+    console.log(`[Widget API] 📊 Reviews fetched from database: ${reviews.length}`);
+    console.log(`[Widget API] 📊 Pagination: offset=${offsetQuery || 0}, limit=${limitQuery || 'default'}`);
+    console.log(`[Widget API] 📊 Performance: ${reviews.length}/${totalReviewCount} reviews returned (${Math.round((reviews.length / totalReviewCount) * 100)}% of total)`);
+    console.log(`[Widget API] 📊 === END SUMMARY ===`);
 
     res.status(200).json({
       widgetSettings: widgetSettingsForPublic,
