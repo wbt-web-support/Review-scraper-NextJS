@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Carousel Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .debug-info {
+            background: #f0f8ff;
+            border: 1px solid #b0d4f1;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Simple Carousel Test</h1>
+        
+        <div class="debug-info">
+            <strong>Debug Info:</strong><br>
+            Widget ID: 6832c330dd506564ff9d8b8d<br>
+            API Domain: <span id="api-domain">Loading...</span><br>
+            Status: <span id="status">Initializing...</span>
+        </div>
+        
+        <div id="test-carousel"></div>
+    </div>
+
+    <script>
+        // Debug logging
+        console.log('🚀 Simple Carousel Test Starting...');
+        
+        // Override console.log to capture all logs
+        const originalLog = console.log;
+        const logs = [];
+        console.log = function(...args) {
+            logs.push(args.join(' '));
+            originalLog.apply(console, args);
+            
+            // Update status
+            const statusEl = document.getElementById('status');
+            if (statusEl) {
+                statusEl.textContent = 'Log: ' + args.join(' ');
+            }
+        };
+        
+        // Show API domain
+        setTimeout(() => {
+            const apiDomainEl = document.getElementById('api-domain');
+            if (apiDomainEl) {
+                apiDomainEl.textContent = window.location.origin;
+            }
+        }, 100);
+    </script>
+
+    <!-- ReviewHub V2 Widget Script -->
+    <script 
+        src="widget-new.js" 
+        data-reviewhub-widget-id="6832c330dd506564ff9d8b8d"
+        data-container-id="test-carousel"
+        data-autoplay="false"
+        data-loop="true"
+        data-show-ratings="true"
+        data-show-dates="true"
+        data-show-avatars="true"
+        data-cards-desktop="2"
+        data-cards-tablet="2"
+        data-cards-foldable="1"
+        data-cards-mobile="1">
+    </script>
+
+    <script>
+        // Test completion check
+        setTimeout(() => {
+            console.log('🔍 Final check - Widget container:', document.getElementById('test-carousel').innerHTML);
+            console.log('📋 All logs:', logs);
+        }, 5000);
+    </script>
+</body>
+</html>

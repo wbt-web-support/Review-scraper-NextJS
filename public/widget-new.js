@@ -38,6 +38,10 @@
         tablet: 3,        // Tablet (1024px - 1365px)
         foldable: 2,      // Foldable devices (900px - 1023px)
         mobile: 1         // Mobile (< 900px)
+      },
+      PAGINATION: {
+        INITIAL_REVIEW_COUNT: 12,  // Show 12 reviews initially for carousel
+        LOAD_MORE_INCREMENT: 8     // Load 8 more reviews when needed
       }
     }
   };
@@ -46,6 +50,12 @@
     isInitialized: true,
     version: '2.0.0',
     buildId: Date.now(),
+
+    // State tracking for each widget instance
+    widgetStates: new Map(),
+    
+    // Cache for fetched reviews to avoid re-fetching
+    reviewCache: new Map(),
 
     log: function(level, message, data) {
       // Console logging disabled for production
@@ -671,6 +681,8 @@
             box-shadow: 0 3px 10px rgba(59, 130, 246, 0.4);
         }
 
+
+
         /* Modal styles - Modern Design */
         .rh-modal-overlay {
           position: fixed;
@@ -989,10 +1001,250 @@
         return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
     },
 
+    // Pagination functions
+    fetchReviewsWithPagination: async function(config, offset, limit) {
+      const cacheKey = `${config.widgetId}-${offset}-${limit}`;
+      
+      // Check cache first
+      if (this.reviewCache.has(cacheKey)) {
+        console.log(`📊 Reviews fetched from cache: ${limit} reviews for widget ${config.widgetId} (offset: ${offset})`);
+        return this.reviewCache.get(cacheKey);
+      }
+
+      const params = new URLSearchParams({
+        limit: limit.toString(),
+        offset: offset.toString(),
+        layout: 'carousel'
+      });
+      
+      const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${config.widgetId}?${params.toString()}`;
+      
+      console.log(`🌐 Making API request to: ${apiUrl}`);
+      
+      try {
+        const data = await this.fetchWithRetry(apiUrl);
+        console.log(`📡 API response:`, data);
+        
+        if (data && data.reviews) {
+          // Cache the result
+          this.reviewCache.set(cacheKey, data);
+          console.log(`📊 Reviews fetched from database: ${data.reviews.length} reviews for widget ${config.widgetId} (layout: carousel, offset: ${offset})`);
+          return data;
+        } else {
+          console.log(`❌ No reviews data in API response`);
+          throw new Error('No reviews data received from API.');
+        }
+      } catch (error) {
+        console.error(`Error fetching reviews with pagination:`, error);
+        throw error;
+      }
+    },
+
+    // New function to check if we need to fetch more reviews
+    shouldFetchMoreReviews: function(widgetState, currentIndex, visibleSlides, totalReviews) {
+      // Calculate how many slides are left before reaching the end of currently loaded reviews
+      const loadedReviewsCount = widgetState.loadedReviews.length;
+      const slidesLeft = loadedReviewsCount - (currentIndex + visibleSlides);
+      
+      // Fetch more reviews when we're 2 slides away from the end of loaded reviews
+      // AND there are more reviews available in the database
+      const hasMoreReviewsAvailable = loadedReviewsCount < totalReviews;
+      
+      console.log(`🔍 Auto-fetch check: currentIndex=${currentIndex}, visibleSlides=${visibleSlides}, loadedReviews=${loadedReviewsCount}, totalReviews=${totalReviews}, slidesLeft=${slidesLeft}, shouldFetch=${slidesLeft <= 2 && hasMoreReviewsAvailable}`);
+      
+      return slidesLeft <= 2 && hasMoreReviewsAvailable;
+    },
+
+    // New function to fetch and append more reviews
+    fetchAndAppendReviews: async function(container, config, widgetState, currentReviews) {
+      try {
+        console.log(`🔄 Starting auto-fetch: currentOffset=${widgetState.currentOffset}, currentReviews=${currentReviews.length}`);
+        
+        // Calculate how many more reviews to fetch
+        const fetchCount = CONFIG.CAROUSEL_SETTINGS.PAGINATION.LOAD_MORE_INCREMENT;
+        const newOffset = widgetState.currentOffset;
+        
+        console.log(`📡 Fetching ${fetchCount} reviews from offset ${newOffset}`);
+        
+        // Fetch new reviews
+        const newData = await this.fetchReviewsWithPagination(config, newOffset, fetchCount);
+        
+        console.log(`📦 Received data:`, newData);
+        
+        if (newData && newData.reviews && newData.reviews.length > 0) {
+          console.log(`✅ Got ${newData.reviews.length} new reviews`);
+          
+          // Update widget state
+          widgetState.currentOffset = newOffset + newData.reviews.length;
+          widgetState.loadedReviews = [...currentReviews, ...newData.reviews];
+          
+          console.log(`📝 Updated widget state: newOffset=${widgetState.currentOffset}, totalLoaded=${widgetState.loadedReviews.length}`);
+          
+          // Update the carousel with new reviews
+          this.updateCarouselWithNewReviews(container, config, widgetState, newData.reviews);
+          
+          console.log(`📊 Auto-fetched ${newData.reviews.length} more reviews for widget ${config.widgetId}`);
+          return true;
+        } else {
+          console.log(`❌ No new reviews received or empty response`);
+          return false;
+        }
+      } catch (error) {
+        console.error('Error auto-fetching more reviews:', error);
+        return false;
+      }
+    },
+
+    // New function to update carousel with new reviews
+    updateCarouselWithNewReviews: function(container, config, widgetState, newReviews) {
+      const carouselWrapper = container.querySelector('.rh-carousel-wrapper');
+      if (!carouselWrapper) return;
+      
+      const track = carouselWrapper.querySelector('.rh-carousel-track');
+      if (!track) return;
+      
+      // Filter new reviews
+      const filteredNewReviews = this.filterReviews(newReviews, widgetState.widgetSettings);
+      
+      // Create new slide elements for the new reviews
+      const newSlides = filteredNewReviews.map((review, index) => {
+        const slideIndex = widgetState.loadedReviews.length - newReviews.length + index;
+        return this.createReviewSlide(review, slideIndex, widgetState.widgetSettings);
+      });
+      
+      // Append new slides to the track
+      newSlides.forEach(slide => {
+        track.appendChild(slide);
+      });
+      
+      // Update the carousel logic to handle new slides
+      this.updateCarouselAfterNewReviews(carouselWrapper, newSlides.length);
+    },
+
+    // New function to create a review slide element
+    createReviewSlide: function(review, index, widgetSettings) {
+      const author = this.escapeHtml(review.author || 'Anonymous');
+      const initials = this.getInitials(review.author);
+      const profilePicture = review.profilePicture;
+      const date = this.formatDate(review.postedAt);
+      const rating = parseFloat(review.rating) || 0;
+      const stars = this.generateStars(rating);
+      const content = this.escapeHtml(review.content || review.text || '');
+      const isVerified = true;
+
+      // Detect individual review source
+      const reviewSource = this.detectReviewSource(review, widgetSettings);
+      const reviewPlatformLogo = this.getPlatformLogo(reviewSource);
+      const reviewPlatformName = reviewSource === 'facebook' ? 'Facebook' : 'Google';
+
+      // Generate rating display based on platform
+      let ratingDisplay = '';
+      if (widgetSettings.showRatings) {
+        if (reviewSource === 'facebook') {
+          ratingDisplay = this.generateRecommendationStatus(review);
+        } else if (rating > 0) {
+          ratingDisplay = `<div class="rh-card-rating">${stars}</div>`;
+        }
+      }
+
+      const slideElement = document.createElement('div');
+      slideElement.className = 'rh-carousel-slide';
+      slideElement.setAttribute('data-index', index);
+      slideElement.innerHTML = `
+        <div class="rh-review-card">
+          <img src="${reviewPlatformLogo}" alt="${reviewPlatformName}" class="rh-google-logo-corner">
+          <div class="rh-card-header">
+            <div class="rh-card-avatar">
+              ${profilePicture && widgetSettings.showProfilePictures ? `<img src="${this.escapeHtml(profilePicture)}" alt="${author}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><span style="display:none;">${initials}</span>` : `<span>${initials}</span>`}
+            </div>
+            <div class="rh-card-author-details">
+              <div class="rh-card-author-line">
+                <h4 class="rh-card-author-name">${author}</h4>
+                ${isVerified ? '<span class="rh-verified-badge"><i class="rh-fas rh-fa-check-circle"></i></span>' : ''}
+              </div>
+              ${widgetSettings.showDates && date ? `
+                <div class="rh-card-review-meta">
+                  ${date}
+                </div>` : ''}
+            </div>
+          </div>
+          ${ratingDisplay}
+          <div class="rh-card-content-wrapper">
+              <p class="rh-card-content">${content}</p>
+              ${content.length > 120 ? `<button class="rh-read-more" data-review-index="${index}">Read More</button>` : ''} 
+          </div>
+        </div>
+      `;
+      
+      return slideElement;
+    },
+
+    // New function to update carousel after adding new reviews
+    updateCarouselAfterNewReviews: function(carouselWrapper, newSlidesCount) {
+      // Re-initialize carousel logic with updated slides
+      const track = carouselWrapper.querySelector('.rh-carousel-track');
+      const slides = Array.from(track.querySelectorAll('.rh-carousel-slide'));
+      
+      // Update slide dimensions for new slides
+      const trackContainer = carouselWrapper.querySelector('.rh-carousel-track-container');
+      const slideWidth = trackContainer.clientWidth / this.calculateVisibleSlides(trackContainer.clientWidth);
+      
+      // Set width for new slides
+      for (let i = slides.length - newSlidesCount; i < slides.length; i++) {
+        slides[i].style.width = `${slideWidth}px`;
+      }
+      
+      // Re-attach event listeners for new slides (only for the new slides)
+      const newSlides = slides.slice(-newSlidesCount);
+      newSlides.forEach(slide => {
+        const readMoreBtn = slide.querySelector('.rh-read-more');
+        if (readMoreBtn) {
+          const reviewIndex = parseInt(readMoreBtn.getAttribute('data-review-index'));
+          readMoreBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            // Get the review data from the widget state
+            const widgetId = carouselWrapper.getAttribute('data-widget-id');
+            const widgetState = this.widgetStates.get(widgetId);
+            if (widgetState && widgetState.loadedReviews[reviewIndex]) {
+              this.showReviewModal(widgetState.loadedReviews[reviewIndex], { widgetSettings: widgetState.widgetSettings }, { widgetId });
+            }
+          });
+        }
+      });
+    },
+
+    // Helper function to calculate visible slides
+    calculateVisibleSlides: function(containerWidth) {
+      const screenWidth = containerWidth;
+      let num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.mobile;
+      
+      if (screenWidth >= CONFIG.CAROUSEL_SETTINGS.WIDE_SCREEN_BREAKPOINT) {
+        num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.wideScreen;
+      } else if (screenWidth >= CONFIG.CAROUSEL_SETTINGS.DESKTOP_BREAKPOINT) {
+        num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.desktop;
+      } else if (screenWidth >= CONFIG.CAROUSEL_SETTINGS.LAPTOP_BREAKPOINT) {
+        num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.laptop;
+      } else if (screenWidth >= CONFIG.CAROUSEL_SETTINGS.TABLET_BREAKPOINT) {
+        num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.tablet;
+      } else if (screenWidth >= CONFIG.CAROUSEL_SETTINGS.FOLDABLE_BREAKPOINT) {
+        num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.foldable;
+      } else {
+        num = CONFIG.CAROUSEL_SETTINGS.DEFAULT_VISIBLE_CARDS.mobile;
+      }
+      
+      return Math.max(1, num);
+    },
+
+    filterReviews: function(reviews, widgetSettings) {
+      // Filter out reviews with empty content or text
+      return reviews.filter(r => (r.content && r.content.trim()) || (r.text && r.text.trim()));
+    },
+
     renderWidget: function(container, data, config) {
       const { widgetSettings, reviews, businessName, businessUrlLink, totalReviewCount } = data;
-      // Filter out reviews with empty content or text
-      const filteredReviews = reviews.filter(r => (r.content && r.content.trim()) || (r.text && r.text.trim()));
+      
+      // Filter reviews based on widget settings
+      const filteredReviews = this.filterReviews(reviews, widgetSettings);
       
       // Detect platform from first review or widget settings
       const platformSource = filteredReviews.length > 0 ? this.detectReviewSource(filteredReviews[0], widgetSettings) : 'google';
@@ -1034,16 +1286,40 @@
     },
 
     renderCarouselWidget: function(container, data, config) {
-      const { reviews, widgetSettings, businessName } = data;
+      const { reviews, widgetSettings, businessName, totalReviewCount } = data;
       // Filter out reviews with empty content or text
-      const filteredReviews = reviews.filter(r => (r.content && r.content.trim()) || (r.text && r.text.trim()));
+      const filteredReviews = this.filterReviews(reviews, widgetSettings);
       const carouselId = `rh-carousel-${config.widgetId}-${Date.now()}`;
+
+      // Get or create widget state for pagination
+      const widgetId = config.widgetId;
+      if (!this.widgetStates.has(widgetId)) {
+        console.log(`🆕 Creating new widget state for ${widgetId}`);
+        this.widgetStates.set(widgetId, {
+          loadedReviews: filteredReviews,
+          currentOffset: filteredReviews.length,
+          totalReviews: totalReviewCount || filteredReviews.length,
+          widgetSettings: widgetSettings,
+          isFetching: false
+        });
+      }
+      
+      const widgetState = this.widgetStates.get(widgetId);
+      // Update widget state with latest data
+      widgetState.loadedReviews = filteredReviews;
+      widgetState.totalReviews = totalReviewCount || filteredReviews.length;
+      widgetState.widgetSettings = widgetSettings;
+      
+      console.log(`📊 Widget state initialized: loadedReviews=${widgetState.loadedReviews.length}, totalReviews=${widgetState.totalReviews}, currentOffset=${widgetState.currentOffset}`);
+      
+      const reviewsToShow = widgetState.loadedReviews;
+      const totalReviews = widgetState.totalReviews;
 
       // Detect platform from first review or widget settings
       const platformSource = filteredReviews.length > 0 ? this.detectReviewSource(filteredReviews[0], widgetSettings) : 'google';
       const platformName = platformSource === 'facebook' ? 'Facebook' : 'Google';
 
-      let reviewItemsHtml = filteredReviews.map((review, index) => {
+      let reviewItemsHtml = reviewsToShow.map((review, index) => {
         const author = this.escapeHtml(review.author || 'Anonymous');
         const initials = this.getInitials(review.author);
         const profilePicture = review.profilePicture;
@@ -1098,7 +1374,7 @@
       }).join('');
 
       const carouselHtml = `
-        <div class="rh-carousel-wrapper" id="${carouselId}-wrapper">
+        <div class="rh-carousel-wrapper" id="${carouselId}-wrapper" data-widget-id="${config.widgetId}">
           <div class="rh-carousel-track-container">
             <div class="rh-carousel-track">
               ${reviewItemsHtml}
@@ -1111,11 +1387,11 @@
       `;
       
       container.innerHTML = carouselHtml;
-      this.initCarouselLogic(carouselId, container, filteredReviews, config, widgetSettings);
-      this.attachModalEventListeners(container, filteredReviews, data, config);
+      this.initCarouselLogic(carouselId, container, reviewsToShow, config, widgetSettings, widgetState);
+      this.attachModalEventListeners(container, reviewsToShow, data, config);
     },
 
-    initCarouselLogic: function(carouselId, containerElem, reviews, globalConfig, widgetSettings) {
+    initCarouselLogic: function(carouselId, containerElem, reviews, globalConfig, widgetSettings, widgetState) {
         const wrapper = containerElem.querySelector(`#${carouselId}-wrapper`);
         const trackContainer = wrapper.querySelector('.rh-carousel-track-container');
         const track = wrapper.querySelector('.rh-carousel-track');
@@ -1377,7 +1653,7 @@
             // Next button is never disabled since we allow wrap from last to first
         };
         
-        const changeSlide = (direction) => {
+        const changeSlide = async (direction) => {
             // Handle wrapping logic
             let newIndex = currentIndex + direction;
             let shouldSnapInstantly = false;
@@ -1423,6 +1699,40 @@
             
             // Adjust heights after slide change
             setTimeout(adjustCardHeights, shouldSnapInstantly ? 50 : 450);
+            
+            // Check if we need to fetch more reviews
+            if (widgetState && !widgetState.isFetching) {
+                console.log(`🎯 Checking auto-fetch: currentIndex=${currentIndex}, visibleSlides=${visibleSlides}, loadedReviews=${widgetState.loadedReviews.length}, totalReviews=${widgetState.totalReviews}`);
+                
+                const shouldFetch = window.ReviewHubV2.shouldFetchMoreReviews(
+                    widgetState, 
+                    currentIndex, 
+                    visibleSlides, 
+                    widgetState.totalReviews
+                );
+                
+                if (shouldFetch) {
+                    console.log(`🚀 Auto-fetch triggered! Fetching more reviews...`);
+                    widgetState.isFetching = true;
+                    const success = await window.ReviewHubV2.fetchAndAppendReviews(
+                        containerElem, 
+                        globalConfig, 
+                        widgetState, 
+                        widgetState.loadedReviews
+                    );
+                    widgetState.isFetching = false;
+                    
+                    if (success) {
+                        console.log(`✅ Auto-fetch successful! Updated slides array`);
+                        // Update slides array after new reviews are added
+                        const updatedSlides = Array.from(track.querySelectorAll('.rh-carousel-slide'));
+                        slides.length = 0;
+                        slides.push(...updatedSlides);
+                    } else {
+                        console.log(`❌ Auto-fetch failed`);
+                    }
+                }
+            }
         };
 
         prevBtn.addEventListener('click', () => {
@@ -1621,6 +1931,8 @@
         });
     },
 
+
+
     showReviewModal: function(review, allData, config) {
         if (document.querySelector('.rh-modal-overlay')) return; 
 
@@ -1771,17 +2083,6 @@
           return;
       }
 
-      const params = new URLSearchParams();
-      // Pass only necessary params for data fetching, not all UI config.
-      // API might not need themeColor or layout for fetching raw data.
-      // if (config.layout) params.append('layout', config.layout); // If API filters by layout
-      
-      // Add limit parameter to fetch at least 500 reviews by default
-      params.append('limit', '1000');
-      
-      const queryString = params.toString();
-      const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${config.widgetId}${queryString ? '?' + queryString : ''}`;
-
       const retryLoad = () => {
         // Clear container and re-init. Be careful of infinite loops if API always fails.
         container.innerHTML = ''; // Clear previous error/loading
@@ -1791,7 +2092,9 @@
       };
 
       try {
-        const data = await this.fetchWithRetry(apiUrl);
+        // Use pagination for initial load
+        console.log(`🚀 Initial widget load: fetching ${CONFIG.CAROUSEL_SETTINGS.PAGINATION.INITIAL_REVIEW_COUNT} reviews`);
+        const data = await this.fetchReviewsWithPagination(config, 0, CONFIG.CAROUSEL_SETTINGS.PAGINATION.INITIAL_REVIEW_COUNT);
         if (data && data.reviews) {
           // Ensure widgetSettings exists, even if empty, to avoid errors
           data.widgetSettings = data.widgetSettings || {}; 
@@ -1807,7 +2110,6 @@
            if(config.showRatings !== undefined) data.widgetSettings.showRatings = config.showRatings === 'true' || config.showRatings === true;
            if(config.showDates !== undefined) data.widgetSettings.showDates = config.showDates === 'true' || config.showDates === true;
            if(config.showProfilePictures !== undefined) data.widgetSettings.showProfilePictures = config.showProfilePictures === 'true' || config.showProfilePictures === true;
-
 
           this.renderWidget(container, data, config);
         } else {

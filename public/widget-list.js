@@ -21,13 +21,23 @@
     })(),
     RETRY_ATTEMPTS: 3,
     RETRY_DELAY: 3000,
-    TIMEOUT: 10000
+    TIMEOUT: 10000,
+    LIST_SETTINGS: {
+      INITIAL_REVIEW_COUNT: 10,  // Show 10 reviews initially for list layout
+      LOAD_MORE_INCREMENT: 8     // Load 8 more reviews when "Load More" is clicked
+    }
   };
 
   window.ReviewHubList = {
     isInitialized: true,
     version: '1.0.0',
     buildId: Date.now(),
+
+    // State tracking for each widget instance
+    widgetStates: new Map(),
+    
+    // Cache for fetched reviews to avoid re-fetching
+    reviewCache: new Map(),
 
     log: function(level, message, data) {
       // Console logging disabled for production
@@ -222,17 +232,17 @@
           color: inherit !important;
         }
         
-        .reviewhub-list-widget-container button {
-          background: none !important;
-          border: none !important;
-          padding: 0 !important;
-          margin: 0 !important;
-          font-family: inherit !important;
-          font-size: inherit !important;
-          line-height: inherit !important;
-          color: inherit !important;
-          cursor: pointer !important;
-        }
+                 .reviewhub-list-widget-container button:not(.rh-list-load-more-btn):not(.rh-list-show-less-btn):not(.reviewhub-list-retry-button):not(.reviewhub-list-modal-close) {
+           background: none !important;
+           border: none !important;
+           padding: 0 !important;
+           margin: 0 !important;
+           font-family: inherit !important;
+           font-size: inherit !important;
+           line-height: inherit !important;
+           color: inherit !important;
+           cursor: pointer !important;
+         }
         
         .reviewhub-list-widget-container a {
           color: inherit !important;
@@ -341,7 +351,7 @@
         .reviewhub-list-container {
           display: flex;
           flex-direction: column;
-          gap: 16px;
+          gap: 24px;
           width: 100%;
           max-width: 800px;
           margin: 0 auto;
@@ -692,7 +702,7 @@
         /* Responsive adjustments */
         @media (max-width: 640px) {
           .reviewhub-list-container {
-            gap: 12px;
+            gap: 20px;
           }
           
           .rh-list-review-item {
@@ -762,6 +772,78 @@
           
           .rh-list-item-text {
             font-size: 1rem;
+          }
+        }
+
+        /* Load More Button Styles - Matching Grid Widget */
+        .rh-list-load-more-container {
+          display: flex;
+          justify-content: center;
+          margin-top: 32px;
+          gap: 20px;
+          flex-wrap: wrap;
+        }
+.rh-list-reviews-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+                 .rh-list-load-more-btn,
+         .rh-list-show-less-btn {
+           background: white !important;
+           color: balck !important;
+           border: solid 1px rgb(205, 213, 226) !important;
+           padding: 8px 20px !important;
+           border-radius: 50px !important;
+           font-size: 1rem !important;
+           font-weight: 500 !important;
+           cursor: pointer !important;
+           transition: all 0.3s ease !important;
+           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+           margin: 0 8px !important;
+           min-width: 120px !important;
+         }
+
+                 .rh-list-load-more-btn:hover,
+         .rh-list-show-less-btn:hover {
+          
+           transform: translateY(-2px) !important;
+           box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25) !important;
+         }
+
+         .rh-list-show-less-btn {
+           background: white !important;
+           color: #6B7280 !important;
+           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+         }
+
+         .rh-list-show-less-btn:hover {
+           background: #6B7280 !important;
+           color: white !important;
+           box-shadow: 0 4px 12px rgba(107, 114, 128, 0.25) !important;
+         }
+
+        @media (max-width: 640px) {
+          .rh-list-load-more-container {
+            margin-top: 24px;
+            padding-top: 16px;
+          }
+          
+                     .rh-list-load-more-btn,
+           .rh-list-show-less-btn {
+             padding: 12px 24px !important;
+             font-size: 0.9rem !important;
+             min-width: 100px !important;
+           }
+
+          .rh-list-load-more-container {
+              display: flex;
+              justify-content: center;
+              margin-top: 32px;
+              gap: 20px;
+              flex-wrap: wrap;
+              gap: 0px;
+              margin-top: 10px !important;
           }
         }
       `;
@@ -879,28 +961,49 @@
         return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
     },
 
-    renderWidget: function(container, data, config) {
-      const { widgetSettings, reviews, businessName, businessUrlLink, totalReviewCount } = data;
-      // Filter out reviews with empty content or text
-      const filteredReviews = reviews.filter(r => (r.content && r.content.trim()) || (r.text && r.text.trim()));
+    // Pagination functions
+    fetchReviewsWithPagination: async function(config, offset, limit) {
+      const cacheKey = `${config.widgetId}-${offset}-${limit}`;
       
-      // Detect platform from first review or widget settings
-      const platformSource = filteredReviews.length > 0 ? this.detectReviewSource(filteredReviews[0], widgetSettings) : 'google';
-      
-      // Get appropriate theme color
-      const userThemeColor = config.themeColor || widgetSettings.themeColor;
-      const themeColor = this.getPlatformThemeColor(platformSource, userThemeColor);
-      
-      container.style.setProperty('--list-theme-color', themeColor);
-      container.style.setProperty('--list-theme-color-dark', this.darkenColor(themeColor, 15));
-      container.style.setProperty('--list-theme-color-light', this.lightenColor(themeColor, 90));
-
-      if (!filteredReviews || filteredReviews.length === 0) {
-        container.innerHTML = '<div class="reviewhub-list-error"><div class="reviewhub-list-error-title">No reviews to display.</div><div class="reviewhub-list-error-message">Check back later or add some reviews!</div></div>';
-        return;
+      // Check cache first
+      if (this.reviewCache.has(cacheKey)) {
+        console.log(`📊 Reviews fetched from cache: ${limit} reviews for widget ${config.widgetId} (offset: ${offset})`);
+        return this.reviewCache.get(cacheKey);
       }
+
+      const params = new URLSearchParams({
+        limit: limit.toString(),
+        offset: offset.toString(),
+        layout: 'list'
+      });
       
-      const reviewItemsHtml = filteredReviews.map((review, index) => {
+      const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${config.widgetId}?${params.toString()}`;
+      
+      try {
+        const data = await this.fetchWithRetry(apiUrl);
+        if (data && data.reviews) {
+          // Cache the result
+          this.reviewCache.set(cacheKey, data);
+          console.log(`📊 Reviews fetched from database: ${data.reviews.length} reviews for widget ${config.widgetId} (layout: list, offset: ${offset})`);
+          return data;
+        } else {
+          throw new Error('No reviews data received from API.');
+        }
+      } catch (error) {
+        console.error(`Error fetching reviews with pagination:`, error);
+        throw error;
+      }
+    },
+
+    filterReviews: function(reviews, widgetSettings) {
+      // Filter out reviews with empty content or text
+      return reviews.filter(r => (r.content && r.content.trim()) || (r.text && r.text.trim()));
+    },
+
+    generateReviewsHtml: function(reviews, widgetSettings) {
+      const filteredReviews = this.filterReviews(reviews, widgetSettings);
+      
+      return filteredReviews.map((review, index) => {
         const author = this.escapeHtml(review.author || 'Anonymous');
         const initials = this.getInitials(review.author);
         const profilePicture = review.profilePicture;
@@ -960,17 +1063,92 @@
           </div>
         `;
       }).join('');
+    },
+
+    generateLoadMoreButtons: function(widgetState, totalReviewCount) {
+      const hasMoreReviews = totalReviewCount > widgetState.loadedReviews.length;
+      const canShowLess = widgetState.displayCount > CONFIG.LIST_SETTINGS.INITIAL_REVIEW_COUNT;
+      
+      if (hasMoreReviews || canShowLess) {
+        const loadMoreButton = hasMoreReviews ? 
+          `<button class="rh-list-load-more-btn" data-action="load-more">Load More Reviews</button>` : '';
+        const showLessButton = canShowLess ? 
+          `<button class="rh-list-show-less-btn" data-action="show-less">Show Less</button>` : '';
+        
+        return `
+          <div class="rh-list-load-more-container">
+            ${loadMoreButton}
+            ${showLessButton}
+          </div>
+        `;
+      }
+      return '';
+    },
+
+    renderWidget: function(container, data, config, displayCount = null) {
+      const { widgetSettings, reviews, businessName, businessUrlLink, totalReviewCount } = data;
+      
+      // Get or create widget state
+      const widgetId = config.widgetId;
+      if (!this.widgetStates.has(widgetId)) {
+        this.widgetStates.set(widgetId, {
+          displayCount: displayCount || CONFIG.LIST_SETTINGS.INITIAL_REVIEW_COUNT,
+          loadedReviews: reviews || [],
+          currentOffset: reviews ? reviews.length : 0,
+          isExpanded: false
+        });
+      }
+      
+      const widgetState = this.widgetStates.get(widgetId);
+      if (displayCount !== null) {
+        widgetState.displayCount = displayCount;
+      }
+      
+      // Filter reviews based on widget settings
+      const filteredReviews = this.filterReviews(widgetState.loadedReviews, widgetSettings);
+      
+      // Detect platform from first review or widget settings
+      const platformSource = filteredReviews.length > 0 ? this.detectReviewSource(filteredReviews[0], widgetSettings) : 'google';
+      
+      // Get appropriate theme color
+      const userThemeColor = config.themeColor || widgetSettings.themeColor;
+      const themeColor = this.getPlatformThemeColor(platformSource, userThemeColor);
+      
+      container.style.setProperty('--list-theme-color', themeColor);
+      container.style.setProperty('--list-theme-color-dark', this.darkenColor(themeColor, 15));
+      container.style.setProperty('--list-theme-color-light', this.lightenColor(themeColor, 90));
+
+      if (!filteredReviews || filteredReviews.length === 0) {
+        container.innerHTML = '<div class="reviewhub-list-error"><div class="reviewhub-list-error-title">No reviews to display.</div><div class="reviewhub-list-error-message">Check back later or add some reviews!</div></div>';
+        return;
+      }
+      
+      // Determine how many reviews to show
+      const currentDisplayCount = Math.min(widgetState.displayCount, filteredReviews.length);
+      const reviewsToShow = filteredReviews.slice(0, currentDisplayCount);
+      const totalReviews = totalReviewCount || filteredReviews.length;
+      const hasMoreReviews = totalReviews > widgetState.loadedReviews.length;
+      const canShowLess = currentDisplayCount > CONFIG.LIST_SETTINGS.INITIAL_REVIEW_COUNT;
+
+      const reviewItemsHtml = this.generateReviewsHtml(reviewsToShow, widgetSettings);
+
+      // Generate load more/show less buttons
+      const loadMoreButtonsHtml = this.generateLoadMoreButtons(widgetState, totalReviews);
 
       const listHtml = `
         <div class="reviewhub-list-widget">
           <div class="reviewhub-list-container">
-            ${reviewItemsHtml}
+            <div class="rh-list-reviews-section">
+              ${reviewItemsHtml}
+            </div>
+            ${loadMoreButtonsHtml}
           </div>
         </div>
       `;
 
       container.innerHTML = listHtml;
-      this.attachModalEventListeners(container, filteredReviews, data, config);
+      this.attachModalEventListeners(container, reviewsToShow, data, config);
+      this.attachLoadMoreEventListeners(container, data, config);
     },
 
     attachModalEventListeners: function(container, reviews, allData, config) {
@@ -983,6 +1161,85 @@
                 }
             });
         });
+    },
+
+    attachLoadMoreEventListeners: function(container, data, config) {
+        const loadMoreBtn = container.querySelector('.rh-list-load-more-btn');
+        const showLessBtn = container.querySelector('.rh-list-show-less-btn');
+        
+        if (loadMoreBtn) {
+            loadMoreBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const widgetState = this.widgetStates.get(config.widgetId);
+                
+                // Show loading state
+                loadMoreBtn.textContent = 'Loading...';
+                loadMoreBtn.disabled = true;
+                
+                try {
+                    // Fetch more reviews from database
+                    const newData = await this.fetchReviewsWithPagination(config, widgetState.currentOffset, CONFIG.LIST_SETTINGS.LOAD_MORE_INCREMENT);
+                    
+                    if (newData && newData.reviews && newData.reviews.length > 0) {
+                        // Add new reviews to the state
+                        widgetState.loadedReviews.push(...newData.reviews);
+                        widgetState.currentOffset += newData.reviews.length;
+                        widgetState.displayCount += CONFIG.LIST_SETTINGS.LOAD_MORE_INCREMENT;
+                        widgetState.isExpanded = true;
+                        
+                        // Update the reviews section without recreating the entire widget
+                        const reviewsContainer = container.querySelector('.reviewhub-list-container');
+                        const newReviewsHtml = this.generateReviewsHtml(
+                            widgetState.loadedReviews.slice(0, widgetState.displayCount),
+                            data.widgetSettings
+                        );
+                        
+                        // Replace only the reviews part, keeping the load more button
+                        const reviewsSection = reviewsContainer.querySelector('.rh-list-reviews-section');
+                        if (reviewsSection) {
+                            reviewsSection.innerHTML = newReviewsHtml;
+                        } else {
+                            // If no reviews section exists, update the entire container
+                            reviewsContainer.innerHTML = newReviewsHtml + this.generateLoadMoreButtons(widgetState, data.totalReviewCount);
+                        }
+                        
+                        // Re-attach modal event listeners to new reviews
+                        this.attachModalEventListeners(container, widgetState.loadedReviews.slice(0, widgetState.displayCount), data, config);
+                        
+                        // Update load more button visibility
+                        const hasMoreReviews = data.totalReviewCount > widgetState.loadedReviews.length;
+                        if (!hasMoreReviews) {
+                            loadMoreBtn.textContent = 'No More Reviews';
+                            loadMoreBtn.disabled = true;
+                        } else {
+                            loadMoreBtn.textContent = 'Load More Reviews';
+                            loadMoreBtn.disabled = false;
+                        }
+                    } else {
+                        // No more reviews to load
+                        loadMoreBtn.textContent = 'No More Reviews';
+                        loadMoreBtn.disabled = true;
+                    }
+                } catch (error) {
+                    console.error('Error loading more reviews:', error);
+                    loadMoreBtn.textContent = 'Load More Reviews';
+                    loadMoreBtn.disabled = false;
+                }
+            });
+        }
+        
+        if (showLessBtn) {
+            showLessBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const widgetState = this.widgetStates.get(config.widgetId);
+                widgetState.displayCount = CONFIG.LIST_SETTINGS.INITIAL_REVIEW_COUNT;
+                widgetState.isExpanded = false;
+                this.renderWidget(container, data, config, CONFIG.LIST_SETTINGS.INITIAL_REVIEW_COUNT);
+                
+                // Smooth scroll to top
+                container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        }
     },
 
     showReviewModal: function(review, allData, config) {
@@ -1122,17 +1379,14 @@
           return;
       }
 
-      const params = new URLSearchParams();
-      const queryString = params.toString();
-      const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${config.widgetId}${queryString ? '?' + queryString : ''}`;
-
       const retryLoad = () => {
         container.innerHTML = '';
         this.initWidget(config); 
       };
 
       try {
-        const data = await this.fetchWithRetry(apiUrl);
+        // Use pagination for initial load
+        const data = await this.fetchReviewsWithPagination(config, 0, CONFIG.LIST_SETTINGS.INITIAL_REVIEW_COUNT);
         if (data && data.reviews) {
           data.widgetSettings = data.widgetSettings || {}; 
           this.renderWidget(container, data, config);

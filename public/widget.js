@@ -317,59 +317,64 @@
     }
   };
 
-  // Auto-initialize widgets from script tags
-  function initializeWidgetsFromScripts() {
-    // Find scripts with either attribute type
-    const allScriptTags = document.querySelectorAll('script[src*="widget.js"]');
-    const scriptTags = Array.from(allScriptTags).filter(script => 
-      script.getAttribute('data-widget-id') || script.getAttribute('data-reviewhub-widget-id')
-    );
-    
-    window.ReviewHubMain.log('info', `Found ${scriptTags.length} widget script tag(s) for auto-initialization.`);
-    scriptTags.forEach(script => {
-      // Get layout first to determine which attribute to use
-      const layout = script.getAttribute('data-layout') || CONFIG.DEFAULT_LAYOUT;
-      
-      // For carousel, prefer data-reviewhub-widget-id, for others prefer data-widget-id
-      let widgetId;
-      if (layout === 'carousel') {
-        widgetId = script.getAttribute('data-reviewhub-widget-id') || script.getAttribute('data-widget-id');
-      } else {
-        widgetId = script.getAttribute('data-widget-id') || script.getAttribute('data-reviewhub-widget-id');
-      }
-      
-      if (!widgetId) {
-        window.ReviewHubMain.log('warn', 'Script tag found but no widget ID attribute present', { layout });
-        return;
-      }
-      
-      const config = {
-        widgetId: widgetId,
-        containerId: script.getAttribute('data-container-id') || null,
-        themeColor: script.getAttribute('data-theme-color') || undefined,
-        layout: layout,
+        // Auto-initialize widgets from script tags
+      function initializeWidgetsFromScripts() {
+        // Find scripts with either attribute type
+        const allScriptTags = document.querySelectorAll('script[src*="widget.js"]');
+        const scriptTags = Array.from(allScriptTags).filter(script => 
+          script.getAttribute('data-widget-id') || script.getAttribute('data-reviewhub-widget-id')
+        );
         
-        // Pass through all data attributes for specific widgets
-        cardsToShowDesktop: script.getAttribute('data-cards-desktop') || undefined,
-        cardsToShowTablet: script.getAttribute('data-cards-tablet') || undefined,
-        cardsToShowFoldable: script.getAttribute('data-cards-foldable') || undefined,
-        cardsToShowMobile: script.getAttribute('data-cards-mobile') || undefined,
-        autoplay: script.getAttribute('data-autoplay') || undefined,
-        autoplayDelay: script.getAttribute('data-autoplay-delay') || undefined,
-        loop: script.getAttribute('data-loop') || undefined,
-        showRatings: script.getAttribute('data-show-ratings') || undefined,
-        showDates: script.getAttribute('data-show-dates') || undefined,
-        showProfilePictures: script.getAttribute('data-show-avatars') || undefined,
-        
-        _scriptTag: script
-      };
-      
-      // Filter out undefined values
-      Object.keys(config).forEach(key => config[key] === undefined && delete config[key]);
-      
-      window.ReviewHubMain.initWidget(config);
-    });
-  }
+        window.ReviewHubMain.log('info', `Found ${scriptTags.length} widget script tag(s) for auto-initialization.`);
+        scriptTags.forEach(script => {
+          // Get layout first to determine which attribute to use
+          const layout = script.getAttribute('data-layout') || CONFIG.DEFAULT_LAYOUT;
+          
+          // For carousel, prefer data-reviewhub-widget-id, for others prefer data-widget-id
+          let widgetId;
+          if (layout === 'carousel') {
+            widgetId = script.getAttribute('data-reviewhub-widget-id') || script.getAttribute('data-widget-id');
+          } else {
+            widgetId = script.getAttribute('data-widget-id') || script.getAttribute('data-reviewhub-widget-id');
+          }
+          
+          if (!widgetId) {
+            window.ReviewHubMain.log('warn', 'Script tag found but no widget ID attribute present', { layout });
+            return;
+          }
+          
+          const config = {
+            widgetId: widgetId,
+            containerId: script.getAttribute('data-container-id') || null,
+            themeColor: script.getAttribute('data-theme-color') || undefined,
+            layout: layout,
+            
+            // Pass through all data attributes for specific widgets
+            cardsToShowDesktop: script.getAttribute('data-cards-desktop') || undefined,
+            cardsToShowTablet: script.getAttribute('data-cards-tablet') || undefined,
+            cardsToShowFoldable: script.getAttribute('data-cards-foldable') || undefined,
+            cardsToShowMobile: script.getAttribute('data-cards-mobile') || undefined,
+            autoplay: script.getAttribute('data-autoplay') || undefined,
+            autoplayDelay: script.getAttribute('data-autoplay-delay') || undefined,
+            loop: script.getAttribute('data-loop') || undefined,
+            showRatings: script.getAttribute('data-show-ratings') || undefined,
+            showDates: script.getAttribute('data-show-dates') || undefined,
+            showProfilePictures: script.getAttribute('data-show-avatars') || undefined,
+            
+            _scriptTag: script
+          };
+          
+          // Filter out undefined values
+          Object.keys(config).forEach(key => config[key] === undefined && delete config[key]);
+          
+          // Ensure layout is passed to the widget
+          if (!config.layout) {
+            config.layout = CONFIG.DEFAULT_LAYOUT;
+          }
+          
+          window.ReviewHubMain.initWidget(config);
+        });
+      }
   
   function processPendingInitializations() {
       if (window.ReviewHubMain._pendingInitializations) {
