@@ -6,6 +6,7 @@ import { apiRequest } from "../lib/queryClient";
 import Layout from "../components/Layout";
 import WidgetCard, { IWidget } from "../components/WidgetCard";
 import CreateWidgetModal from "../components/CreateWidgetModal";
+import DeleteWidgetModal from "../components/DeleteWidgetModal";
 import { useToast } from "../hooks/use-toast";
 import { usePaginatedWidgets } from "../hooks/use-paginated-widgets";
 import { Button } from "../components/ui/button";
@@ -50,6 +51,10 @@ const Widgets = () => {
   const [editingWidget, setEditingWidget] = useState<IWidget | null>(null);
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
   const [modalInitialTab, setModalInitialTab] = useState<'create' | 'preview' | 'embed'>('create');
+  
+  // Delete confirmation modal state
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [widgetToDelete, setWidgetToDelete] = useState<IWidget | null>(null);
 
   const [activeTab, setActiveTab] = useState<WidgetTab>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
@@ -189,6 +194,24 @@ const Widgets = () => {
     setIsCreateModalOpen(true);
   };
 
+  const handleDeleteClick = (widget: IWidget) => {
+    setWidgetToDelete(widget);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (widgetToDelete) {
+      deleteMutation.mutate(widgetToDelete._id);
+      setIsDeleteModalOpen(false);
+      setWidgetToDelete(null);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setIsDeleteModalOpen(false);
+    setWidgetToDelete(null);
+  };
+
   if (authStatus === "loading" || authStatus === "unauthenticated") {
     return (
       <Layout>
@@ -281,7 +304,7 @@ const Widgets = () => {
             variant="ghost"
             size="sm"
             className="text-gray-500 hover:text-red-600 hover:bg-red-50"
-            onClick={() => deleteMutation.mutate(widget._id)}
+            onClick={() => handleDeleteClick(widget)}
             disabled={deleteMutation.isPending && deleteMutation.variables === widget._id}
             title="Delete widget"
           >
@@ -518,8 +541,8 @@ const Widgets = () => {
                                   className="text-gray-600 hover:text-red-600 hover:border-red-200"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                deleteMutation.mutate(widget._id);
-                              }}
+                                    handleDeleteClick(widget);
+                                  }}
                                   disabled={deleteMutation.isPending && deleteMutation.variables === widget._id}
                                 >
                                   <Trash2 className="w-3 h-3" />
@@ -615,6 +638,15 @@ const Widgets = () => {
           initialTab={modalInitialTab}
         />
       )}
+
+      {/* Delete Confirmation Modal */}
+      <DeleteWidgetModal
+        isOpen={isDeleteModalOpen}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        widgetName={widgetToDelete?.name || widgetToDelete?.businessUrl?.name}
+        isLoading={deleteMutation.isPending}
+      />
     </Layout>
   );
 };
