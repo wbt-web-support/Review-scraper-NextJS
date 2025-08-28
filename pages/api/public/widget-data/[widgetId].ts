@@ -176,6 +176,9 @@ export default async function handler(
         // For badge layout, use all available reviews without any limit
         if (layoutQuery === 'badge' || widgetDoc.type === 'badge') {
           requestedLimit = undefined; // No limit for badge widgets
+        } else if (layoutQuery === 'bar' || widgetDoc.type === 'bar') {
+          // For bar layout, use pagination with default 8 initially, but can load more
+          requestedLimit = limitQuery ? parseInt(limitQuery as string) : 8; // Default 8 for bar
         } else {
           // For grid layout, use pagination
           if (layoutQuery === 'grid') {
@@ -283,6 +286,9 @@ export default async function handler(
               // For badge layout, use all available reviews without any limit
               if (layoutQuery === 'badge' || widgetDoc.type === 'badge') {
                 requestedLimit = undefined; // No limit for badge widgets
+              } else if (layoutQuery === 'bar' || widgetDoc.type === 'bar') {
+                // For bar layout, use pagination with default 8 initially, but can load more
+                requestedLimit = limitQuery ? parseInt(limitQuery as string) : 8; // Default 8 for bar
               } else {
                 // For grid layout, use pagination
                 if (layoutQuery === 'grid') {
