@@ -305,7 +305,7 @@ useEffect(() => {
           Responsive on all devices
         </div>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {layoutOptions.map((option) => {
           const IconComponent = option.icon;
           return (
