@@ -40,7 +40,8 @@ import {
   Check,
   Monitor,
   Smartphone,
-  Tablet
+  Tablet,
+  RectangleEllipsis
 } from "lucide-react";
 
 interface CreateWidgetModalProps {
@@ -290,7 +291,7 @@ useEffect(() => {
     { value: "carousel", label: "Carousel", icon: LayoutGrid, description: "Horizontal scrolling" },
     { value: "masonry", label: "Masonry", icon: Columns, description: "Pinterest-style layout" },
     { value: "badge", label: "Badge", icon: Star, description: "Compact rating badge" },
-    { value: "bar", label: "Bar", icon: RectangleGoggles, description: "Horizontal rating bar" },
+    { value: "bar", label: "Bar", icon: RectangleEllipsis, description: "Horizontal rating bar" },
   ];
 
   const LayoutSelector = () => (
