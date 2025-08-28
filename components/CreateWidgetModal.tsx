@@ -33,6 +33,7 @@ import {
   Grid3X3,
   List,
   LayoutGrid,
+  RectangleGoggles,
   Columns,
   Star,
   Copy,
@@ -74,7 +75,7 @@ const CreateWidgetModal = ({
   initialTab = 'create'
 }: CreateWidgetModalProps) => {
   const [activeTab, setActiveTab] = useState<"create" | "preview" | "embed">("create");
-  const [selectedLayout, setSelectedLayout] = useState<"grid" | "carousel" | "list" | "masonry" | "badge">("grid");
+  const [selectedLayout, setSelectedLayout] = useState<"grid" | "carousel" | "list" | "masonry" | "badge" | "bar">("grid");
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -233,9 +234,28 @@ const CreateWidgetModal = ({
   const generateEmbedCode = (layout: string) => {
     // Use different attribute for carousel to avoid conflicts with other widgets
     const widgetIdAttribute = layout === 'carousel' ? 'data-reviewhub-widget-id' : 'data-widget-id';
-
+    
+    // Map layout to the correct widget file
+    const getWidgetFile = (layout: string) => {
+      switch (layout) {
+        case 'bar':
+          return 'widget-bar.js';
+        case 'grid':
+          return 'widget-grid.js';
+        case 'list':
+          return 'widget-list.js';
+        case 'masonry':
+          return 'widget-masonry.js';
+        case 'badge':
+          return 'widget-badge.js';
+        case 'carousel':
+        default:
+          return 'widget.js';
+      }
+    };
+    
     return `<div id="reviewhub-widget"></div>
-<script src="${domain}/widget.js" 
+<script src="${domain}/${getWidgetFile(layout)}" 
         ${widgetIdAttribute}="${widgetId}"
         data-layout="${layout}"
         data-container-id="reviewhub-widget">
@@ -270,6 +290,7 @@ const CreateWidgetModal = ({
     { value: "carousel", label: "Carousel", icon: LayoutGrid, description: "Horizontal scrolling" },
     { value: "masonry", label: "Masonry", icon: Columns, description: "Pinterest-style layout" },
     { value: "badge", label: "Badge", icon: Star, description: "Compact rating badge" },
+    { value: "bar", label: "Bar", icon: RectangleGoggles, description: "Horizontal rating bar" },
   ];
 
   const LayoutSelector = () => (
@@ -742,7 +763,7 @@ const CreateWidgetModal = ({
                           </h5>
                           <pre className="bg-gray-50 text-gray-800 rounded-lg p-3 text-xs overflow-x-auto border">
                             <code>{`<div id="homepage-reviews"></div>
-<script src="${domain}/widget.js" 
+<script src="${domain}/${selectedLayout === 'bar' ? 'widget-bar.js' : selectedLayout === 'grid' ? 'widget-grid.js' : selectedLayout === 'list' ? 'widget-list.js' : selectedLayout === 'masonry' ? 'widget-masonry.js' : selectedLayout === 'badge' ? 'widget-badge.js' : 'widget.js'}" 
         ${selectedLayout === 'carousel' ? 'data-reviewhub-widget-id' : 'data-widget-id'}="${widgetId}"
         data-layout="${selectedLayout}"
         data-container-id="homepage-reviews">
@@ -757,7 +778,7 @@ const CreateWidgetModal = ({
                           </h5>
                           <pre className="bg-gray-50 text-gray-800 rounded-lg p-3 text-xs overflow-x-auto border">
                             <code>{`<div id="footer-reviews"></div>
-<script src="${domain}/widget.js" 
+<script src="${domain}/widget-badge.js" 
         data-widget-id="ANOTHER_WIDGET_ID"
         data-layout="badge"
         data-container-id="footer-reviews">
