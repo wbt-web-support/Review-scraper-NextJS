@@ -830,7 +830,7 @@
           text-align: center;
           width: 100%;
           padding: 12px 0px;
-          display: inline-block;
+          display: none;
           border: none;
           cursor: pointer;
         }
