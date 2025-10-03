@@ -57,6 +57,46 @@
     // Cache for fetched reviews to avoid re-fetching
     reviewCache: new Map(),
 
+    // Function to deduplicate reviews based on unique identifiers
+    deduplicateReviews: function(reviews) {
+      if (!reviews || reviews.length === 0) return reviews;
+      
+      const seen = new Set();
+      const uniqueReviews = [];
+      const duplicates = [];
+      
+      // First, let's log the raw reviews to see what we're working with
+      console.log('[Widget V2 Deduplication] Raw reviews data:', reviews.map((r, i) => ({
+        index: i,
+        author: r.author,
+        content: r.content?.substring(0, 30) + '...',
+        postedAt: r.postedAt,
+        reviewId: r.reviewId
+      })));
+      
+      for (const review of reviews) {
+        // Create a unique key - prefer reviewId if available, otherwise fall back to author+content+date
+        const uniqueKey = review.reviewId || `${review.author || ''}-${review.content || ''}-${review.postedAt || ''}`.toLowerCase().trim();
+        
+        if (!seen.has(uniqueKey)) {
+          seen.add(uniqueKey);
+          uniqueReviews.push(review);
+        } else {
+          duplicates.push({
+            author: review.author,
+            content: review.content?.substring(0, 50) + '...',
+            key: uniqueKey
+          });
+        }
+      }
+      
+      if (duplicates.length > 0) {
+        console.warn(`[Widget V2 Deduplication] Found ${duplicates.length} duplicates:`, duplicates);
+      }
+      console.log(`[Widget V2 Deduplication] Original: ${reviews.length}, Unique: ${uniqueReviews.length}, Duplicates: ${duplicates.length}`);
+      return uniqueReviews;
+    },
+
     log: function(level, message, data) {
       // Console logging disabled for production
     },
@@ -1052,13 +1092,24 @@
       
       console.log(`🔍 Auto-fetch check: currentIndex=${currentIndex}, visibleSlides=${visibleSlides}, loadedReviews=${loadedReviewsCount}, totalReviews=${totalReviews}, slidesLeft=${slidesLeft}, shouldFetch=${slidesLeft <= 2 && hasMoreReviewsAvailable}`);
       
+      // Additional debugging for the last review issue
+      if (loadedReviewsCount > 0) {
+        const lastReview = widgetState.loadedReviews[loadedReviewsCount - 1];
+        console.log(`🔍 Last loaded review:`, {
+          author: lastReview.author,
+          content: lastReview.content?.substring(0, 30) + '...',
+          reviewId: lastReview.reviewId,
+          postedAt: lastReview.postedAt
+        });
+      }
+      
       return slidesLeft <= 2 && hasMoreReviewsAvailable;
     },
 
     // New function to fetch and append more reviews
-    fetchAndAppendReviews: async function(container, config, widgetState, currentReviews) {
+    fetchAndAppendReviews: async function(container, config, widgetState) {
       try {
-        console.log(`🔄 Starting auto-fetch: currentOffset=${widgetState.currentOffset}, currentReviews=${currentReviews.length}`);
+        console.log(`🔄 Starting auto-fetch: currentOffset=${widgetState.currentOffset}, currentReviews=${widgetState.loadedReviews.length}`);
         
         // Calculate how many more reviews to fetch
         const fetchCount = CONFIG.CAROUSEL_SETTINGS.PAGINATION.LOAD_MORE_INCREMENT;
@@ -1074,14 +1125,19 @@
         if (newData && newData.reviews && newData.reviews.length > 0) {
           console.log(`✅ Got ${newData.reviews.length} new reviews`);
           
-          // Update widget state
-          widgetState.currentOffset = newOffset + newData.reviews.length;
-          widgetState.loadedReviews = [...currentReviews, ...newData.reviews];
+          // Deduplicate new reviews before adding them
+          const deduplicatedNewReviews = this.deduplicateReviews(newData.reviews);
+          console.log(`🔄 Deduplicated new reviews: ${newData.reviews.length} -> ${deduplicatedNewReviews.length}`);
+          
+          // Update widget state - use deduplicated count for offset calculation
+          widgetState.currentOffset = newOffset + deduplicatedNewReviews.length;
+          widgetState.loadedReviews = [...widgetState.loadedReviews, ...deduplicatedNewReviews];
           
           console.log(`📝 Updated widget state: newOffset=${widgetState.currentOffset}, totalLoaded=${widgetState.loadedReviews.length}`);
+          console.log(`📊 Carousel state before update: currentReviews=${widgetState.loadedReviews.length - deduplicatedNewReviews.length}, newReviews=${deduplicatedNewReviews.length}, totalAfter=${widgetState.loadedReviews.length}`);
           
           // Update the carousel with new reviews
-          this.updateCarouselWithNewReviews(container, config, widgetState, newData.reviews);
+          this.updateCarouselWithNewReviews(container, config, widgetState, deduplicatedNewReviews);
           
           console.log(`📊 Auto-fetched ${newData.reviews.length} more reviews for widget ${config.widgetId}`);
           return true;
@@ -1103,17 +1159,26 @@
       const track = carouselWrapper.querySelector('.rh-carousel-track');
       if (!track) return;
       
-      // Filter new reviews
-      const filteredNewReviews = this.filterReviews(newReviews, widgetState.widgetSettings);
+      console.log(`🔄 Updating carousel with ${newReviews.length} new reviews`);
+      console.log(`📊 Current loaded reviews: ${widgetState.loadedReviews.length}`);
+      
+      // Filter new reviews (already deduplicated in fetchAndAppendReviews)
+      const filteredNewReviews = this.filterReviews(newReviews || [], widgetState.widgetSettings);
+      console.log(`📊 Filtered new reviews: ${filteredNewReviews.length}`);
       
       // Create new slide elements for the new reviews
       const newSlides = filteredNewReviews.map((review, index) => {
-        const slideIndex = widgetState.loadedReviews.length - newReviews.length + index;
+        // Calculate the correct index - start from the current total slides count
+        const currentSlidesCount = track.querySelectorAll('.rh-carousel-slide').length;
+        const slideIndex = currentSlidesCount + index;
+        console.log(`📊 Creating slide for review ${index + 1}: slideIndex=${slideIndex}, author=${review.author}`);
         return this.createReviewSlide(review, slideIndex, widgetState.widgetSettings);
       });
       
       // Append new slides to the track
-      newSlides.forEach(slide => {
+      console.log(`📊 Adding ${newSlides.length} new slides to carousel`);
+      newSlides.forEach((slide, index) => {
+        console.log(`📊 Adding slide ${index + 1}:`, slide.querySelector('.rh-review-card')?.textContent?.substring(0, 50) + '...');
         track.appendChild(slide);
       });
       
@@ -1151,7 +1216,7 @@
       slideElement.className = 'rh-carousel-slide';
       slideElement.setAttribute('data-index', index);
       slideElement.innerHTML = `
-        <div class="rh-review-card">
+        <div class="rh-review-card new 1">
           <img src="${reviewPlatformLogo}" alt="${reviewPlatformName}" class="rh-google-logo-corner">
           <div class="rh-card-header">
             <div class="rh-card-avatar">
@@ -1236,15 +1301,56 @@
     },
 
     filterReviews: function(reviews, widgetSettings) {
-      // Filter out reviews with empty content or text
-      return reviews.filter(r => (r.content && r.content.trim()) || (r.text && r.text.trim()));
+      if (!reviews || reviews.length === 0) return reviews;
+      
+      const originalCount = reviews.length;
+      let filteredCount = 0;
+      
+      // Filter out reviews with empty, null, undefined, or whitespace-only content
+      const filteredReviews = reviews.filter(review => {
+        // Get the content from either content or text field
+        const rawContent = review.content || review.text || '';
+        
+        // Check if content exists and is a string
+        if (!rawContent || typeof rawContent !== 'string') {
+          return false;
+        }
+        
+        // Trim all types of whitespace (spaces, tabs, newlines, etc.)
+        const content = rawContent.replace(/[\s\n\r\t\f\v\u00A0\u2000-\u200B\u2028\u2029\u3000]+/g, '').trim();
+        
+        // Check if content is meaningful (not empty, not just punctuation, and has reasonable length)
+        const isMeaningfulContent = content.length > 2 && !/^[.,!?\-_]+$/.test(content);
+        
+        const isValid = isMeaningfulContent;
+        
+        if (!isValid) {
+          filteredCount++;
+          console.log(`[Widget V2 Filter] Filtering out review with blank/meaningless content:`, {
+            author: review.author,
+            originalContent: rawContent,
+            cleanedContent: content,
+            contentLength: content.length,
+            reviewId: review.reviewId
+          });
+        }
+        
+        return isValid;
+      });
+      
+      if (filteredCount > 0) {
+        console.log(`[Widget V2 Filter] Filtered out ${filteredCount} reviews with blank/meaningless content. Original: ${originalCount}, Filtered: ${filteredReviews.length}`);
+      }
+      
+      return filteredReviews;
     },
 
     renderWidget: function(container, data, config) {
       const { widgetSettings, reviews, businessName, businessUrlLink, totalReviewCount } = data;
       
-      // Filter reviews based on widget settings
-      const filteredReviews = this.filterReviews(reviews, widgetSettings);
+      // Deduplicate and filter reviews based on widget settings
+      const deduplicatedReviews = this.deduplicateReviews(reviews || []);
+      const filteredReviews = this.filterReviews(deduplicatedReviews, widgetSettings);
       
       // Detect platform from first review or widget settings
       const platformSource = filteredReviews.length > 0 ? this.detectReviewSource(filteredReviews[0], widgetSettings) : 'google';
@@ -1287,8 +1393,9 @@
 
     renderCarouselWidget: function(container, data, config) {
       const { reviews, widgetSettings, businessName, totalReviewCount } = data;
-      // Filter out reviews with empty content or text
-      const filteredReviews = this.filterReviews(reviews, widgetSettings);
+      // Deduplicate and filter out reviews with empty content or text
+      const deduplicatedReviews = this.deduplicateReviews(reviews || []);
+      const filteredReviews = this.filterReviews(deduplicatedReviews, widgetSettings);
       const carouselId = `rh-carousel-${config.widgetId}-${Date.now()}`;
 
       // Get or create widget state for pagination
@@ -1305,7 +1412,7 @@
       }
       
       const widgetState = this.widgetStates.get(widgetId);
-      // Update widget state with latest data
+      // Update widget state with latest deduplicated data
       widgetState.loadedReviews = filteredReviews;
       widgetState.totalReviews = totalReviewCount || filteredReviews.length;
       widgetState.widgetSettings = widgetSettings;
@@ -1717,8 +1824,7 @@
                     const success = await window.ReviewHubV2.fetchAndAppendReviews(
                         containerElem, 
                         globalConfig, 
-                        widgetState, 
-                        widgetState.loadedReviews
+                        widgetState
                     );
                     widgetState.isFetching = false;
                     
@@ -2040,9 +2146,11 @@
       // Check if this widget instance has already been initialized
       this._initializedWidgets = this._initializedWidgets || new Set();
       if (this._initializedWidgets.has(widgetInstanceId)) {
+        console.warn(`[Widget V2] Widget ${widgetInstanceId} already initialized, skipping duplicate initialization`);
         return;
       }
       this._initializedWidgets.add(widgetInstanceId);
+      console.log(`[Widget V2] Initializing widget ${widgetInstanceId}`);
       
       this.injectStyles();
 

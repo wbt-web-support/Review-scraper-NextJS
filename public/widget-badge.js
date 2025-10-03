@@ -1548,9 +1548,23 @@
   // Auto-initialize widgets from script tags
   function initializeWidgetsFromScripts() {
     const scriptTags = document.querySelectorAll('script[data-widget-id][src*="widget-badge.js"]');
-    scriptTags.forEach(script => {
+    const initializedWidgets = new Set();
+    
+    console.log(`[Badge Init] Found ${scriptTags.length} script tags`);
+    
+    scriptTags.forEach((script, index) => {
+      const widgetId = script.getAttribute('data-widget-id');
+      
+      // Prevent multiple initializations of the same widget
+      if (initializedWidgets.has(widgetId)) {
+        console.warn(`[Badge Init] Widget ${widgetId} already initialized, skipping duplicate`);
+        return;
+      }
+      
+      initializedWidgets.add(widgetId);
+      
       const config = {
-        widgetId: script.getAttribute('data-widget-id'),
+        widgetId: widgetId,
         containerId: script.getAttribute('data-container-id') || null,
         themeColor: script.getAttribute('data-theme-color') || undefined,
         layout: script.getAttribute('data-layout') || 'badge',
@@ -1558,6 +1572,7 @@
       };
       
       Object.keys(config).forEach(key => config[key] === undefined && delete config[key]);
+      console.log(`[Badge Init] Initializing widget ${widgetId} (script ${index + 1}/${scriptTags.length})`);
       window.ReviewHubBadge.initWidget(config);
     });
   }
