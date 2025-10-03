@@ -14,6 +14,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "./ui/alert-dialog";
+import { Button } from "./ui/button";
 import { formatTimeAgo } from "../lib/utils";
 import Image from "next/image";
 
@@ -38,11 +49,16 @@ interface ReviewTableProps {
   isLoading?: boolean;
   emptyState?: React.ReactNode;
   error?: Error | null;
+  onReviewDeleted?: (reviewId: string) => void;
+  urlHash?: string;
 }
 
-const ReviewTable = ({  reviews, isLoading = false, emptyState, error }: ReviewTableProps) => {
+const ReviewTable = ({  reviews, isLoading = false, emptyState, error, onReviewDeleted, urlHash }: ReviewTableProps) => {
   const [selectedReview, setSelectedReview] = useState<IReviewItem | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [reviewToDelete, setReviewToDelete] = useState<IReviewItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
 
   const openReviewModal = (review: IReviewItem) => {
@@ -53,6 +69,56 @@ const ReviewTable = ({  reviews, isLoading = false, emptyState, error }: ReviewT
   const closeReviewModal = () => {
     setSelectedReview(null);
     setIsModalOpen(false);
+  };
+
+  const handleDeleteClick = (review: IReviewItem) => {
+    setReviewToDelete(review);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!reviewToDelete || !urlHash) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const response = await fetch('/api/reviews/delete', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          reviewId: reviewToDelete.reviewId,
+          source: reviewToDelete.source || reviewToDelete.businessUrl?.source,
+          urlHash: urlHash,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Call the callback to refresh the reviews list
+        if (onReviewDeleted && reviewToDelete.reviewId) {
+          onReviewDeleted(reviewToDelete.reviewId);
+        }
+        setDeleteDialogOpen(false);
+        setReviewToDelete(null);
+      } else {
+        console.error('Failed to delete review:', data.message);
+        // You might want to show a toast notification here
+      }
+    } catch (error) {
+      console.error('Error deleting review:', error);
+      // You might want to show a toast notification here
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+    setReviewToDelete(null);
   };
 
   // Function to truncate text and determine if "Read more" is needed
@@ -152,6 +218,7 @@ const ReviewTable = ({  reviews, isLoading = false, emptyState, error }: ReviewT
               <TableHead className="w-[120px] px-4 py-3 text-xs font-medium text-slate-500  uppercase tracking-wider">Rating</TableHead>
               <TableHead className="px-4 py-3 text-xs font-medium text-slate-500  uppercase tracking-wider">Review</TableHead>
               <TableHead className="w-[150px] px-4 py-3 text-xs font-medium text-slate-500  uppercase tracking-wider text-right">Date</TableHead>
+              <TableHead className="w-[100px] px-4 py-3 text-xs font-medium text-slate-500  uppercase tracking-wider text-center">Actions</TableHead>
             </TableRow>
           </TableHeader>
          
@@ -273,6 +340,29 @@ const ReviewTable = ({  reviews, isLoading = false, emptyState, error }: ReviewT
                   <TableCell className="px-4 py-3 whitespace-nowrap text-sm text-slate-500 text-right">
                     {getDisplayDate(review)}
                   </TableCell>
+                  <TableCell className="px-4 py-3 whitespace-nowrap text-center">
+                    <button
+                      onClick={() => handleDeleteClick(review)}
+                      className="inline-flex items-center justify-center w-8 h-8 text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-200 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={isDeleting}
+                      title="Delete review"
+                    >
+                      <svg 
+                        className="w-4 h-4" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24" 
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round" 
+                          strokeWidth={2} 
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" 
+                        />
+                      </svg>
+                    </button>
+                  </TableCell>
                 </TableRow>
               );
             })}
@@ -375,6 +465,51 @@ const ReviewTable = ({  reviews, isLoading = false, emptyState, error }: ReviewT
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Review</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this review? This action cannot be undone.
+              {reviewToDelete && (
+                <div className="mt-2 p-3 bg-slate-50 rounded-md">
+                  <p className="text-sm font-medium text-slate-700">
+                    {reviewToDelete.author}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    {reviewToDelete.content?.substring(0, 100)}
+                    {reviewToDelete.content && reviewToDelete.content.length > 100 && '...'}
+                  </p>
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleDeleteCancel} disabled={isDeleting}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Deleting...
+                </>
+              ) : (
+                'Delete Review'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

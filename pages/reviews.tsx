@@ -363,6 +363,15 @@ const Reviews = () => {
           <ReviewTable
             reviews={reviews}
             isLoading={isReviewsLoading}
+            urlHash={filteredBusinessUrls.find(b => b._id === selectedBusinessUrl)?.urlHash}
+            onReviewDeleted={(reviewId) => {
+              // Refresh the reviews list after deletion
+              queryClient.invalidateQueries({ queryKey: ['reviews', selectedBusinessUrl] });
+              toast({ 
+                title: "Review Deleted", 
+                description: "The review has been successfully deleted." 
+              });
+            }}
             emptyState={
               <div className="text-center py-8">
                 <p className="text-gray-500">No reviews found for this business.</p>

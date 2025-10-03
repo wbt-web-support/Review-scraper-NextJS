@@ -210,6 +210,16 @@ export default async function handler(
         console.log(`[Widget API] 📊 Performance Metrics: offset=${offset}, limit=${requestedLimit}, returned=${reviews.length}, total_available=${totalReviewCount}`);
         console.log(`[Widget API] Filtered to ${reviews.length} reviews (minRating: ${widgetDoc.minRating}, source: ${reviewBatch.source}, offset: ${offset})`);
         
+        // Log individual reviews to detect duplicates
+        console.log(`[Widget API] 📊 Individual reviews being returned:`, reviews.map((r, i) => ({
+          index: i,
+          author: r.author,
+          content: r.content?.substring(0, 30) + '...',
+          postedAt: r.postedAt,
+          rating: r.rating,
+          recommendationStatus: r.recommendationStatus
+        })));
+        
         if (reviewBatch.source === 'facebook') {
           console.log(`[Widget API] Facebook filtering: minRating=${widgetDoc.minRating} means ${widgetDoc.minRating >= 2 ? 'recommended only' : 'all reviews'}`);
         }
@@ -320,6 +330,16 @@ export default async function handler(
               console.log(`[Widget API] 📊 Fallback Performance Metrics: offset=${offset}, limit=${requestedLimit}, returned=${reviews.length}, total_available=${totalReviewCount}`);
               console.log(`[Widget API] Fallback: Filtered to ${reviews.length} reviews (minRating: ${widgetDoc.minRating}, source: ${reviewBatch.source}, offset: ${offset})`);
               
+              // Log individual reviews to detect duplicates in fallback
+              console.log(`[Widget API] 📊 Fallback Individual reviews being returned:`, reviews.map((r, i) => ({
+                index: i,
+                author: r.author,
+                content: r.content?.substring(0, 30) + '...',
+                postedAt: r.postedAt,
+                rating: r.rating,
+                recommendationStatus: r.recommendationStatus
+              })));
+              
               if (reviewBatch.source === 'facebook') {
                 console.log(`[Widget API] Fallback: Facebook filtering: minRating=${widgetDoc.minRating} means ${widgetDoc.minRating >= 2 ? 'recommended only' : 'all reviews'}`);
               }
@@ -366,14 +386,78 @@ export default async function handler(
       })
     };
 
+    // Filter out blank content reviews at API level
+    const filteredReviews = reviews.filter(review => {
+      const rawContent = review.content || '';
+      
+      // Check if content exists and is a string
+      if (!rawContent || typeof rawContent !== 'string') {
+        return false;
+      }
+      
+      // Trim all types of whitespace (spaces, tabs, newlines, etc.)
+      const content = rawContent.replace(/[\s\n\r\t\f\v\u00A0\u2000-\u200B\u2028\u2029\u3000]+/g, '').trim();
+      
+      // Check if content is meaningful (not empty, not just punctuation, and has reasonable length)
+      const isMeaningfulContent = content.length > 2 && !/^[.,!?\-_]+$/.test(content);
+      
+      if (!isMeaningfulContent) {
+        console.log(`[Widget API] Filtering out review with blank/meaningless content:`, {
+          author: review.author,
+          originalContent: rawContent,
+          cleanedContent: content,
+          contentLength: content.length,
+          reviewId: review.reviewId
+        });
+      }
+      
+      return isMeaningfulContent;
+    });
+    
+    console.log(`[Widget API] Content filtering: ${reviews.length} -> ${filteredReviews.length} reviews`);
+    
+    // Final deduplication at API level before returning
+    const originalReviewCount = filteredReviews.length;
+    const seen = new Set();
+    const uniqueReviews = [];
+    const duplicates = [];
+    
+    for (const review of filteredReviews) {
+      // Use the same deduplication logic as the widget - prefer reviewId if available
+      const uniqueKey = review.reviewId || `${review.author || ''}-${review.content || ''}-${review.postedAt || ''}`.toLowerCase().trim();
+      
+      if (!seen.has(uniqueKey)) {
+        seen.add(uniqueKey);
+        uniqueReviews.push(review);
+      } else {
+        duplicates.push({
+          author: review.author,
+          content: review.content?.substring(0, 50) + '...',
+          reviewId: review.reviewId,
+          key: uniqueKey
+        });
+      }
+    }
+    
+    if (duplicates.length > 0) {
+      console.warn(`[Widget API] 🚨 Found ${duplicates.length} duplicates at API level:`, duplicates);
+    }
+    
+    // Use deduplicated reviews
+    reviews = uniqueReviews;
+    
     // Log comprehensive summary
     console.log(`[Widget API] 📊 === DATABASE FETCH SUMMARY ===`);
     console.log(`[Widget API] 📊 Widget ID: ${widgetId}`);
     console.log(`[Widget API] 📊 Layout: ${layoutQuery || 'default'}`);
     console.log(`[Widget API] 📊 Total reviews in database: ${totalReviewCount}`);
-    console.log(`[Widget API] 📊 Reviews fetched from database: ${reviews.length}`);
+    console.log(`[Widget API] 📊 Reviews fetched from database: ${originalReviewCount}`);
+    console.log(`[Widget API] 📊 Reviews after API deduplication: ${reviews.length}`);
+    console.log(`[Widget API] 📊 Duplicates removed: ${duplicates.length}`);
     console.log(`[Widget API] 📊 Pagination: offset=${offsetQuery || 0}, limit=${limitQuery || 'default'}`);
     console.log(`[Widget API] 📊 Performance: ${reviews.length}/${totalReviewCount} reviews returned (${Math.round((reviews.length / totalReviewCount) * 100)}% of total)`);
+    console.log(`[Widget API] 📊 URL Hash: ${req.url?.split('#')[1] || 'none'}`);
+    console.log(`[Widget API] 📊 Full URL: ${req.url}`);
     console.log(`[Widget API] 📊 === END SUMMARY ===`);
 
     res.status(200).json({
