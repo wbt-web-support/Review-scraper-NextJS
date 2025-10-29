@@ -1204,7 +1204,8 @@
         ratingDisplay = `
           <div class="reviewhub-badge-compact-rating">
             <span class="reviewhub-badge-compact-number">${avgRating}</span>
-            <span class="reviewhub-badge-compact-text">${reviewCount} ${reviewText} | ${statusDescription}</span>
+            <span class="reviewhub-badge-compact-text">${reviewCount} ${reviewText}</span> 
+          
           </div>
         `;
       } else {
