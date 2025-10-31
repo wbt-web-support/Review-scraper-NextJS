@@ -258,7 +258,7 @@
            <div class="reviewhub-badge-modal-review">
              <div class="reviewhub-badge-modal-review-header">
                ${review.profilePicture ? 
-                 `<img src="${review.profilePicture}" alt="${this.escapeHtml(review.author)}" class="reviewhub-badge-modal-review-avatar" />` :
+                 `<div class="reviewhub-badge-modal-review-avatar">${initials}</div>` :
                  `<div class="reviewhub-badge-modal-review-avatar">${initials}</div>`
                }
                <div class="reviewhub-badge-modal-review-info">

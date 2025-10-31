@@ -258,7 +258,7 @@
            <div class="reviewhub-bar-modal-review">
              <div class="reviewhub-bar-modal-review-header">
                ${review.profilePicture ? 
-                 `<img src="${review.profilePicture}" alt="${this.escapeHtml(review.author)}" class="reviewhub-bar-modal-review-avatar" />` :
+                 `<div class="reviewhub-bar-modal-review-avatar">${initials}</div>` :
                  `<div class="reviewhub-bar-modal-review-avatar">${initials}</div>`
                }
                <div class="reviewhub-bar-modal-review-info">
