@@ -1220,7 +1220,7 @@
           <img src="${reviewPlatformLogo}" alt="${reviewPlatformName}" class="rh-google-logo-corner">
           <div class="rh-card-header">
             <div class="rh-card-avatar">
-              ${profilePicture && widgetSettings.showProfilePictures ? `<img src="${this.escapeHtml(profilePicture)}" alt="${author}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><span style="display:none;">${initials}</span>` : `<span>${initials}</span>`}
+              ${profilePicture && widgetSettings.showProfilePictures ? `<span>${initials}</span>` : `<span>${initials}</span>`}
             </div>
             <div class="rh-card-author-details">
               <div class="rh-card-author-line">
@@ -1457,7 +1457,7 @@
               <img src="${reviewPlatformLogo}" alt="${reviewPlatformName}" class="rh-google-logo-corner">
               <div class="rh-card-header">
                 <div class="rh-card-avatar">
-                  ${profilePicture && widgetSettings.showProfilePictures ? `<img src="${this.escapeHtml(profilePicture)}" alt="${author}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><span style="display:none;">${initials}</span>` : `<span>${initials}</span>`}
+                  ${profilePicture && widgetSettings.showProfilePictures ? `<span>${initials}</span>` : `<span>${initials}</span>`}
                 </div>
                 <div class="rh-card-author-details">
                   <div class="rh-card-author-line">
@@ -2079,7 +2079,7 @@
                 <button class="rh-modal-close" aria-label="Close modal">&times;</button>
                 <div class="rh-modal-header">
                     <div class="rh-modal-avatar">
-                        ${profilePicture && showAvatarsSetting ? `<img src="${this.escapeHtml(profilePicture)}" alt="${author}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><span style="display:none;">${initials}</span>` : `<span>${initials}</span>`}
+                        ${profilePicture && showAvatarsSetting ? `<span>${initials}</span>` : `<span>${initials}</span>`}
                     </div>
                     <div class="rh-modal-author-details">
                         <div class="rh-modal-author-line">

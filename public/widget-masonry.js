@@ -1099,7 +1099,7 @@
             <div class="rh-masonry-card-header">
               <div class="rh-masonry-card-avatar">
                 ${profilePicture && widgetSettings.showProfilePictures !== false ? 
-                  `<img src="${this.escapeHtml(profilePicture)}" alt="${author}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><span style="display:none;">${initials}</span>` : 
+                  `<span>${initials}</span>` : 
                   `<span>${initials}</span>`
                 }
               </div>
@@ -1240,7 +1240,7 @@
                 <div class="reviewhub-masonry-modal-header">
                     <div class="reviewhub-masonry-modal-avatar">
                         ${profilePicture && showAvatarsSetting ? 
-                          `<img src="${this.escapeHtml(profilePicture)}" alt="${author}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><span style="display:none;">${initials}</span>` : 
+                          `<span>${initials}</span>` : 
                           `<span>${initials}</span>`
                         }
                     </div>

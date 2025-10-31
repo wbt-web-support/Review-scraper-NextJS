@@ -1092,7 +1092,7 @@
             <div class="rh-grid-card-header">
               <div class="rh-grid-card-avatar">
                 ${profilePicture && widgetSettings.showProfilePictures !== false ? 
-                  `<img src="${this.escapeHtml(profilePicture)}" alt="${author}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><span style="display:none;">${initials}</span>` : 
+                  `<span">${initials}</span>` : 
                   `<span>${initials}</span>`
                 }
               </div>
@@ -1273,7 +1273,7 @@
                 <div class="reviewhub-grid-modal-header">
                     <div class="reviewhub-grid-modal-avatar">
                         ${profilePicture && showAvatarsSetting ? 
-                          `<img src="${this.escapeHtml(profilePicture)}" alt="${author}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><span style="display:none;">${initials}</span>` : 
+                          `<span>${initials}</span>` : 
                           `<span>${initials}</span>`
                         }
                     </div>

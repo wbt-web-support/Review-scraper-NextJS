@@ -1038,7 +1038,7 @@
             <div class="rh-list-item-header">
               <div class="rh-list-item-avatar">
                 ${profilePicture && widgetSettings.showProfilePictures !== false ? 
-                  `<img src="${this.escapeHtml(profilePicture)}" alt="${author}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><span style="display:none;">${initials}</span>` : 
+                  `<span>${initials}</span>` : 
                   `<span>${initials}</span>`
                 }
               </div>
@@ -1284,7 +1284,7 @@
                 <div class="reviewhub-list-modal-header">
                     <div class="reviewhub-list-modal-avatar">
                         ${profilePicture && showAvatarsSetting ? 
-                          `<img src="${this.escapeHtml(profilePicture)}" alt="${author}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><span style="display:none;">${initials}</span>` : 
+                          `<span>${initials}</span>` : 
                           `<span>${initials}</span>`
                         }
                     </div>
