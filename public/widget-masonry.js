@@ -1246,7 +1246,7 @@
                     </div>
                     <div class="reviewhub-masonry-modal-author-details">
                         <div class="reviewhub-masonry-modal-author-line">
-                            <h3 class="reviewhub-masonry-modal-author-name">${author}</h3>
+                            <p class="reviewhub-masonry-modal-author-name">${author}</p>
                             ${isVerified ? '<span class="reviewhub-masonry-modal-verified-badge"><i class="rh-fas rh-fa-check-circle"></i></span>' : ''}
                         </div>
                          ${showDatesSetting && date ? `
