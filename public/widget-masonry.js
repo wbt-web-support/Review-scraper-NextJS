@@ -1105,7 +1105,7 @@
               </div>
               <div class="rh-masonry-card-author-details">
                 <div class="rh-masonry-card-author-line">
-                  <h4 class="rh-masonry-card-author-name">${author}</h4>
+                  <p class="rh-masonry-card-author-name">${author}</p>
                   ${isVerified ? '<span class="rh-masonry-verified-badge"><i class="rh-fas rh-fa-check-circle"></i></span>' : ''}
                 </div>
                 ${widgetSettings.showDates !== false && date ? `

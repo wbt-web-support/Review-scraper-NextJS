@@ -1045,7 +1045,7 @@
               
               <div class="rh-list-item-content">
                 <div class="rh-list-item-author-line">
-                  <h4 class="rh-list-item-author-name">${author}</h4>
+                  <p class="rh-list-item-author-name">${author}</p>
                   ${isVerified ? '<span class="rh-list-verified-badge"><i class="rh-fas rh-fa-check-circle"></i></span>' : ''}
                 </div>
                 
