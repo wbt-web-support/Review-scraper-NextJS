@@ -2083,7 +2083,7 @@
                     </div>
                     <div class="rh-modal-author-details">
                         <div class="rh-modal-author-line">
-                            <h3 class="rh-modal-author-name">${author}</h3>
+                            <p class="rh-modal-author-name">${author}</p>
                             ${isVerified ? '<span class="rh-modal-verified-badge"><i class="rh-fas rh-fa-check-circle"></i></span>' : ''}
                         </div>
                          ${showDatesSetting && date ? `

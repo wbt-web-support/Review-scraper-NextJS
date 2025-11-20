@@ -1290,7 +1290,7 @@
                     </div>
                     <div class="reviewhub-list-modal-author-details">
                         <div class="reviewhub-list-modal-author-line">
-                            <h3 class="reviewhub-list-modal-author-name">${author}</h3>
+                            <p class="reviewhub-list-modal-author-name">${author}</p>
                             ${isVerified ? '<span class="reviewhub-list-modal-verified-badge"><i class="rh-fas rh-fa-check-circle"></i></span>' : ''}
                         </div>
                          ${showDatesSetting && date ? `
