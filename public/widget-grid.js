@@ -264,7 +264,7 @@
             font-size: 16px !important;
             line-height: inherit !important;
             color: inherit !important;
-            padding-bottom: 20px !important;
+           
         }
 
 
@@ -1096,9 +1096,9 @@
                   `<span>${initials}</span>`
                 }
               </div>
-              <div class="rh-grid-card-author-details">
-                <div class="rh-grid-card-author-line">
-                  <h4 class="rh-grid-card-author-name">${author}</h4>
+              <div class="rh-grid-card-author-details ">
+                <div class="rh-grid-card-author-line ">
+                  <p class="rh-grid-card-author-name justify-center items-center bg-red-500 h-fit">${author}</p>
                   ${isVerified ? '<span class="rh-grid-verified-badge"><i class="rh-fas rh-fa-check-circle"></i></span>' : ''}
                 </div>
                 ${widgetSettings.showDates !== false && date ? `

@@ -1224,7 +1224,7 @@
             </div>
             <div class="rh-card-author-details">
               <div class="rh-card-author-line">
-                <h4 class="rh-card-author-name">${author}</h4>
+                <p class="rh-card-author-name">${author}</p>
                 ${isVerified ? '<span class="rh-verified-badge"><i class="rh-fas rh-fa-check-circle"></i></span>' : ''}
               </div>
               ${widgetSettings.showDates && date ? `
@@ -1461,7 +1461,7 @@
                 </div>
                 <div class="rh-card-author-details">
                   <div class="rh-card-author-line">
-                    <h4 class="rh-card-author-name">${author}</h4>
+                    <p class="rh-card-author-name">${author}</p>
                     ${isVerified ? '<span class="rh-verified-badge"><i class="rh-fas rh-fa-check-circle"></i></span>' : ''}
                   </div>
                   ${widgetSettings.showDates && date ? `
