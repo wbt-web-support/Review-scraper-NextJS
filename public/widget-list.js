@@ -1464,8 +1464,23 @@
       };
 
       try {
-        // Use pagination for initial load
-        const data = await this.fetchReviewsWithPagination(config, 0, CONFIG.LIST_SETTINGS.INITIAL_REVIEW_COUNT);
+        let data;
+        const widgetId = config.widgetId;
+
+        // Check for pre-fetched data from widget.js
+        if (window.ReviewHubMain && window.ReviewHubMain.dataCache && window.ReviewHubMain.dataCache.has(widgetId)) {
+          try {
+            console.log(`[ReviewHubList] Using pre-fetched data for ${widgetId}`);
+            data = await window.ReviewHubMain.dataCache.get(widgetId);
+          } catch (e) {
+            console.warn(`[ReviewHubList] Pre-fetch lookup failed for ${widgetId}, falling back...`);
+          }
+        }
+
+        if (!data) {
+          // Use pagination for initial load
+          data = await this.fetchReviewsWithPagination(config, 0, CONFIG.LIST_SETTINGS.INITIAL_REVIEW_COUNT);
+        }
         if (data && data.reviews) {
           data.widgetSettings = data.widgetSettings || {};
           this.renderWidget(container, data, config);

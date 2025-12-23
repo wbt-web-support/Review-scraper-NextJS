@@ -1449,22 +1449,36 @@
 
       // For grid layout, use pagination for initial load
       let data;
-      if (config.layout === 'grid') {
+      const widgetId = config.widgetId;
+
+      // Check for pre-fetched data from widget.js
+      if (window.ReviewHubMain && window.ReviewHubMain.dataCache && window.ReviewHubMain.dataCache.has(widgetId)) {
         try {
-          data = await this.fetchReviewsWithPagination(config.widgetId, 0, CONFIG.GRID_SETTINGS.INITIAL_REVIEW_COUNT);
-        } catch (error) {
-          // Fallback to old method if pagination fails
+          console.log(`[ReviewHubGrid] Using pre-fetched data for ${widgetId}`);
+          data = await window.ReviewHubMain.dataCache.get(widgetId);
+        } catch (e) {
+          console.warn(`[ReviewHubGrid] Pre-fetch lookup failed for ${widgetId}, falling back...`);
+        }
+      }
+
+      if (!data) {
+        if (config.layout === 'grid') {
+          try {
+            data = await this.fetchReviewsWithPagination(config.widgetId, 0, CONFIG.GRID_SETTINGS.INITIAL_REVIEW_COUNT);
+          } catch (error) {
+            // Fallback to old method if pagination fails
+            const params = new URLSearchParams();
+            const queryString = params.toString();
+            const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${config.widgetId}${queryString ? '?' + queryString : ''}`;
+            data = await this.fetchWithRetry(apiUrl);
+          }
+        } else {
+          // For other layouts, use the old method
           const params = new URLSearchParams();
           const queryString = params.toString();
           const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${config.widgetId}${queryString ? '?' + queryString : ''}`;
           data = await this.fetchWithRetry(apiUrl);
         }
-      } else {
-        // For other layouts, use the old method
-        const params = new URLSearchParams();
-        const queryString = params.toString();
-        const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${config.widgetId}${queryString ? '?' + queryString : ''}`;
-        data = await this.fetchWithRetry(apiUrl);
       }
 
       const retryLoad = () => {

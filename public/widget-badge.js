@@ -1544,10 +1544,22 @@
       };
 
       try {
-        // Check if we have pre-calculated stats (using the new optimized API)
-        // For badge layout, we now rely on the API to return averageRating and totalReviewCount
-        // so we don't need to fetch all reviews initially.
-        let data = await this.fetchWithRetry(apiUrl);
+        let data;
+        const widgetId = config.widgetId;
+
+        // Check for pre-fetched data from widget.js
+        if (window.ReviewHubMain && window.ReviewHubMain.dataCache && window.ReviewHubMain.dataCache.has(widgetId)) {
+          try {
+            console.log(`[ReviewHubBadge] Using pre-fetched data for ${widgetId}`);
+            data = await window.ReviewHubMain.dataCache.get(widgetId);
+          } catch (e) {
+            console.warn(`[ReviewHubBadge] Pre-fetch lookup failed for ${widgetId}, falling back...`);
+          }
+        }
+
+        if (!data) {
+          data = await this.fetchWithRetry(apiUrl);
+        }
 
         if (data && data.reviews) {
           data.widgetSettings = data.widgetSettings || {};

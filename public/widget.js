@@ -51,6 +51,7 @@
     loadedWidgets: new Set(),
     pendingLoads: new Map(),
     skeletonsInjected: new Set(),
+    dataCache: new Map(), // New: Global cache for early-fetched data promises
 
     // Inject critical skeleton CSS
     injectCriticalStyles: function () {
@@ -235,6 +236,29 @@
       });
     },
 
+    // New: Prefetch data for a widget
+    prefetchWidgetData: function (widgetId, layout) {
+      if (this.dataCache.has(widgetId)) return this.dataCache.get(widgetId);
+
+      const url = `${CONFIG.API_DOMAIN}/api/public/widget-data/${widgetId}?layout=${layout || 'default'}`;
+
+      const prefetchPromise = fetch(url, {
+        priority: 'high', // Modern browser hint
+        headers: { 'Accept': 'application/json' }
+      })
+        .then(res => {
+          if (!res.ok) throw new Error('API request failed');
+          return res.json();
+        })
+        .catch(err => {
+          console.warn(`[ReviewHub] Pre-fetch failed for ${widgetId}:`, err);
+          return null; // Fallback to normal fetch in layout script
+        });
+
+      this.dataCache.set(widgetId, prefetchPromise);
+      return prefetchPromise;
+    },
+
     // Preload common widget scripts for better performance
     preloadCommonWidgets: function () {
       // Preload badge and grid widgets as they're commonly used together
@@ -263,6 +287,11 @@
 
       if (container) {
         this.injectSkeleton(container);
+      }
+
+      // Start early data fetch in parallel with script loading
+      if (config.widgetId) {
+        this.prefetchWidgetData(config.widgetId, layout);
       }
 
       let attempt = 0;
