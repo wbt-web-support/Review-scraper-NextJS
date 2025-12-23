@@ -75,8 +75,26 @@ export default async function handler(
         source: 'facebook',
       }));
     }
+
+    // Deduplicate reviews (Fix for "110 reviews found" when only 100 actual reviews exist)
+    const uniqueReviews: IReviewItem[] = [];
+    const seenKeys = new Set<string>();
+
+    for (const review of reviews) {
+      // Create a unique key. Prefer reviewId, fallback to author+content hash if missing.
+      // We also verify content isn't just whitespace/empty if we want to be strict, but for dedupe we focus on identity.
+      const uniqueKey = review.reviewId 
+        ? review.reviewId 
+        : `${review.author}|${(review.content || '').substring(0, 50)}`;
+
+      if (!seenKeys.has(uniqueKey)) {
+        seenKeys.add(uniqueKey);
+        uniqueReviews.push(review);
+      }
+    }
+    reviews = uniqueReviews;
     
-    console.log('Returning reviews:', reviews.length);
+    console.log('Returning reviews (deduplicated):', reviews.length);
     return res.status(200).json({ reviews });
   } catch (error) {
     console.error('Error fetching reviews:', error);
