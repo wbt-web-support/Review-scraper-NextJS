@@ -50,6 +50,100 @@
     buildId: Date.now(),
     loadedWidgets: new Set(),
     pendingLoads: new Map(),
+    skeletonsInjected: new Set(),
+
+    // Inject critical skeleton CSS
+    injectCriticalStyles: function () {
+      if (document.getElementById('rh-critical-styles')) return;
+      const style = document.createElement('style');
+      style.id = 'rh-critical-styles';
+      style.textContent = `
+        @keyframes rh-shimmer {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+        .rh-skeleton-container {
+          width: 100%;
+          padding: 24px;
+          background: #ffffff;
+          border-radius: 12px;
+          border: 1px solid #e5e7eb;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+          margin: 16px 0;
+          font-family: sans-serif;
+        }
+        .rh-skeleton-header {
+          display: flex;
+          align-items: center;
+          margin-bottom: 20px;
+        }
+        .rh-skeleton-avatar {
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
+          background: #f3f4f6;
+          margin-right: 12px;
+        }
+        .rh-skeleton-meta {
+          flex: 1;
+        }
+        .rh-skeleton-line {
+          height: 12px;
+          background: #f3f4f6;
+          border-radius: 4px;
+          margin-bottom: 8px;
+          background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+          background-size: 200% 100%;
+          animation: rh-shimmer 1.5s infinite linear;
+        }
+        .rh-skeleton-line.short { width: 40%; }
+        .rh-skeleton-line.medium { width: 60%; }
+        .rh-skeleton-line.long { width: 90%; }
+      `;
+      document.head.appendChild(style);
+    },
+
+    // Inject connection hints
+    injectConnectionHints: function () {
+      if (document.getElementById('rh-connection-hints')) return;
+      const container = document.createDocumentFragment();
+      const hints = [
+        { rel: 'preconnect', href: CONFIG.API_DOMAIN },
+        { rel: 'dns-prefetch', href: CONFIG.API_DOMAIN }
+      ];
+      hints.forEach(hint => {
+        const link = document.createElement('link');
+        link.rel = hint.rel;
+        link.href = hint.href;
+        if (hint.rel === 'preconnect') link.crossOrigin = 'anonymous';
+        container.appendChild(link);
+      });
+      const meta = document.createElement('meta');
+      meta.id = 'rh-connection-hints';
+      container.appendChild(meta);
+      document.head.appendChild(container);
+    },
+
+    // Inject skeleton into a container
+    injectSkeleton: function (container) {
+      if (!container || container.getAttribute('data-rh-skeleton')) return;
+      this.injectCriticalStyles();
+      container.setAttribute('data-rh-skeleton', 'true');
+      container.innerHTML = `
+        <div class="rh-skeleton-container">
+          <div class="rh-skeleton-header">
+            <div class="rh-skeleton-avatar"></div>
+            <div class="rh-skeleton-meta">
+              <div class="rh-skeleton-line short"></div>
+              <div class="rh-skeleton-line medium"></div>
+            </div>
+          </div>
+          <div class="rh-skeleton-line long"></div>
+          <div class="rh-skeleton-line medium"></div>
+          <div class="rh-skeleton-line long"></div>
+        </div>
+      `;
+    },
 
     log: function (level, message, data) {
       // Console logging disabled for production
@@ -91,6 +185,8 @@
           const script = document.createElement('script');
           script.src = `${CONFIG.API_DOMAIN}/${widgetFile}?v=${CONFIG.VERSION}`;
           script.async = true;
+          script.setAttribute('fetchpriority', 'high');
+          script.setAttribute('importance', 'high');
 
           // Set up timeout
           const timeoutId = setTimeout(() => {
@@ -154,6 +250,20 @@
     // Initialize widget with retry logic
     initWidget: async function (config) {
       const layout = config.layout || CONFIG.DEFAULT_LAYOUT;
+
+      // Immediate Skeleton Injection
+      let container;
+      if (config.containerId) {
+        container = document.getElementById(config.containerId);
+      } else if (config._scriptTag) {
+        // Create container if it doesn't exist
+        container = document.createElement('div');
+        config._scriptTag.parentNode.insertBefore(container, config._scriptTag.nextSibling);
+      }
+
+      if (container) {
+        this.injectSkeleton(container);
+      }
 
       let attempt = 0;
       while (attempt < CONFIG.RETRY_ATTEMPTS) {
@@ -475,6 +585,7 @@
 
   // Auto-run: Try immediately, then also on various ready states
   function run() {
+    window.ReviewHubMain.injectConnectionHints();
     window.ReviewHubMain.preloadCommonWidgets();
     initializeWidgetsFromScripts();
     processPendingInitializations();
