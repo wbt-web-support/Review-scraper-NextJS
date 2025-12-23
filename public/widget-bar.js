@@ -1,10 +1,10 @@
-(function() {
+(function () {
   if (window.ReviewHubBar && window.ReviewHubBar.isInitialized) {
     return;
   }
 
   const CONFIG = {
-    API_DOMAIN: (function() {
+    API_DOMAIN: (function () {
       const scripts = document.querySelectorAll('script[src*="widget-bar.js"]');
       if (scripts.length > 0) {
         const scriptSrc = scripts[scripts.length - 1].src;
@@ -32,25 +32,25 @@
     isInitialized: true,
     version: '1.0.0',
     buildId: Date.now(),
-    
+
     // State tracking for modal pagination
     modalStates: new Map(),
-    
+
     // Cache for fetched reviews to avoid re-fetching
     reviewCache: new Map(),
 
-    log: function(level, message, data) {
+    log: function (level, message, data) {
       // Console logging disabled for production
     },
 
-    escapeHtml: function(text) {
+    escapeHtml: function (text) {
       if (typeof text !== 'string') return '';
       const div = document.createElement('div');
       div.textContent = text;
       return div.innerHTML;
     },
 
-    getInitials: function(name) {
+    getInitials: function (name) {
       if (!name) return '?';
       const words = name.trim().split(' ').filter(word => word.length > 0);
       if (words.length === 0) return '?';
@@ -58,7 +58,7 @@
       return (words[0].charAt(0) + words[words.length - 1].charAt(0)).toUpperCase();
     },
 
-    formatDate: function(dateString) {
+    formatDate: function (dateString) {
       try {
         if (typeof dateString === 'string' && dateString.includes('ago')) {
           return dateString;
@@ -90,8 +90,8 @@
         return dateString || 'Recently';
       }
     },
-    
-    generateStars: function(rating) {
+
+    generateStars: function (rating) {
       // Uses Font Awesome 5 (same as widget-new.js)
       let starsHtml = '';
       for (let i = 1; i <= 5; i++) {
@@ -123,7 +123,7 @@
       return starsHtml;
     },
 
-    generateRecommendationStatus: function(review) {
+    generateRecommendationStatus: function (review) {
       // For Facebook reviews, show recommendation status instead of stars
       const recommendationStatus = review.recommendationStatus || '';
       if (recommendationStatus === 'recommended') {
@@ -134,7 +134,7 @@
       return '';
     },
 
-    detectReviewSource: function(review, widgetSettings) {
+    detectReviewSource: function (review, widgetSettings) {
       // Check review source or widget settings to determine platform
       if (review.source) {
         return review.source.toLowerCase();
@@ -149,7 +149,7 @@
       return 'google';
     },
 
-    getPlatformLogo: function(source) {
+    getPlatformLogo: function (source) {
       if (source === 'facebook') {
         return `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%231877F2' d='M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z'/%3E%3C/svg%3E`;
       } else {
@@ -158,12 +158,12 @@
       }
     },
 
-    getPlatformThemeColor: function(source, userThemeColor) {
+    getPlatformThemeColor: function (source, userThemeColor) {
       // Always use user-provided theme color if available
       if (userThemeColor) {
         return userThemeColor;
       }
-      
+
       // Use platform-specific colors only as fallback
       if (source === 'facebook') {
         return '#1877F2'; // Facebook blue
@@ -172,95 +172,81 @@
       }
     },
 
-         // New function to fetch reviews with pagination
-     fetchReviewsWithPagination: async function(widgetId, offset = 0, limit = 8) {
-       const params = new URLSearchParams();
-       params.append('limit', limit.toString());
-       params.append('offset', offset.toString());
-       params.append('layout', 'bar');
-       
-       const queryString = params.toString();
-       const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${widgetId}?${queryString}`;
-       
-       console.log(`[Bar Pagination] Fetching reviews: ${apiUrl}`);
-       const data = await this.fetchWithRetry(apiUrl);
-       console.log(`[Bar Pagination] Received ${data.reviews?.length || 0} reviews, total: ${data.totalReviewCount || 0}`);
-       
-       return data;
-     },
+    // New function to fetch reviews with pagination
+    fetchReviewsWithPagination: async function (widgetId, offset = 0, limit = 8) {
+      const params = new URLSearchParams();
+      params.append('limit', limit.toString());
+      params.append('offset', offset.toString());
+      params.append('layout', 'bar');
 
-     // New function to fetch all reviews for initial load
-     fetchAllReviews: async function(widgetId) {
-       const params = new URLSearchParams();
-       params.append('limit', '100'); // Fetch a large number to get all reviews
-       params.append('offset', '0');
-       params.append('layout', 'bar');
-       
-       const queryString = params.toString();
-       const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${widgetId}?${queryString}`;
-       
-       console.log(`[Bar Initial Load] Fetching all reviews: ${apiUrl}`);
-       const data = await this.fetchWithRetry(apiUrl);
-       console.log(`[Bar Initial Load] Received ${data.reviews?.length || 0} reviews, total: ${data.totalReviewCount || 0}`);
-       
-       return data;
-     },
+      const queryString = params.toString();
+      const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${widgetId}?${queryString}`;
 
-         filterReviews: function(reviews, widgetSettings) {
-       if (!reviews || reviews.length === 0) return reviews;
-       // Filter out reviews with empty content or text
-       return reviews.filter(review => ((review.content && review.content.trim()) || (review.text && review.text.trim())) && (function() {
-         const reviewSource = this.detectReviewSource(review, widgetSettings);
-         if (reviewSource === 'facebook') {
-           const reviewFilterDisplay = widgetSettings.reviewFilterDisplay;
-           if (reviewFilterDisplay) {
-             if (reviewFilterDisplay === 'recommended' && review.recommendationStatus !== 'recommended') {
-               return false;
-             }
-             if (reviewFilterDisplay === 'not_recommended' && review.recommendationStatus !== 'not_recommended') {
-               return false;
-             }
-           }
-         } else {
-           const minRating = widgetSettings.minRating;
-           if (minRating && typeof minRating === 'number') {
-             const reviewRating = parseFloat(review.rating) || 0;
-             if (reviewRating < minRating) {
-               return false;
-             }
-           }
-         }
-         return true;
-       }).call(this, review));
-     },
+      console.log(`[Bar Pagination] Fetching reviews: ${apiUrl}`);
+      const data = await this.fetchWithRetry(apiUrl);
+      console.log(`[Bar Pagination] Received ${data.reviews?.length || 0} reviews, total: ${data.totalReviewCount || 0}`);
 
-     // Helper function to generate reviews HTML
-     generateReviewsHtml: function(reviews, widgetSettings) {
-       return reviews.map((review) => {
-         const formattedDate = this.formatDate(review.postedAt);
-         const initials = this.getInitials(review.author);
-         
-         // Detect individual review source
-         const reviewSource = this.detectReviewSource(review, widgetSettings);
-         const reviewPlatformLogo = this.getPlatformLogo(reviewSource);
-         const reviewPlatformName = reviewSource === 'facebook' ? 'Facebook' : 'Google';
-         
-         // Generate rating display based on platform
-         let reviewRatingDisplay = '';
-         if (reviewSource === 'facebook') {
-           reviewRatingDisplay = this.generateRecommendationStatus(review);
-         } else {
-           const reviewStars = this.generateStars(review.rating || 0);
-           reviewRatingDisplay = `<div class="reviewhub-bar-modal-review-rating">${reviewStars}</div>`;
-         }
-         
-         return `
+      return data;
+    },
+
+    // Removed fetchAllReviews as it is no longer used.
+    // We now rely on server-side aggregation for stats and initial reviews.
+
+    filterReviews: function (reviews, widgetSettings) {
+      if (!reviews || reviews.length === 0) return reviews;
+      // Filter out reviews with empty content or text
+      return reviews.filter(review => ((review.content && review.content.trim()) || (review.text && review.text.trim())) && (function () {
+        const reviewSource = this.detectReviewSource(review, widgetSettings);
+        if (reviewSource === 'facebook') {
+          const reviewFilterDisplay = widgetSettings.reviewFilterDisplay;
+          if (reviewFilterDisplay) {
+            if (reviewFilterDisplay === 'recommended' && review.recommendationStatus !== 'recommended') {
+              return false;
+            }
+            if (reviewFilterDisplay === 'not_recommended' && review.recommendationStatus !== 'not_recommended') {
+              return false;
+            }
+          }
+        } else {
+          const minRating = widgetSettings.minRating;
+          if (minRating && typeof minRating === 'number') {
+            const reviewRating = parseFloat(review.rating) || 0;
+            if (reviewRating < minRating) {
+              return false;
+            }
+          }
+        }
+        return true;
+      }).call(this, review));
+    },
+
+    // Helper function to generate reviews HTML
+    generateReviewsHtml: function (reviews, widgetSettings) {
+      return reviews.map((review) => {
+        const formattedDate = this.formatDate(review.postedAt);
+        const initials = this.getInitials(review.author);
+
+        // Detect individual review source
+        const reviewSource = this.detectReviewSource(review, widgetSettings);
+        const reviewPlatformLogo = this.getPlatformLogo(reviewSource);
+        const reviewPlatformName = reviewSource === 'facebook' ? 'Facebook' : 'Google';
+
+        // Generate rating display based on platform
+        let reviewRatingDisplay = '';
+        if (reviewSource === 'facebook') {
+          reviewRatingDisplay = this.generateRecommendationStatus(review);
+        } else {
+          const reviewStars = this.generateStars(review.rating || 0);
+          reviewRatingDisplay = `<div class="reviewhub-bar-modal-review-rating">${reviewStars}</div>`;
+        }
+
+        return `
            <div class="reviewhub-bar-modal-review">
              <div class="reviewhub-bar-modal-review-header">
-               ${review.profilePicture ? 
-                 `<div class="reviewhub-bar-modal-review-avatar">${initials}</div>` :
-                 `<div class="reviewhub-bar-modal-review-avatar">${initials}</div>`
-               }
+               ${review.profilePicture ?
+            `<div class="reviewhub-bar-modal-review-avatar">${initials}</div>` :
+            `<div class="reviewhub-bar-modal-review-avatar">${initials}</div>`
+          }
                <div class="reviewhub-bar-modal-review-info">
                  <div class="reviewhub-bar-modal-review-author">${this.escapeHtml(review.author)}</div>
                  <div class="reviewhub-bar-modal-review-date-label">${widgetSettings.showDates}</div>
@@ -278,10 +264,10 @@
              </div>
            </div>
          `;
-       }).join('');
-     },
+      }).join('');
+    },
 
-    injectStyles: function() {
+    injectStyles: function () {
       if (document.getElementById('reviewhub-bar-widget-styles')) return;
 
       // Font Awesome for stars and icons (same as widget-new.js)
@@ -1040,13 +1026,13 @@
       document.head.appendChild(style);
     },
 
-    fetchWithRetry: async function(url, options, retries = CONFIG.RETRY_ATTEMPTS) {
+    fetchWithRetry: async function (url, options, retries = CONFIG.RETRY_ATTEMPTS) {
       let attempt = 0;
       while (attempt <= retries) {
         try {
           const response = await new Promise((resolve, reject) => {
             const timeoutId = setTimeout(() => reject(new Error('Request timeout')), CONFIG.TIMEOUT);
-            
+
             fetch(url, {
               ...options,
               mode: 'cors',
@@ -1057,18 +1043,18 @@
                 ...options?.headers
               }
             })
-            .then(res => {
-              clearTimeout(timeoutId);
-              if (!res.ok) {
-                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-              }
-              return res.json();
-            })
-            .then(resolve)
-            .catch(err => {
+              .then(res => {
+                clearTimeout(timeoutId);
+                if (!res.ok) {
+                  throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                }
+                return res.json();
+              })
+              .then(resolve)
+              .catch(err => {
                 clearTimeout(timeoutId);
                 reject(err);
-            });
+              });
           });
           return response;
         } catch (error) {
@@ -1076,12 +1062,12 @@
           if (attempt > retries) {
             throw error;
           }
-          await new Promise(resolve => setTimeout(resolve, CONFIG.RETRY_DELAY * Math.pow(2, attempt -1))); // Exponential backoff
+          await new Promise(resolve => setTimeout(resolve, CONFIG.RETRY_DELAY * Math.pow(2, attempt - 1))); // Exponential backoff
         }
       }
     },
 
-    showError: function(container, error, config, retryCallback) {
+    showError: function (container, error, config, retryCallback) {
       const themeColor = config.themeColor || '#3B82F6';
       container.style.setProperty('--bar-theme-color', themeColor);
       container.style.setProperty('--bar-theme-color-dark', this.darkenColor(themeColor, 15));
@@ -1104,54 +1090,54 @@
         }
       }
     },
-    
-    darkenColor: function(color, percent) {
-        let r, g, b, a;
-        if (color.startsWith('#')) {
-            const num = parseInt(color.slice(1), 16);
-            r = (num >> 16) & 0xFF;
-            g = (num >>  8) & 0xFF;
-            b =  num       & 0xFF;
-        } else if (color.startsWith('rgb')) { // rgb(r, g, b) or rgba(r, g, b, a)
-            const parts = color.match(/[\d.]+/g).map(Number);
-            [r, g, b, a] = parts;
-        } else { return color; } // Can't parse
 
-        const factor = 1 - (percent / 100);
-        r = Math.max(0, Math.min(255, Math.round(r * factor)));
-        g = Math.max(0, Math.min(255, Math.round(g * factor)));
-        b = Math.max(0, Math.min(255, Math.round(b * factor)));
+    darkenColor: function (color, percent) {
+      let r, g, b, a;
+      if (color.startsWith('#')) {
+        const num = parseInt(color.slice(1), 16);
+        r = (num >> 16) & 0xFF;
+        g = (num >> 8) & 0xFF;
+        b = num & 0xFF;
+      } else if (color.startsWith('rgb')) { // rgb(r, g, b) or rgba(r, g, b, a)
+        const parts = color.match(/[\d.]+/g).map(Number);
+        [r, g, b, a] = parts;
+      } else { return color; } // Can't parse
 
-        if (a !== undefined) {
-            return `rgba(${r}, ${g}, ${b}, ${a})`;
-        }
-        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+      const factor = 1 - (percent / 100);
+      r = Math.max(0, Math.min(255, Math.round(r * factor)));
+      g = Math.max(0, Math.min(255, Math.round(g * factor)));
+      b = Math.max(0, Math.min(255, Math.round(b * factor)));
+
+      if (a !== undefined) {
+        return `rgba(${r}, ${g}, ${b}, ${a})`;
+      }
+      return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
     },
 
-    lightenColor: function(color, percent) {
-        let r, g, b, a;
-        if (color.startsWith('#')) {
-            const num = parseInt(color.slice(1), 16);
-            r = (num >> 16) & 0xFF;
-            g = (num >>  8) & 0xFF;
-            b =  num       & 0xFF;
-        } else if (color.startsWith('rgb')) {
-            const parts = color.match(/[\d.]+/g).map(Number);
-            [r, g, b, a] = parts;
-        } else { return color; }
+    lightenColor: function (color, percent) {
+      let r, g, b, a;
+      if (color.startsWith('#')) {
+        const num = parseInt(color.slice(1), 16);
+        r = (num >> 16) & 0xFF;
+        g = (num >> 8) & 0xFF;
+        b = num & 0xFF;
+      } else if (color.startsWith('rgb')) {
+        const parts = color.match(/[\d.]+/g).map(Number);
+        [r, g, b, a] = parts;
+      } else { return color; }
 
-        const factor = percent / 100;
-        r = Math.max(0, Math.min(255, Math.round(r + (255 - r) * factor)));
-        g = Math.max(0, Math.min(255, Math.round(g + (255 - g) * factor)));
-        b = Math.max(0, Math.min(255, Math.round(b + (255 - b) * factor)));
-        
-        if (a !== undefined) {
-            return `rgba(${r}, ${g}, ${b}, ${a})`;
-        }
-        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+      const factor = percent / 100;
+      r = Math.max(0, Math.min(255, Math.round(r + (255 - r) * factor)));
+      g = Math.max(0, Math.min(255, Math.round(g + (255 - g) * factor)));
+      b = Math.max(0, Math.min(255, Math.round(b + (255 - b) * factor)));
+
+      if (a !== undefined) {
+        return `rgba(${r}, ${g}, ${b}, ${a})`;
+      }
+      return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
     },
 
-    renderWidget: function(container, data, config) {
+    renderWidget: function (container, data, config) {
       const { widgetSettings, reviews, businessName, businessUrlLink, totalReviewCount } = data;
       // Filter reviews based on widget settings
       const filteredReviews = this.filterReviews(reviews, widgetSettings);
@@ -1159,11 +1145,11 @@
       const platformSource = filteredReviews.length > 0 ? this.detectReviewSource(filteredReviews[0], widgetSettings) : 'google';
       const platformLogo = this.getPlatformLogo(platformSource);
       const platformName = platformSource === 'facebook' ? 'Facebook' : 'Google';
-      
+
       // Get appropriate theme color
       const userThemeColor = config.themeColor || widgetSettings.themeColor;
       const themeColor = this.getPlatformThemeColor(platformSource, userThemeColor);
-      
+
       container.style.setProperty('--bar-theme-color', themeColor);
       container.style.setProperty('--bar-theme-color-dark', this.darkenColor(themeColor, 15));
       container.style.setProperty('--bar-theme-color-light', this.lightenColor(themeColor, 90));
@@ -1176,21 +1162,33 @@
       // Calculate average rating or recommendation percentage for Facebook
       let avgRating, reviewCount, displayText;
       reviewCount = totalReviewCount || filteredReviews.length;
-      
+
+      if (data.averageRating) {
+        // Use server-provided average rating if available
+        avgRating = data.averageRating;
+        if (platformSource === 'facebook' && typeof avgRating === 'string' && !avgRating.includes('%')) {
+          avgRating = `${avgRating}%`;
+        }
+      } else {
+        if (platformSource === 'facebook') {
+          // For Facebook, calculate percentage of recommended reviews
+          const recommendedReviews = filteredReviews.filter(r => r.recommendationStatus === 'recommended').length;
+          const percentage = filteredReviews.length > 0 ? Math.round((recommendedReviews / filteredReviews.length) * 100) : 100;
+          avgRating = `${percentage}%`;
+        } else {
+          // For Google, use traditional star rating
+          avgRating = filteredReviews.length > 0 ? (filteredReviews.reduce((sum, r) => sum + (r.rating || 0), 0) / filteredReviews.length).toFixed(1) : '5.0';
+        }
+      }
+
       if (platformSource === 'facebook') {
-        // For Facebook, calculate percentage of recommended reviews
-        const recommendedReviews = filteredReviews.filter(r => r.recommendationStatus === 'recommended').length;
-        const percentage = filteredReviews.length > 0 ? Math.round((recommendedReviews / filteredReviews.length) * 100) : 100;
-        avgRating = `${percentage}%`;
         displayText = 'Recommended';
       } else {
-        // For Google, use traditional star rating
-        avgRating = filteredReviews.length > 0 ? (filteredReviews.reduce((sum, r) => sum + (r.rating || 0), 0) / filteredReviews.length).toFixed(1) : '5.0';
         displayText = 'Stars';
       }
-      
+
       const reviewText = reviewCount === 1 ? 'review' : 'reviews';
-      
+
       // Generate rating/recommendation display
       let ratingDisplay = '';
       if (platformSource === 'facebook') {
@@ -1198,7 +1196,7 @@
         const recommendedCount = filteredReviews.filter(r => r.recommendationStatus === 'recommended').length;
         const notRecommendedCount = filteredReviews.filter(r => r.recommendationStatus === 'not_recommended').length;
         const recommendedPercentage = filteredReviews.length > 0 ? (recommendedCount / filteredReviews.length) * 100 : 100;
-        
+
         let statusDescription = '';
         if (recommendedPercentage >= 80) {
           statusDescription = 'Mostly Recommended';
@@ -1211,7 +1209,7 @@
         } else {
           statusDescription = 'Mostly Not Recommended';
         }
-        
+
         ratingDisplay = `
           <div class="reviewhub-bar-compact-rating">
             <span class="reviewhub-bar-compact-number">${avgRating}</span>
@@ -1243,7 +1241,7 @@
       this.attachModalEventListener(container, { ...data, reviews: filteredReviews }, config);
     },
 
-    attachModalEventListener: function(container, data, config) {
+    attachModalEventListener: function (container, data, config) {
       const modalBtn = container.querySelector('.reviewhub-bar-modal-btn');
       if (!modalBtn) return;
 
@@ -1253,7 +1251,7 @@
       };
 
       modalBtn.addEventListener('click', openModal);
-      
+
       // Add keyboard support for accessibility
       modalBtn.addEventListener('keydown', async (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -1262,35 +1260,34 @@
       });
     },
 
-    showReviewsModal: async function(data, config) {
+    showReviewsModal: async function (data, config) {
       const { widgetSettings, reviews, businessName, businessUrlLink, totalReviewCount } = data;
-      
-             // Initialize modal state for pagination
-       const modalId = `modal-${config.widgetId}`;
-       if (!this.modalStates.has(modalId)) {
-         this.modalStates.set(modalId, {
-           loadedReviews: reviews || [],
-           currentOffset: reviews ? reviews.length : 0,
-           totalReviews: totalReviewCount || (reviews ? reviews.length : 0), // Use actual total or loaded count
-           displayCount: Math.min(CONFIG.BAR_SETTINGS.INITIAL_REVIEW_COUNT, (reviews ? reviews.length : 0)),
-           isFetching: false
-         });
-       }
-      
+
+      const modalId = `modal-${config.widgetId}`;
+      if (!this.modalStates.has(modalId)) {
+        this.modalStates.set(modalId, {
+          loadedReviews: reviews || [],
+          currentOffset: reviews ? reviews.length : 0,
+          totalReviews: totalReviewCount || (reviews ? reviews.length : 0),
+          displayCount: reviews ? reviews.length : 0,
+          isFetching: false
+        });
+      }
+
       const modalState = this.modalStates.get(modalId);
-      
+
       // Filter reviews based on widget settings
       const filteredReviews = this.filterReviews(modalState.loadedReviews, widgetSettings);
-      
+
       // Detect platform from first review or widget settings
       const platformSource = filteredReviews.length > 0 ? this.detectReviewSource(filteredReviews[0], widgetSettings) : 'google';
       const platformLogo = this.getPlatformLogo(platformSource);
       const platformName = platformSource === 'facebook' ? 'Facebook' : 'Google';
-      
+
       // Calculate appropriate rating display for modal summary
       let avgRating, reviewCount, summaryRatingDisplay;
       reviewCount = modalState.totalReviews || filteredReviews.length;
-      
+
       if (platformSource === 'facebook') {
         // For Facebook, calculate percentage of recommended reviews
         const recommendedReviews = filteredReviews.filter(r => r.recommendationStatus === 'recommended').length;
@@ -1320,29 +1317,31 @@
         reviewUrl = platformSource === 'facebook' ? 'https://www.facebook.com' : 'https://www.google.com/maps';
       }
 
-             // Determine how many reviews to show
-       const currentDisplayCount = Math.min(modalState.displayCount, filteredReviews.length);
-       const reviewsToShow = filteredReviews.slice(0, currentDisplayCount);
-       
-       // Check if there are more reviews to display (since we loaded all reviews initially)
-       const hasMoreReviews = currentDisplayCount < filteredReviews.length;
-       
-       console.log(`[Bar Modal] State:`, {
-         loadedReviews: modalState.loadedReviews.length,
-         totalReviews: modalState.totalReviews,
-         currentDisplayCount,
-         filteredReviewsLength: filteredReviews.length,
-         hasMoreReviews
-       });
+      // Determine how many reviews to show
+      // In the new logic, display count tracks strictly what is loaded and shown
+      const currentDisplayCount = modalState.loadedReviews.length;
+      const reviewsToShow = modalState.loadedReviews; // Show everything we have loaded
 
-       const reviewsHtml = this.generateReviewsHtml(reviewsToShow, widgetSettings);
+      // Check if there are more reviews to display
+      // We have more if the total on server > what we have currently loaded
+      const hasMoreReviews = modalState.totalReviews > modalState.loadedReviews.length;
 
-             // Generate load more button - only show if there are more reviews to load
-       const loadMoreButton = hasMoreReviews ? 
-         `<div class="reviewhub-bar-modal-load-more-container">
+      console.log(`[Bar Modal] State:`, {
+        loadedReviews: modalState.loadedReviews.length,
+        totalReviews: modalState.totalReviews,
+        currentDisplayCount,
+        filteredReviewsLength: filteredReviews.length,
+        hasMoreReviews
+      });
+
+      const reviewsHtml = this.generateReviewsHtml(reviewsToShow, widgetSettings);
+
+      // Generate load more button - only show if there are more reviews to load
+      const loadMoreButton = hasMoreReviews ?
+        `<div class="reviewhub-bar-modal-load-more-container">
            <button class="reviewhub-bar-modal-load-more-btn" data-action="load-more">Load More Reviews</button>
-         </div>` : 
-         `<div class="reviewhub-bar-modal-load-more-container">
+         </div>` :
+        `<div class="reviewhub-bar-modal-load-more-container">
            <button class="reviewhub-bar-modal-load-more-btn" data-action="load-more" disabled>No More Reviews</button>
          </div>`;
 
@@ -1400,56 +1399,70 @@
         }, 350);
       };
 
-             // Load more functionality
-       if (loadMoreBtn) {
-         loadMoreBtn.addEventListener('click', async (e) => {
-           e.preventDefault();
-           if (modalState.isFetching) return;
+      // Load more functionality
+      if (loadMoreBtn) {
+        loadMoreBtn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          if (modalState.isFetching) return;
 
-           modalState.isFetching = true;
-           loadMoreBtn.textContent = 'Loading...';
-           loadMoreBtn.disabled = true;
+          modalState.isFetching = true;
+          loadMoreBtn.textContent = 'Loading...';
+          loadMoreBtn.disabled = true;
 
-                        try {
-               // Since we loaded all reviews initially, just increase the display count
-               modalState.displayCount += CONFIG.BAR_SETTINGS.LOAD_MORE_INCREMENT;
+          loadMoreBtn.disabled = true;
 
-               // Update the reviews section without recreating the modal
-               const reviewsContainer = modalElement.querySelector('.reviewhub-bar-modal-reviews');
-               const newReviewsHtml = this.generateReviewsHtml(
-                 modalState.loadedReviews.slice(0, modalState.displayCount),
-                 widgetSettings
-               );
-               reviewsContainer.innerHTML = newReviewsHtml;
+          try {
+            // Fetch next batch from server
+            const nextOffset = modalState.loadedReviews.length;
+            const newData = await this.fetchReviewsWithPagination(
+              config.widgetId,
+              nextOffset,
+              CONFIG.BAR_SETTINGS.LOAD_MORE_INCREMENT
+            );
 
-               // Update load more button visibility
-               const hasMoreReviews = modalState.displayCount < modalState.loadedReviews.length;
-               console.log(`[Bar Load More] Updated state:`, {
-                 displayCount: modalState.displayCount,
-                 loadedReviews: modalState.loadedReviews.length,
-                 hasMoreReviews
-               });
-               
-               if (!hasMoreReviews) {
-                 loadMoreBtn.textContent = 'No More Reviews';
-                 loadMoreBtn.disabled = true;
-                 loadMoreBtn.style.opacity = '0.7';
-                 loadMoreBtn.style.cursor = 'not-allowed';
-               } else {
-                 loadMoreBtn.textContent = 'Load More Reviews';
-                 loadMoreBtn.disabled = false;
-                 loadMoreBtn.style.opacity = '1';
-                 loadMoreBtn.style.cursor = 'pointer';
-               }
-           } catch (error) {
-             console.error('Error loading more reviews:', error);
-             loadMoreBtn.textContent = 'Load More Reviews';
-             loadMoreBtn.disabled = false;
-           } finally {
-             modalState.isFetching = false;
-           }
-         });
-       }
+            if (newData && newData.reviews && newData.reviews.length > 0) {
+              // Append new reviews
+              modalState.loadedReviews = [...modalState.loadedReviews, ...newData.reviews];
+              modalState.currentOffset = modalState.loadedReviews.length;
+
+              // Update the reviews section
+              const reviewsContainer = modalElement.querySelector('.reviewhub-bar-modal-reviews');
+              // We only need to append the NEW reviews HTML, but re-rendering all is safer/easier for now to maintain order
+              const newReviewsHtml = this.generateReviewsHtml(
+                modalState.loadedReviews,
+                widgetSettings
+              );
+              reviewsContainer.innerHTML = newReviewsHtml;
+
+              // Update load more button visibility
+              const hasMoreReviews = modalState.totalReviews > modalState.loadedReviews.length;
+
+              if (!hasMoreReviews) {
+                loadMoreBtn.textContent = 'No More Reviews';
+                loadMoreBtn.disabled = true;
+                loadMoreBtn.style.opacity = '0.7';
+                loadMoreBtn.style.cursor = 'not-allowed';
+              } else {
+                loadMoreBtn.textContent = 'Load More Reviews';
+                loadMoreBtn.disabled = false;
+                loadMoreBtn.style.opacity = '1';
+                loadMoreBtn.style.cursor = 'pointer';
+              }
+            } else {
+              // No more reviews returned
+              loadMoreBtn.textContent = 'No More Reviews';
+              loadMoreBtn.disabled = true;
+              loadMoreBtn.style.opacity = '0.7';
+            }
+          } catch (error) {
+            console.error('Error loading more reviews:', error);
+            loadMoreBtn.textContent = 'Load More Reviews';
+            loadMoreBtn.disabled = false;
+          } finally {
+            modalState.isFetching = false;
+          }
+        });
+      }
 
       closeBtn.addEventListener('click', closeModal);
       overlay.addEventListener('click', (e) => {
@@ -1465,14 +1478,14 @@
       document.addEventListener('keydown', handleEscape);
     },
 
-    initWidget: async function(userConfig) {
+    initWidget: async function (userConfig) {
       let container;
-      const config = { 
-          widgetId: null, 
-          containerId: null, 
-          themeColor: '#3B82F6', 
-          layout: 'bar',
-          ...userConfig 
+      const config = {
+        widgetId: null,
+        containerId: null,
+        themeColor: '#3B82F6',
+        layout: 'bar',
+        ...userConfig
       };
 
       this.injectStyles();
@@ -1487,12 +1500,12 @@
           return;
         }
       } else if (config._scriptTag) {
-          container = document.createElement('div');
-          config._scriptTag.parentNode.insertBefore(container, config._scriptTag.nextSibling);
+        container = document.createElement('div');
+        config._scriptTag.parentNode.insertBefore(container, config._scriptTag.nextSibling);
       } else {
         return;
       }
-      
+
       container.className = 'reviewhub-bar-widget-container';
       container.innerHTML = `
         <div class="reviewhub-bar-loading">
@@ -1506,8 +1519,8 @@
       container.style.setProperty('--bar-theme-color-light', this.lightenColor(config.themeColor, 90));
 
       if (!config.widgetId) {
-          this.showError(container, new Error('Widget ID is missing.'), config, null);
-          return;
+        this.showError(container, new Error('Widget ID is missing.'), config, null);
+        return;
       }
 
       const params = new URLSearchParams();
@@ -1516,43 +1529,33 @@
 
       const retryLoad = () => {
         container.innerHTML = '';
-        this.initWidget(config); 
+        this.initWidget(config);
       };
 
-             try {
-         // For bar layout, fetch all reviews initially
-         let data;
-         if (config.layout === 'bar') {
-           try {
-             data = await this.fetchAllReviews(config.widgetId);
-           } catch (allReviewsError) {
-             console.warn('Fetch all reviews failed, falling back to regular fetch:', allReviewsError);
-             data = await this.fetchWithRetry(apiUrl);
-           }
-         } else {
-           data = await this.fetchWithRetry(apiUrl);
-         }
-         
-         if (data && data.reviews) {
-           data.widgetSettings = data.widgetSettings || {}; 
-           this.renderWidget(container, data, config);
-         } else {
-           throw new Error('No reviews data received from API.');
-         }
-       } catch (error) {
-         this.showError(container, error, config, retryLoad);
-       }
+      try {
+        // Use standard fetch logic for all layouts now, including 'bar'
+        data = await this.fetchWithRetry(apiUrl);
+
+        if (data && data.reviews) {
+          data.widgetSettings = data.widgetSettings || {};
+          this.renderWidget(container, data, config);
+        } else {
+          throw new Error('No reviews data received from API.');
+        }
+      } catch (error) {
+        this.showError(container, error, config, retryLoad);
+      }
     },
 
     // Public init method
-    init: function(userConfig) {
+    init: function (userConfig) {
       const config = typeof userConfig === 'string' ? { widgetId: userConfig } : userConfig;
-      
+
       if (document.readyState === 'loading') {
-          window.ReviewHubBar._pendingInitializations = window.ReviewHubBar._pendingInitializations || [];
-          window.ReviewHubBar._pendingInitializations.push(config);
+        window.ReviewHubBar._pendingInitializations = window.ReviewHubBar._pendingInitializations || [];
+        window.ReviewHubBar._pendingInitializations.push(config);
       } else {
-          this.initWidget(config);
+        this.initWidget(config);
       }
     }
   };
@@ -1568,28 +1571,28 @@
         layout: script.getAttribute('data-layout') || 'bar',
         _scriptTag: script
       };
-      
+
       Object.keys(config).forEach(key => config[key] === undefined && delete config[key]);
       window.ReviewHubBar.initWidget(config);
     });
   }
-  
+
   function processPendingInitializations() {
-      if (window.ReviewHubBar._pendingInitializations) {
-          window.ReviewHubBar._pendingInitializations.forEach(config => window.ReviewHubBar.initWidget(config));
-          delete window.ReviewHubBar._pendingInitializations;
-      }
+    if (window.ReviewHubBar._pendingInitializations) {
+      window.ReviewHubBar._pendingInitializations.forEach(config => window.ReviewHubBar.initWidget(config));
+      delete window.ReviewHubBar._pendingInitializations;
+    }
   }
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-        initializeWidgetsFromScripts();
-        processPendingInitializations();
+      initializeWidgetsFromScripts();
+      processPendingInitializations();
     });
   } else {
     setTimeout(() => {
-        initializeWidgetsFromScripts();
-        processPendingInitializations();
+      initializeWidgetsFromScripts();
+      processPendingInitializations();
     }, 0);
   }
 

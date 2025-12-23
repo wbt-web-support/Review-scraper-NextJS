@@ -1,9 +1,9 @@
-(function() {
+(function () {
   if (window.ReviewHub && window.ReviewHub.isInitialized) {
     return;
   }
   const CONFIG = {
-    API_DOMAIN: (function() {
+    API_DOMAIN: (function () {
       const scripts = document.querySelectorAll('script[src*="widget.js"]');
       if (scripts.length > 0) {
         const scriptSrc = scripts[scripts.length - 1].src;
@@ -28,10 +28,10 @@
     version: '1.0.2',
     lastUpdated: '2024-12-19T11:00:00Z',
     buildId: Date.now(),
-    log: function(level, message, data) {
+    log: function (level, message, data) {
       // Console logging disabled for production
     },
-    injectStyles: function() {
+    injectStyles: function () {
       if (document.getElementById('reviewhub-widget-styles')) return;
       if (!document.querySelector('link[href*="fonts.googleapis.com/css2?family=Roboto"]')) {
         const preconnect1 = document.createElement('link');
@@ -48,7 +48,7 @@
         robotoFont.href = 'https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap';
         document.head.appendChild(robotoFont);
       }
-      
+
       if (!document.querySelector('link[href*="font-awesome"]') && !document.querySelector('link[href*="fontawesome"]')) {
         const fontAwesome = document.createElement('link');
         fontAwesome.rel = 'stylesheet';
@@ -56,7 +56,7 @@
         fontAwesome.crossOrigin = 'anonymous';
         document.head.appendChild(fontAwesome);
       }
-      
+
       const style = document.createElement('style');
       style.id = 'reviewhub-widget-styles';
       style.textContent = `
@@ -1033,42 +1033,42 @@
       `;
       document.head.appendChild(style);
     },
-    generateStars: function(rating) {
+    generateStars: function (rating) {
       const fullStars = Math.floor(rating);
       const decimal = rating % 1;
-      const hasHalfStar = decimal >= 0.3 && decimal < 0.8; 
-        const shouldRoundUp = decimal >= 0.8; 
-        
+      const hasHalfStar = decimal >= 0.3 && decimal < 0.8;
+      const shouldRoundUp = decimal >= 0.8;
+
       let stars = '';
-      
+
       const totalFullStars = shouldRoundUp ? fullStars + 1 : fullStars;
       for (let i = 0; i < totalFullStars; i++) {
         stars += '★';
       }
-      
+
       if (hasHalfStar && !shouldRoundUp) {
-        stars += '★'; 
+        stars += '★';
       }
-      
+
       const starsUsed = totalFullStars + (hasHalfStar && !shouldRoundUp ? 1 : 0);
       for (let i = starsUsed; i < 5; i++) {
         stars += '☆';
       }
-      
+
       return stars;
     },
-    
-    formatDate: function(dateString) {
+
+    formatDate: function (dateString) {
       try {
         if (typeof dateString === 'string' && dateString.includes('ago')) {
           return dateString;
         }
-        
+
         const date = new Date(dateString);
         if (isNaN(date.getTime())) {
           return dateString || 'Recently';
         }
-        
+
         const now = new Date();
         const diffTime = Math.abs(now - date);
         const diffMinutes = Math.floor(diffTime / (1000 * 60));
@@ -1077,7 +1077,7 @@
         const diffWeeks = Math.floor(diffDays / 7);
         const diffMonths = Math.floor(diffDays / 30);
         const diffYears = Math.floor(diffDays / 365);
-        
+
         if (diffMinutes < 1) return 'Just now';
         if (diffMinutes < 60) return `${diffMinutes} minute${diffMinutes === 1 ? '' : 's'} ago`;
         if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
@@ -1093,15 +1093,15 @@
         return dateString || 'Recently';
       }
     },
-    getInitials: function(name) {
+    getInitials: function (name) {
       if (!name) return '?';
       const words = name.trim().split(' ').filter(word => word.length > 0);
       if (words.length === 0) return '?';
       if (words.length === 1) return words[0].charAt(0).toUpperCase();
       return (words[0].charAt(0) + words[words.length - 1].charAt(0)).toUpperCase();
     },
-    renderWidget: function(container, widgetData, config) {
-      
+    renderWidget: function (container, widgetData, config) {
+
       const { widgetSettings, reviews, businessName, businessUrlLink, totalReviewCount } = widgetData;
       const themeColor = config.themeColor || widgetSettings.themeColor || '#3B82F6';
       const themeColorDark = this.darkenColor(themeColor, 20);
@@ -1109,8 +1109,21 @@
       container.style.setProperty('--widget-theme-color-dark', themeColorDark);
       if (widgetSettings.layout === 'badge') {
         const googleLogoUrl = 'https://assetsforscraper.b-cdn.net/Google-logo.png';
-        const avgRating = reviews.length > 0 ? (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length).toFixed(1) : '5.0';
-        const reviewCount = totalReviewCount || reviews.length;
+
+        let avgRating, reviewCount;
+        if (widgetData.averageRating) {
+          avgRating = widgetData.averageRating;
+          if (typeof avgRating === 'string' && !avgRating.includes('%') && widgetSettings.businessUrl?.source !== 'facebook') {
+            // Ensure it has one decimal if it's a star rating
+            avgRating = parseFloat(avgRating).toFixed(1);
+          }
+        } else {
+          // Fallback
+          avgRating = reviews.length > 0 ? (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length).toFixed(1) : '5.0';
+        }
+        // ALWAYS use totalReviewCount from the API response to show the full "200 reviews" count
+        reviewCount = (typeof totalReviewCount === 'number') ? totalReviewCount : reviews.length;
+
         const reviewText = reviewCount === 1 ? 'Review' : 'Reviews';
         let reviewUrl;
         if (businessUrlLink) {
@@ -1122,7 +1135,7 @@
         } else {
           reviewUrl = 'https://www.google.com/maps';
         }
-        
+
         let writeReviewUrl;
         if (businessUrlLink) {
           writeReviewUrl = businessUrlLink;
@@ -1134,7 +1147,7 @@
           writeReviewUrl = 'https://www.google.com/maps';
         }
 
-        
+
         container.innerHTML = `
           <div class="reviewhub-widget">
             <div style="
@@ -1179,7 +1192,7 @@
         const modalBtn = container.querySelector('.reviewhub-badge-modal-btn');
         const overlay = container.querySelector('.reviewhub-badge-modal-overlay');
         if (modalBtn && overlay) {
-          modalBtn.addEventListener('click', function(e) {
+          modalBtn.addEventListener('click', function (e) {
             e.preventDefault();
             const bodyOverlay = document.createElement('div');
             bodyOverlay.className = 'reviewhub-badge-modal-overlay';
@@ -1241,11 +1254,11 @@
                       Review us on Google
                     </a>
                   </div>
-                  <div style="max-height: 70vh; overflow-y: auto;">
+                  <div class="reviewhub-badge-modal-reviews-container" style="max-height: 70vh; overflow-y: auto;">
                     ${reviews.map((r) => {
-                      const formattedDate = window.ReviewHub.formatDate(r.postedAt);
-                      return `
-                      <div style="background: #fff; border-radius: 10px; padding: 14px 12px; border: 1px solid #f3f4f6; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+              const formattedDate = window.ReviewHub.formatDate(r.postedAt);
+              return `
+                      <div class="reviewhub-badge-modal-review-item" style="background: #fff; border-radius: 10px; padding: 14px 12px; border: 1px solid #f3f4f6; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
                         <div style="display: flex; align-items: center; margin-bottom: 6px;">
                           <img src="${r.profilePicture || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(r.author)}" alt="${r.author}" style="width: 36px; height: 36px; border-radius: 50%; margin-right: 10px; border: 1.5px solid #e5e7eb; object-fit: cover;" />
                           <div>
@@ -1260,17 +1273,103 @@
                         </div>
                       </div>
                       `;
-                    }).join('')}
+            }).join('')}
                   </div>
+                  ${reviewCount > reviews.length ? `
+                  <button class="reviewhub-badge-load-more" style="
+                      display: block;
+                      width: 100%;
+                      padding: 12px;
+                      margin-top: 10px;
+                      background: #f3f4f6;
+                      border: none;
+                      border-radius: 8px;
+                      color: #4b5563;
+                      font-weight: 600;
+                      cursor: pointer;
+                      transition: background 0.2s;
+                  "
+                  onmouseover="this.style.background='#e5e7eb'"
+                  onmouseout="this.style.background='#f3f4f6'"
+                  >Load More Reviews</button>
+                  ` : ''}
                 </div>
             `;
             document.body.appendChild(bodyOverlay);
-            document.body.style.overflow = 'hidden'; 
+            document.body.style.overflow = 'hidden';
             setTimeout(() => {
               const panel = bodyOverlay.querySelector('.reviewhub-badge-modal-panel');
               if (panel) panel.style.transform = 'translateX(0)';
             }, 10);
+
+            // Modal Logic
             const closeBtn = bodyOverlay.querySelector('.reviewhub-badge-modal-close');
+            const loadMoreBtn = bodyOverlay.querySelector('.reviewhub-badge-load-more');
+            const reviewsContainer = bodyOverlay.querySelector('.reviewhub-badge-modal-reviews-container');
+
+            let modalCurrentOffset = reviews.length;
+            const modalTotalReviews = reviewCount;
+            let modalIsFetching = false;
+
+            if (loadMoreBtn) {
+              loadMoreBtn.addEventListener('click', async () => {
+                if (modalIsFetching) return;
+                modalIsFetching = true;
+                loadMoreBtn.innerText = 'Loading...';
+
+                try {
+                  const newData = await window.ReviewHub.fetchReviewsWithPagination(
+                    config.widgetId,
+                    modalCurrentOffset,
+                    6 // Load 6 more
+                  );
+
+                  if (newData && newData.reviews && newData.reviews.length > 0) {
+                    modalCurrentOffset += newData.reviews.length;
+                    const newReviewsHtml = newData.reviews.map((r) => {
+                      const formattedDate = window.ReviewHub.formatDate(r.postedAt);
+                      return `
+                                  <div class="reviewhub-badge-modal-review-item" style="background: #fff; border-radius: 10px; padding: 14px 12px; border: 1px solid #f3f4f6; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+                                    <div style="display: flex; align-items: center; margin-bottom: 6px;">
+                                      <img src="${r.profilePicture || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(r.author)}" alt="${r.author}" style="width: 36px; height: 36px; border-radius: 50%; margin-right: 10px; border: 1.5px solid #e5e7eb; object-fit: cover;" />
+                                      <div>
+                                        <div style="font-weight: 600; color: #222; font-size: 1rem;">${r.author}</div>
+                                        <div style="font-size: 0.85rem; color: #888;">${formattedDate}</div>
+                                      </div>
+                                    </div>
+                                    <div style="color: #f59e0b; font-size: 1rem; margin-bottom: 2px; letter-spacing: 2px;">${'★'.repeat(r.rating || 0)}</div>
+                                    <div style="color: #333; font-size: 0.98rem; margin-bottom: 2px;">${r.content}</div>
+                                    <div style="display: flex; align-items: center; font-size: 0.85rem; color: #888; margin-top: 2px;">
+                                      <img src="${googleLogoUrl}" alt="Google" style="width: 14px; height: 14px; margin-right: 4px;" />Posted on Google
+                                    </div>
+                                  </div>
+                                  `;
+                    }).join('');
+
+                    // Append new reviews
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = newReviewsHtml;
+                    while (tempDiv.firstChild) {
+                      reviewsContainer.appendChild(tempDiv.firstChild);
+                    }
+
+                    if (modalCurrentOffset >= modalTotalReviews) {
+                      loadMoreBtn.style.display = 'none';
+                    } else {
+                      loadMoreBtn.innerText = 'Load More Reviews';
+                    }
+                  } else {
+                    loadMoreBtn.style.display = 'none';
+                  }
+                } catch (error) {
+                  console.error('Error loading more reviews:', error);
+                  loadMoreBtn.innerText = 'Load More Reviews';
+                } finally {
+                  modalIsFetching = false;
+                }
+              });
+            }
+
             function closeModal() {
               const panel = bodyOverlay.querySelector('.reviewhub-badge-modal-panel');
               if (panel) panel.style.transform = 'translateX(-100%)';
@@ -1280,7 +1379,7 @@
               }, 350);
             }
             if (closeBtn) closeBtn.addEventListener('click', closeModal);
-            bodyOverlay.addEventListener('click', function(e) {
+            bodyOverlay.addEventListener('click', function (e) {
               if (e.target === bodyOverlay) closeModal();
             });
           });
@@ -1308,7 +1407,7 @@
           if (width < 1200) return 3;
           return 4;
         }
-        
+
         let visibleCount = getVisibleCount();
         let currentIndex = 0;
         let autoPlayInterval = null;
@@ -1320,9 +1419,9 @@
         const AUTO_PLAY_DELAY = 4000;
         const totalReviews = typeof totalReviewCount === 'number' ? totalReviewCount : reviews.length;
         const platformName = widgetSettings.businessUrl?.source === 'facebook' ? 'Facebook' : 'Google';
-        
+
         const filteredReviews = reviews.filter(r => (r.content && r.content.trim()) || (r.text && r.text.trim()));
-        
+
         const reviewsHtml = filteredReviews.map((review, index) => {
           const authorInitials = this.getInitials(review.author);
           const ratingStars = review.rating ? this.generateStars(review.rating) : '';
@@ -1337,11 +1436,11 @@
             <div class="reviewhub-review-item" data-review-index="${index}">
               <div class="reviewhub-review-header">
                 <div class="reviewhub-review-avatar">
-                  ${review.profilePicture && widgetSettings.showProfilePictures ? 
-                    `<img src="${review.profilePicture}" alt="${this.escapeHtml(review.author)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                  ${review.profilePicture && widgetSettings.showProfilePictures ?
+              `<img src="${review.profilePicture}" alt="${this.escapeHtml(review.author)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                      <div class="reviewhub-avatar-fallback" style="display:none;">${authorInitials}</div>` :
-                    `<div class="reviewhub-avatar-fallback">${authorInitials}</div>`
-                  }
+              `<div class="reviewhub-avatar-fallback">${authorInitials}</div>`
+            }
                 </div>
                 <div class="reviewhub-review-info">
                   <div class="reviewhub-review-author-line">
@@ -1412,7 +1511,7 @@
         function updateDots() {
           const isMobile = window.innerWidth <= 767;
           const dots = container.querySelectorAll('.reviewhub-carousel-dot');
-          
+
           if (isMobile) {
             dots.forEach((dot, index) => {
               if (index === currentIndex) {
@@ -1427,7 +1526,7 @@
         function updateRestartCardVisibility() {
           const isMobile = window.innerWidth <= 767;
           const maxIndex = getMaxIndex();
-          
+
           if (isMobile && restartCard) {
             // Show restart card when user reaches the last review on mobile
             if (currentIndex >= maxIndex && filteredReviews.length > 1) {
@@ -1445,20 +1544,20 @@
           if (currentIndex > maxIndex) {
             currentIndex = maxIndex;
           }
-          
+
           this.adjustCardHeights(); // Call using this context
           updateArrowsForLoop();
           updateRestartCardVisibility();
           goToWithLoop(currentIndex, false);
           startAutoPlay();
         }
-        
+
         function startAutoPlay() {
           if (autoPlayInterval) clearInterval(autoPlayInterval);
           const currentVisibleCount = getVisibleCount();
           const maxIndex = getMaxIndex();
           if (filteredReviews.length <= currentVisibleCount || maxIndex === 0) return;
-          
+
           autoPlayInterval = setInterval(() => {
             if (isAutoPlaying) {
               const currentMaxIndex = getMaxIndex();
@@ -1468,11 +1567,11 @@
             }
           }, AUTO_PLAY_DELAY);
         }
-        
+
         function goToWithLoop(index, animate = true) {
           const maxIndex = getMaxIndex();
           const totalSlides = maxIndex + 1;
-          
+
           // Handle infinite loop logic
           if (index >= totalSlides) {
             // Going forward past the end - loop to beginning
@@ -1483,28 +1582,28 @@
           } else {
             currentIndex = index;
           }
-          
+
           if (track.children.length > 0) {
             const firstCard = track.children[0];
             const cardWidth = firstCard.offsetWidth;
             // Dynamic gap based on screen size to match CSS
             const isMobile = window.innerWidth <= 767;
             const gap = isMobile ? 12 : 16;
-            
+
             let translateX = 0;
             if (filteredReviews.length > visibleCount) {
               translateX = currentIndex * (cardWidth + gap);
             }
-            
+
             track.style.transition = animate ? 'transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none';
             track.style.transform = `translateX(-${translateX}px)`;
           }
-          
+
           updateArrowsForLoop();
           updateDots();
           updateRestartCardVisibility();
         }
-        
+
         function updateArrowsForLoop() {
           // For infinite loop, arrows are always enabled (except when not enough content)
           if (filteredReviews.length <= visibleCount) {
@@ -1513,18 +1612,18 @@
           } else {
             prevBtn.style.display = 'flex';
             nextBtn.style.display = 'flex';
-            
+
             // Always enable arrows for infinite loop
             prevBtn.removeAttribute('disabled');
             prevBtn.style.opacity = '1';
             prevBtn.style.pointerEvents = 'auto';
-            
+
             nextBtn.removeAttribute('disabled');
             nextBtn.style.opacity = '1';
             nextBtn.style.pointerEvents = 'auto';
           }
         }
-        
+
         // Add restart button event listener
         if (restartButton) {
           restartButton.addEventListener('click', () => {
@@ -1533,27 +1632,27 @@
             setTimeout(() => resumeAutoPlay(), 1000);
           });
         }
-        
+
         function stopAutoPlay() {
           if (autoPlayInterval) {
             clearInterval(autoPlayInterval);
             autoPlayInterval = null;
           }
         }
-        
+
         function pauseAutoPlay() {
           isAutoPlaying = false;
         }
-        
+
         function resumeAutoPlay() {
           isAutoPlaying = true;
         }
         // Initial call to render
         setTimeout(() => {
           renderCarousel.call(this); // Ensure `this` context for renderCarousel
-          addTouchSupport(); 
+          addTouchSupport();
         }, 50);
-        
+
         window.addEventListener('resize', () => {
           updateVisibleCount.call(this); // Ensure `this` context for updateVisibleCount
           stopAutoPlay();
@@ -1569,7 +1668,7 @@
 
         function getMaxIndex() {
           if (filteredReviews.length <= visibleCount) {
-            return 0; 
+            return 0;
           }
           const currentVisibleCount = getVisibleCount();
           return Math.max(0, filteredReviews.length - currentVisibleCount);
@@ -1577,7 +1676,7 @@
         function updateArrows() {
           const maxIndex = getMaxIndex();
           const isMobile = window.innerWidth <= 767;
-          
+
           // Hide arrows if not enough reviews to scroll
           if (filteredReviews.length <= visibleCount) {
             prevBtn.style.display = 'none';
@@ -1585,7 +1684,7 @@
           } else {
             prevBtn.style.display = 'flex';
             nextBtn.style.display = 'flex';
-            
+
             // Update arrow states
             if (currentIndex === 0) {
               prevBtn.setAttribute('disabled', 'true');
@@ -1596,7 +1695,7 @@
               prevBtn.style.opacity = '1';
               prevBtn.style.pointerEvents = 'auto';
             }
-            
+
             if (currentIndex >= maxIndex) {
               nextBtn.setAttribute('disabled', 'true');
               nextBtn.style.opacity = '0.3';
@@ -1613,28 +1712,28 @@
           if (index < 0) index = 0;
           if (index > maxIndex) index = maxIndex;
           currentIndex = index;
-          
+
           if (track.children.length > 0) {
             const isMobile = window.innerWidth <= 767;
             const firstCard = track.children[0];
             const cardWidth = firstCard.offsetWidth;
             // Dynamic gap based on screen size to match CSS
             const gap = isMobile ? 12 : 16;
-            
+
             // Calculate translation based on current index
             let translateX = 0;
             if (filteredReviews.length > visibleCount) {
               translateX = currentIndex * (cardWidth + gap);
             }
-            
+
             track.style.transition = animate ? 'transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none';
             track.style.transform = `translateX(-${translateX}px)`;
           }
-          
+
           updateArrows();
           updateDots();
         }
-        
+
         // Add touch/drag support
         function addTouchSupport() {
           // Mouse events
@@ -1642,12 +1741,12 @@
           track.addEventListener('mousemove', handleMove);
           track.addEventListener('mouseup', handleEnd);
           track.addEventListener('mouseleave', handleEnd);
-          
+
           // Touch events
           track.addEventListener('touchstart', handleStart, { passive: true });
           track.addEventListener('touchmove', handleMove, { passive: false });
           track.addEventListener('touchend', handleEnd);
-          
+
           function handleStart(e) {
             isDragging = true;
             startX = getClientX(e);
@@ -1655,29 +1754,29 @@
             track.style.cursor = 'grabbing';
             pauseAutoPlay();
           }
-          
+
           function handleMove(e) {
             if (!isDragging) return;
-            
+
             e.preventDefault();
             currentX = getClientX(e);
             const deltaX = currentX - startX;
-            
+
             // Provide visual feedback during drag
             const currentTransform = track.style.transform;
             const currentTranslateX = getCurrentTranslateX();
             track.style.transition = 'none';
             track.style.transform = `translateX(${currentTranslateX - deltaX}px)`;
           }
-          
+
           function handleEnd(e) {
             if (!isDragging) return;
-            
+
             isDragging = false;
             track.style.cursor = 'grab';
-            
+
             const deltaX = currentX - startX;
-            
+
             // Determine if user dragged enough to trigger slide
             if (Math.abs(deltaX) > dragThreshold) {
               if (deltaX > 0) {
@@ -1694,14 +1793,14 @@
               // Snap back to current position
               goToWithLoop(currentIndex);
             }
-            
+
             setTimeout(() => resumeAutoPlay(), 2000);
           }
-          
+
           function getClientX(e) {
             return e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
           }
-          
+
           function getCurrentTranslateX() {
             const transform = track.style.transform;
             const match = transform.match(/translateX\((-?\d+(?:\.\d+)?)px\)/);
@@ -1713,7 +1812,7 @@
           goToWithLoop(currentIndex - 1);
           setTimeout(() => resumeAutoPlay(), 2000);
         });
-        
+
         nextBtn.addEventListener('click', () => {
           pauseAutoPlay();
           goToWithLoop(currentIndex + 1);
@@ -1723,14 +1822,14 @@
         carouselContainer.addEventListener('mouseenter', () => {
           pauseAutoPlay();
         });
-        
+
         carouselContainer.addEventListener('mouseleave', () => {
           resumeAutoPlay();
         });
         track.addEventListener('mouseenter', () => {
           pauseAutoPlay();
         });
-        
+
         track.addEventListener('mouseleave', () => {
           resumeAutoPlay();
         });
@@ -1757,27 +1856,27 @@
         const reviewText = review.content || review.text || '';
         const isLongText = reviewText.length > 180;
         const truncatedText = isLongText ? reviewText.substring(0, 180) + '...' : reviewText;
-        
+
         const googleLogo = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
           <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
           <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
           <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
           <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
         </svg>`;
-        
+
         const facebookLogo = `<svg width="14" height="14" viewBox="0 0 24 24" fill="#1877F2">
           <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
         </svg>`;
-        
+
         return `
           <div class="reviewhub-review-item" data-review-index="${index}">
             <div class="reviewhub-review-header">
               <div class="reviewhub-review-avatar">
-                ${review.profilePicture && widgetSettings.showProfilePictures ? 
-                  `<img src="${review.profilePicture}" alt="${this.escapeHtml(review.author)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                ${review.profilePicture && widgetSettings.showProfilePictures ?
+            `<img src="${review.profilePicture}" alt="${this.escapeHtml(review.author)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                    <div class="reviewhub-avatar-fallback" style="display:none;">${authorInitials}</div>` :
-                  `<div class="reviewhub-avatar-fallback">${authorInitials}</div>`
-                }
+            `<div class="reviewhub-avatar-fallback">${authorInitials}</div>`
+          }
               </div>
               <div class="reviewhub-review-info">
                 <div class="reviewhub-review-author-line">
@@ -1805,7 +1904,7 @@
           </div>
         `;
       }).join('');
-      
+
       let reviewUrl;
       if (businessUrlLink) {
         reviewUrl = businessUrlLink;
@@ -1816,7 +1915,7 @@
       } else {
         reviewUrl = 'https://www.google.com/maps';
       }
-      
+
       const widgetHtml = `
         <div class="reviewhub-widget">
           <div class="reviewhub-widget-content layout-${widgetSettings.layout || 'grid'}">
@@ -1824,11 +1923,11 @@
           </div>
         </div>
       `;
-      
+
       container.innerHTML = widgetHtml;
       this.attachEventListeners(container, filteredReviews);
     },
-    attachEventListeners: function(container, reviews) {
+    attachEventListeners: function (container, reviews) {
       const readMoreButtons = container.querySelectorAll('.reviewhub-read-more');
       readMoreButtons.forEach(button => {
         button.addEventListener('click', (e) => {
@@ -1838,7 +1937,7 @@
         });
       });
     },
-    showReviewModal: function(review) {
+    showReviewModal: function (review) {
       const reviewText = review.content || review.text || '';
       const authorInitials = this.getInitials(review.author);
       const ratingStars = review.rating ? this.generateStars(review.rating) : '';
@@ -1850,11 +1949,11 @@
       <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
       <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
     </svg>`;
-      
+
       const facebookLogo = `<svg width="14" height="14" viewBox="0 0 24 24" fill="#1877F2">
         <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
       </svg>`;
-      
+
       // Centered modal overlay and panel styles
       const modalHtml = `
         <div class="reviewhub-modal-overlay" style="
@@ -1881,11 +1980,11 @@
               <div class="reviewhub-review-item">
                 <div class="reviewhub-review-header">
                   <div class="reviewhub-review-avatar">
-                    ${review.profilePicture ? 
-                      `<img src="${review.profilePicture}" alt="${this.escapeHtml(review.author)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    ${review.profilePicture ?
+          `<img src="${review.profilePicture}" alt="${this.escapeHtml(review.author)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                        <div class="reviewhub-avatar-fallback" style="display:none;">${authorInitials}</div>` :
-                      `<div class="reviewhub-avatar-fallback">${authorInitials}</div>`
-                    }
+          `<div class="reviewhub-avatar-fallback">${authorInitials}</div>`
+        }
                   </div>
                   <div class="reviewhub-review-info">
                     <div class="reviewhub-review-author-line">
@@ -1912,11 +2011,11 @@
       const overlay = modalElement.querySelector('.reviewhub-modal-overlay');
       const modal = modalElement.querySelector('.reviewhub-modal');
       const closeButton = modalElement.querySelector('.reviewhub-modal-close');
-      
+
       const closeModal = () => {
         document.body.removeChild(modalElement);
       };
-      
+
       closeButton.addEventListener('click', closeModal);
       overlay.addEventListener('click', (e) => {
         if (e.target === overlay) {
@@ -1925,14 +2024,14 @@
       });
       const handleEscape = (e) => {
         if (e.key === 'Escape') {
-          closeModal();0
+          closeModal(); 0
           document.removeEventListener('keydown', handleEscape);
         }
       };
       document.addEventListener('keydown', handleEscape);
     },
-    
-    darkenColor: function(color, percent) {
+
+    darkenColor: function (color, percent) {
       const num = parseInt(color.replace("#", ""), 16);
       const amt = Math.round(2.55 * percent);
       const R = (num >> 16) - amt;
@@ -1942,19 +2041,19 @@
         (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
         (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
     },
-    
-    escapeHtml: function(text) {
+
+    escapeHtml: function (text) {
       const div = document.createElement('div');
       div.textContent = text;
       return div.innerHTML;
     },
-    
-    fetchWithRetry: function(url, options, retries = CONFIG.RETRY_ATTEMPTS) {
+
+    fetchWithRetry: function (url, options, retries = CONFIG.RETRY_ATTEMPTS) {
       return new Promise((resolve, reject) => {
         const timeoutId = setTimeout(() => {
           reject(new Error('Request timeout'));
         }, CONFIG.TIMEOUT);
-        
+
         fetch(url, {
           ...options,
           mode: 'cors',
@@ -1965,28 +2064,28 @@
             ...options?.headers
           }
         })
-        .then(response => {
-          clearTimeout(timeoutId);
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-          }
-          return response.json();
-        })
-        .then(resolve)
-        .catch(error => {
-          clearTimeout(timeoutId);
-          if (retries > 0) {
-            setTimeout(() => {
-              this.fetchWithRetry(url, options, retries - 1).then(resolve).catch(reject);
-            }, CONFIG.RETRY_DELAY);
-          } else {
-            reject(error);
-          }
-        });
+          .then(response => {
+            clearTimeout(timeoutId);
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+          })
+          .then(resolve)
+          .catch(error => {
+            clearTimeout(timeoutId);
+            if (retries > 0) {
+              setTimeout(() => {
+                this.fetchWithRetry(url, options, retries - 1).then(resolve).catch(reject);
+              }, CONFIG.RETRY_DELAY);
+            } else {
+              reject(error);
+            }
+          });
       });
     },
-    
-    showError: function(container, error, config, retryCallback) {
+
+    showError: function (container, error, config, retryCallback) {
       const errorHtml = `
         <div class="reviewhub-widget">
           <div class="reviewhub-widget-error">
@@ -1996,9 +2095,9 @@
           </div>
         </div>
       `;
-      
+
       container.innerHTML = errorHtml;
-      
+
       if (retryCallback) {
         const retryButton = container.querySelector('.reviewhub-retry-button');
         if (retryButton) {
@@ -2006,8 +2105,25 @@
         }
       }
     },
-    
-    initWidget: function(config) {
+
+    fetchReviewsWithPagination: async function (widgetId, offset = 0, limit = 8) {
+      const params = new URLSearchParams();
+      params.append('limit', limit.toString());
+      params.append('offset', offset.toString());
+
+      // Try to determine layout if passed in config (not standard, but consistent with other files)
+      // Usually fetchReviewsWithPagination is called with IDs. 
+      // We will leave layout generic or unset as it's optional for the API.
+
+      const queryString = params.toString();
+      const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${widgetId}?${queryString}`;
+
+      console.log(`[Widget Old] Fetching reviews: ${apiUrl}`);
+      const data = await this.fetchWithRetry(apiUrl);
+      return data;
+    },
+
+    initWidget: function (config) {
       let container = null;
       this.injectStyles();
       if (config.containerId) {
@@ -2027,16 +2143,15 @@
           </div>
         </div>
       `;
-      const params = new URLSearchParams();
-      if (config.themeColor) params.append('themeColor', config.themeColor);
-      if (config.layout) params.append('layout', config.layout);
-      const queryString = params.toString();
-      const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${config.widgetId}${queryString ? '?' + queryString : ''}`;
 
       const retryLoad = () => {
         this.initWidget(config);
       };
-      this.fetchWithRetry(apiUrl)
+
+      // Use 12 for carousel (enough for a good loop), 8 for badge
+      const initialLimit = config.layout === 'badge' ? 8 : 12;
+
+      this.fetchReviewsWithPagination(config.widgetId, 0, initialLimit)
         .then(data => {
           this.renderWidget(container, data, config);
         })
@@ -2044,24 +2159,24 @@
           this.showError(container, error, config, retryLoad);
         });
     },
-    adjustCardHeights: function() { 
+    adjustCardHeights: function () {
       const track = document.querySelector('.reviewhub-carousel-track');
       if (!track || !track.children.length) return;
-      
+
       let maxHeight = 0;
       const reviewItems = track.querySelectorAll('.reviewhub-review-item');
-      
+
       reviewItems.forEach(item => {
         item.style.height = 'auto';
       });
-      
+
       reviewItems.forEach(item => {
         const itemHeight = item.offsetHeight;
         if (itemHeight > maxHeight) {
           maxHeight = itemHeight;
         }
       });
-      
+
       if (maxHeight > 0) {
         reviewItems.forEach(item => {
           item.style.height = `${maxHeight}px`;
@@ -2073,7 +2188,7 @@
   function initializeWidgetsFromScripts() {
     const scriptTags = document.querySelectorAll('script[data-widget-id]');
     window.ReviewHub.log('info', `Found ${scriptTags.length} widget script(s)`);
-    scriptTags.forEach(function(script) {
+    scriptTags.forEach(function (script) {
       const widgetId = script.getAttribute('data-widget-id');
       const themeColor = script.getAttribute('data-theme-color');
       const layout = script.getAttribute('data-layout');
@@ -2100,14 +2215,14 @@
   }
 
   if (window.ReviewHubPendingWidgets && Array.isArray(window.ReviewHubPendingWidgets)) {
-    window.ReviewHubPendingWidgets.forEach(function(pendingConfig) {
+    window.ReviewHubPendingWidgets.forEach(function (pendingConfig) {
       window.ReviewHub.initWidget(pendingConfig);
     });
     window.ReviewHubPendingWidgets = [];
   }
 
   // Global API for manual widget initialization
-  window.ReviewHub.init = function(config) {
+  window.ReviewHub.init = function (config) {
     if (typeof config === 'string') {
       // Simple widget ID
       this.initWidget({ widgetId: config });

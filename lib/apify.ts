@@ -1,5 +1,5 @@
 import { ApifyClient } from 'apify-client';
-import { getBusinessUrlById, updateBusinessUrlScrapedTime, mergeNewReviews, getLatestReviewDateForBusiness } from './storage';
+import { getBusinessUrlById, updateBusinessUrlScrapedTime, mergeNewReviews, upsertReviews, getLatestReviewDateForBusiness } from './storage';
 import { IReviewItem } from '../models/Review.model'; 
 
 const GOOGLE_APIFY_TOKEN = process.env.GOOGLE_APIFY_API_TOKEN;
@@ -153,13 +153,26 @@ export const scrapeGoogleReviews = async (businessUrlId: string, maxReviewsParam
       
       const businessIdString = businessUrlDoc._id.toString();
   
-      await mergeNewReviews({
-          businessUrlId: businessIdString,
-          url: businessUrlDoc.url,
-          urlHash: businessUrlDoc.urlHash, 
-          source: 'google',
-          reviews: parsedApifyReviews
-      });
+      if (!effectiveFromDate && parsedApifyReviews.length > 0) {
+        // Manual scrape (Recrawl) with results: Replace all reviews
+        console.log(`[Apify/scrapeGoogleReviews] Manual recrawl detected with ${parsedApifyReviews.length} results. Overwriting existing reviews.`);
+        await upsertReviews({
+            businessUrlId: businessIdString,
+            url: businessUrlDoc.url,
+            urlHash: businessUrlDoc.urlHash, 
+            source: 'google',
+            reviews: parsedApifyReviews
+        });
+      } else {
+        // Scheduled scrape or partial update: Merge reviews
+        await mergeNewReviews({
+            businessUrlId: businessIdString,
+            url: businessUrlDoc.url,
+            urlHash: businessUrlDoc.urlHash, 
+            source: 'google',
+            reviews: parsedApifyReviews
+        });
+      }
       await updateBusinessUrlScrapedTime(businessIdString, 'google');
       console.log(`Successfully scraped and merged ${parsedApifyReviews.length} Google reviews for business ID: ${businessUrlId}`);
       return { success: true, message: `Scraped ${parsedApifyReviews.length} Google reviews.`, reviews: parsedApifyReviews };
@@ -243,13 +256,26 @@ export const scrapeFacebookReviews = async (businessUrlId: string, maxReviewsPar
       }
       
       const businessIdString = businessUrlDoc._id.toString();
-      await mergeNewReviews({
-          businessUrlId: businessIdString,
-          url: businessUrlDoc.url,
-          urlHash: businessUrlDoc.urlHash,
-          source: 'facebook',
-          reviews: filteredReviews
-      });
+      if (!effectiveFromDate && filteredReviews.length > 0) {
+          // Manual scrape (Recrawl) with results: Replace all reviews
+          console.log(`[Apify/scrapeFacebookReviews] Manual recrawl detected with ${filteredReviews.length} results. Overwriting existing reviews.`);
+          await upsertReviews({
+              businessUrlId: businessIdString,
+              url: businessUrlDoc.url,
+              urlHash: businessUrlDoc.urlHash,
+              source: 'facebook',
+              reviews: filteredReviews
+          });
+      } else {
+          // Scheduled scrape or partial update: Merge reviews
+          await mergeNewReviews({
+              businessUrlId: businessIdString,
+              url: businessUrlDoc.url,
+              urlHash: businessUrlDoc.urlHash,
+              source: 'facebook',
+              reviews: filteredReviews
+          });
+      }
       await updateBusinessUrlScrapedTime(businessIdString, 'facebook');
       console.log(`Successfully scraped and merged ${filteredReviews.length} Facebook reviews for business ID: ${businessUrlId}`);
       return { success: true, message: `Scraped ${filteredReviews.length} Facebook reviews.`, reviews: filteredReviews };

@@ -1,10 +1,10 @@
-(function() {
+(function () {
   if (window.ReviewHubMasonry && window.ReviewHubMasonry.isInitialized) {
     return;
   }
 
   const CONFIG = {
-    API_DOMAIN: (function() {
+    API_DOMAIN: (function () {
       const scripts = document.querySelectorAll('script[src*="widget-masonry.js"]');
       if (scripts.length > 0) {
         const scriptSrc = scripts[scripts.length - 1].src;
@@ -44,25 +44,25 @@
     isInitialized: true,
     version: '1.0.0',
     buildId: Date.now(),
-    
+
     // State tracking for each widget instance
     widgetStates: new Map(),
-    
+
     // Cache for fetched reviews to avoid re-fetching
     reviewCache: new Map(),
 
-    log: function(level, message, data) {
+    log: function (level, message, data) {
       // Console logging disabled for production
     },
 
-    escapeHtml: function(text) {
+    escapeHtml: function (text) {
       if (typeof text !== 'string') return '';
       const div = document.createElement('div');
       div.textContent = text;
       return div.innerHTML;
     },
 
-    getInitials: function(name) {
+    getInitials: function (name) {
       if (!name) return '?';
       const words = name.trim().split(' ').filter(word => word.length > 0);
       if (words.length === 0) return '?';
@@ -70,7 +70,7 @@
       return (words[0].charAt(0) + words[words.length - 1].charAt(0)).toUpperCase();
     },
 
-    formatDate: function(dateString) {
+    formatDate: function (dateString) {
       try {
         if (typeof dateString === 'string' && dateString.includes('ago')) {
           return dateString;
@@ -102,8 +102,8 @@
         return dateString || 'Recently';
       }
     },
-    
-    generateStars: function(rating) {
+
+    generateStars: function (rating) {
       // Uses Font Awesome 5 (same as widget-new.js)
       let starsHtml = '';
       for (let i = 1; i <= 5; i++) {
@@ -135,7 +135,7 @@
       return starsHtml;
     },
 
-    generateRecommendationStatus: function(review) {
+    generateRecommendationStatus: function (review) {
       // For Facebook reviews, show recommendation status instead of stars
       const recommendationStatus = review.recommendationStatus || '';
       if (recommendationStatus === 'recommended') {
@@ -146,7 +146,7 @@
       return '';
     },
 
-    detectReviewSource: function(review, widgetSettings) {
+    detectReviewSource: function (review, widgetSettings) {
       // Check review source or widget settings to determine platform
       if (review.source) {
         return review.source.toLowerCase();
@@ -161,7 +161,7 @@
       return 'google';
     },
 
-    getPlatformLogo: function(source) {
+    getPlatformLogo: function (source) {
       if (source === 'facebook') {
         return `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%231877F2' d='M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z'/%3E%3C/svg%3E`;
       } else {
@@ -170,12 +170,12 @@
       }
     },
 
-    getPlatformThemeColor: function(source, userThemeColor) {
+    getPlatformThemeColor: function (source, userThemeColor) {
       // Always use user-provided theme color if available
       if (userThemeColor) {
         return userThemeColor;
       }
-      
+
       // Use platform-specific colors only as fallback
       if (source === 'facebook') {
         return '#1877F2'; // Facebook blue
@@ -184,10 +184,10 @@
       }
     },
 
-    filterReviews: function(reviews, widgetSettings) {
+    filterReviews: function (reviews, widgetSettings) {
       if (!reviews || reviews.length === 0) return reviews;
       // Filter out reviews with empty content or text
-      return reviews.filter(review => ((review.content && review.content.trim()) || (review.text && review.text.trim())) && (function() {
+      return reviews.filter(review => ((review.content && review.content.trim()) || (review.text && review.text.trim())) && (function () {
         const reviewSource = this.detectReviewSource(review, widgetSettings);
         if (reviewSource === 'facebook') {
           const reviewFilterDisplay = widgetSettings.reviewFilterDisplay;
@@ -212,7 +212,7 @@
       }).call(this, review));
     },
 
-    injectStyles: function() {
+    injectStyles: function () {
       if (document.getElementById('reviewhub-masonry-widget-styles')) return;
 
       // Font Awesome for stars and icons (same as widget-new.js)
@@ -872,13 +872,13 @@
       document.head.appendChild(style);
     },
 
-    fetchWithRetry: async function(url, options, retries = CONFIG.RETRY_ATTEMPTS) {
+    fetchWithRetry: async function (url, options, retries = CONFIG.RETRY_ATTEMPTS) {
       let attempt = 0;
       while (attempt <= retries) {
         try {
           const response = await new Promise((resolve, reject) => {
             const timeoutId = setTimeout(() => reject(new Error('Request timeout')), CONFIG.TIMEOUT);
-            
+
             fetch(url, {
               ...options,
               mode: 'cors',
@@ -889,18 +889,18 @@
                 ...options?.headers
               }
             })
-            .then(res => {
-              clearTimeout(timeoutId);
-              if (!res.ok) {
-                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-              }
-              return res.json();
-            })
-            .then(resolve)
-            .catch(err => {
+              .then(res => {
+                clearTimeout(timeoutId);
+                if (!res.ok) {
+                  throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                }
+                return res.json();
+              })
+              .then(resolve)
+              .catch(err => {
                 clearTimeout(timeoutId);
                 reject(err);
-            });
+              });
           });
           return response;
         } catch (error) {
@@ -908,27 +908,27 @@
           if (attempt > retries) {
             throw error;
           }
-          await new Promise(resolve => setTimeout(resolve, CONFIG.RETRY_DELAY * Math.pow(2, attempt -1)));
+          await new Promise(resolve => setTimeout(resolve, CONFIG.RETRY_DELAY * Math.pow(2, attempt - 1)));
         }
       }
     },
 
     // New function to fetch reviews with pagination
-    fetchReviewsWithPagination: async function(widgetId, offset = 0, limit = 12) {
+    fetchReviewsWithPagination: async function (widgetId, offset = 0, limit = 12) {
       const params = new URLSearchParams();
       params.append('limit', limit.toString());
       params.append('offset', offset.toString());
       params.append('layout', 'masonry');
-      
+
       const queryString = params.toString();
       const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${widgetId}?${queryString}`;
-      
+
       return await this.fetchWithRetry(apiUrl);
     },
 
 
 
-    showError: function(container, error, config, retryCallback) {
+    showError: function (container, error, config, retryCallback) {
       const themeColor = config.themeColor || '#3B82F6';
       container.style.setProperty('--masonry-theme-color', themeColor);
       container.style.setProperty('--masonry-theme-color-dark', this.darkenColor(themeColor, 15));
@@ -951,56 +951,63 @@
         }
       }
     },
-    
-    darkenColor: function(color, percent) {
-        let r, g, b, a;
-        if (color.startsWith('#')) {
-            const num = parseInt(color.slice(1), 16);
-            r = (num >> 16) & 0xFF;
-            g = (num >>  8) & 0xFF;
-            b =  num       & 0xFF;
-        } else if (color.startsWith('rgb')) {
-            const parts = color.match(/[\d.]+/g).map(Number);
-            [r, g, b, a] = parts;
-        } else { return color; }
 
-        const factor = 1 - (percent / 100);
-        r = Math.max(0, Math.min(255, Math.round(r * factor)));
-        g = Math.max(0, Math.min(255, Math.round(g * factor)));
-        b = Math.max(0, Math.min(255, Math.round(b * factor)));
+    darkenColor: function (color, percent) {
+      let r, g, b, a;
+      if (color.startsWith('#')) {
+        const num = parseInt(color.slice(1), 16);
+        r = (num >> 16) & 0xFF;
+        g = (num >> 8) & 0xFF;
+        b = num & 0xFF;
+      } else if (color.startsWith('rgb')) {
+        const parts = color.match(/[\d.]+/g).map(Number);
+        [r, g, b, a] = parts;
+      } else { return color; }
 
-        if (a !== undefined) {
-            return `rgba(${r}, ${g}, ${b}, ${a})`;
-        }
-        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+      const factor = 1 - (percent / 100);
+      r = Math.max(0, Math.min(255, Math.round(r * factor)));
+      g = Math.max(0, Math.min(255, Math.round(g * factor)));
+      b = Math.max(0, Math.min(255, Math.round(b * factor)));
+
+      if (a !== undefined) {
+        return `rgba(${r}, ${g}, ${b}, ${a})`;
+      }
+      return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
     },
 
-    lightenColor: function(color, percent) {
-        let r, g, b, a;
-        if (color.startsWith('#')) {
-            const num = parseInt(color.slice(1), 16);
-            r = (num >> 16) & 0xFF;
-            g = (num >>  8) & 0xFF;
-            b =  num       & 0xFF;
-        } else if (color.startsWith('rgb')) {
-            const parts = color.match(/[\d.]+/g).map(Number);
-            [r, g, b, a] = parts;
-        } else { return color; }
+    lightenColor: function (color, percent) {
+      let r, g, b, a;
+      if (color.startsWith('#')) {
+        const num = parseInt(color.slice(1), 16);
+        r = (num >> 16) & 0xFF;
+        g = (num >> 8) & 0xFF;
+        b = num & 0xFF;
+      } else if (color.startsWith('rgb')) {
+        const parts = color.match(/[\d.]+/g).map(Number);
+        [r, g, b, a] = parts;
+      } else { return color; }
 
-        const factor = percent / 100;
-        r = Math.max(0, Math.min(255, Math.round(r + (255 - r) * factor)));
-        g = Math.max(0, Math.min(255, Math.round(g + (255 - g) * factor)));
-        b = Math.max(0, Math.min(255, Math.round(b + (255 - b) * factor)));
-        
-        if (a !== undefined) {
-            return `rgba(${r}, ${g}, ${b}, ${a})`;
-        }
-        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+      const factor = percent / 100;
+      r = Math.max(0, Math.min(255, Math.round(r + (255 - r) * factor)));
+      g = Math.max(0, Math.min(255, Math.round(g + (255 - g) * factor)));
+      b = Math.max(0, Math.min(255, Math.round(b + (255 - b) * factor)));
+
+      if (a !== undefined) {
+        return `rgba(${r}, ${g}, ${b}, ${a})`;
+      }
+      return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
     },
 
-    renderWidget: function(container, data, config, displayCount = null) {
+    renderWidget: function (container, data, config, displayCount = null) {
       const { widgetSettings, reviews, businessName, businessUrlLink, totalReviewCount } = data;
-      
+
+      // DEBUG: Log what we received from API
+      console.log('[Masonry Widget] Data received:', {
+        totalReviewCount,
+        reviewsLength: reviews?.length,
+        dataKeys: Object.keys(data)
+      });
+
       // Get or create widget state
       const widgetId = config.widgetId;
       if (!this.widgetStates.has(widgetId)) {
@@ -1011,9 +1018,9 @@
           currentOffset: 0   // Track current offset for pagination
         });
       }
-      
+
       const widgetState = this.widgetStates.get(widgetId);
-      
+
       // If this is the initial load, store the reviews
       if (widgetState.loadedReviews.length === 0) {
         widgetState.loadedReviews = reviews;
@@ -1023,23 +1030,23 @@
         widgetState.loadedReviews = [...widgetState.loadedReviews, ...reviews];
         widgetState.currentOffset += reviews.length;
       }
-      
+
       if (displayCount !== null) {
         widgetState.displayCount = displayCount;
       }
-      
+
       // Filter reviews based on widget settings
       const filteredReviews = this.filterReviews(widgetState.loadedReviews, widgetSettings);
-      
+
       // Detect platform from first review or widget settings
       const platformSource = filteredReviews.length > 0 ? this.detectReviewSource(filteredReviews[0], widgetSettings) : 'google';
       const platformLogo = this.getPlatformLogo(platformSource);
       const platformName = platformSource === 'facebook' ? 'Facebook' : 'Google';
-      
+
       // Get appropriate theme color
       const userThemeColor = config.themeColor || widgetSettings.themeColor;
       const themeColor = this.getPlatformThemeColor(platformSource, userThemeColor);
-      
+
       container.style.setProperty('--masonry-theme-color', themeColor);
       container.style.setProperty('--masonry-theme-color-dark', this.darkenColor(themeColor, 15));
       container.style.setProperty('--masonry-theme-color-light', this.lightenColor(themeColor, 90));
@@ -1048,13 +1055,13 @@
         container.innerHTML = '<div class="reviewhub-masonry-error"><div class="reviewhub-masonry-error-title">No reviews to display.</div><div class="reviewhub-masonry-error-message">Check back later or add some reviews!</div></div>';
         return;
       }
-      
+
       // Determine how many reviews to show
       const totalReviews = totalReviewCount || filteredReviews.length;
       const currentDisplayCount = Math.min(widgetState.displayCount, filteredReviews.length);
       const reviewsToShow = filteredReviews.slice(0, currentDisplayCount);
       const hasMoreReviews = totalReviews > widgetState.currentOffset;
-      
+
       // Debug logging for button visibility
       console.log(`[Masonry Widget] Button visibility check:`, {
         totalReviews,
@@ -1063,7 +1070,7 @@
         hasMoreReviews,
         shouldShowButtons: hasMoreReviews
       });
-      
+
       const reviewCardsHtml = reviewsToShow.map((review, index) => {
         const author = this.escapeHtml(review.author || 'Anonymous');
         const initials = this.getInitials(review.author);
@@ -1074,7 +1081,7 @@
         const content = this.escapeHtml(review.content || review.text || '');
         const isVerified = true;
         const isLongText = content.length > 200;
-        
+
         // Detect individual review source
         const reviewSource = this.detectReviewSource(review, widgetSettings);
         const reviewPlatformLogo = this.getPlatformLogo(reviewSource);
@@ -1098,10 +1105,10 @@
             
             <div class="rh-masonry-card-header">
               <div class="rh-masonry-card-avatar">
-                ${profilePicture && widgetSettings.showProfilePictures !== false ? 
-                  `<span>${initials}</span>` : 
-                  `<span>${initials}</span>`
-                }
+                ${profilePicture && widgetSettings.showProfilePictures !== false ?
+            `<span>${initials}</span>` :
+            `<span>${initials}</span>`
+          }
               </div>
               <div class="rh-masonry-card-author-details">
                 <div class="rh-masonry-card-author-line">
@@ -1133,8 +1140,93 @@
         `;
       }
 
+      // Generate Header
+      let headerHtml = '';
+      if (widgetSettings.showHeader !== false) {
+        // Use totalReviewCount if it's a valid number, otherwise fall back to filteredReviews.length
+        const reviewCount = (typeof totalReviewCount === 'number' && totalReviewCount > 0)
+          ? totalReviewCount
+          : filteredReviews.length;
+
+        console.log('[Masonry Widget] Header reviewCount:', reviewCount, 'from totalReviewCount:', totalReviewCount, 'filteredReviews.length:', filteredReviews.length);
+
+        let ratingHtml = '';
+        let ratingVal = data.averageRating || 0;
+
+        if (platformSource === 'facebook') {
+          ratingHtml = `<span class="rh-header-rating-text">${ratingVal} Recommended</span>`;
+        } else {
+          if (!ratingVal) {
+            // Client-side fallback calculation
+            ratingVal = filteredReviews.length > 0
+              ? (filteredReviews.reduce((sum, r) => sum + (r.rating || 0), 0) / filteredReviews.length).toFixed(1)
+              : '5.0';
+          }
+          const stars = this.generateStars(parseFloat(ratingVal));
+          ratingHtml = `<span class="rh-header-stars">${stars}</span> <span class="rh-header-rating-text">${ratingVal}/5</span>`;
+        }
+
+        headerHtml = `
+          <div class="reviewhub-masonry-header">
+             <div class="reviewhub-masonry-header-content">
+               <span class="reviewhub-masonry-header-title">${businessName || 'Reviews'}</span>
+               <div class="reviewhub-masonry-header-stats">
+                 ${ratingHtml}
+                 <span class="reviewhub-masonry-header-dot">•</span>
+                 <span class="reviewhub-masonry-header-count">${reviewCount} Reviews</span>
+               </div>
+             </div>
+             <div class="reviewhub-masonry-header-powered">
+                <img src="${platformLogo}" alt="${platformName}" style="height: 20px; width: 20px;">
+             </div>
+          </div>
+        `;
+
+        // Inject styles for header if not already present
+        if (!document.getElementById('rh-masonry-header-styles')) {
+          const hStyle = document.createElement('style');
+          hStyle.id = 'rh-masonry-header-styles';
+          hStyle.textContent = `
+                .reviewhub-masonry-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 24px;
+                    padding-bottom: 16px;
+                    border-bottom: 1px solid #E5E7EB;
+                }
+                .reviewhub-masonry-header-content {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 4px;
+                }
+                .reviewhub-masonry-header-title {
+                    font-size: 1.25rem;
+                    font-weight: 700;
+                    color: #111827;
+                }
+                .reviewhub-masonry-header-stats {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    font-size: 0.95rem;
+                    color: #4B5563;
+                }
+                .rh-header-stars { color: #F59E0B; }
+                .reviewhub-masonry-header-dot { color: #9CA3AF; }
+                .reviewhub-masonry-header-powered { opacity: 0.8; }
+                @media (max-width: 640px) {
+                    .reviewhub-masonry-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+                    .reviewhub-masonry-header-powered { align-self: flex-end; }
+                }
+            `;
+          document.head.appendChild(hStyle);
+        }
+      }
+
       const masonryHtml = `
         <div class="reviewhub-masonry-widget">
+          ${headerHtml}
           <div class="reviewhub-masonry-container">
             ${reviewCardsHtml}
           </div>
@@ -1147,102 +1239,102 @@
       this.attachLoadMoreEventListeners(container, data, config);
     },
 
-    attachModalEventListeners: function(container, reviews, allData, config) {
-        container.querySelectorAll('.rh-masonry-read-more').forEach(button => {
-            button.addEventListener('click', (e) => {
-                e.preventDefault();
-                const reviewIndex = parseInt(button.getAttribute('data-review-index'));
-                if (!isNaN(reviewIndex) && reviews[reviewIndex]) {
-                    this.showReviewModal(reviews[reviewIndex], allData, config);
-                }
-            });
-        });
-    },
-
-    attachLoadMoreEventListeners: function(container, data, config) {
-        const loadMoreBtn = container.querySelector('.rh-masonry-load-more-btn');
-        
-        if (loadMoreBtn) {
-            loadMoreBtn.addEventListener('click', async (e) => {
-                e.preventDefault();
-                const widgetState = this.widgetStates.get(config.widgetId);
-                
-                // Show loading state
-                loadMoreBtn.textContent = 'Loading...';
-                loadMoreBtn.disabled = true;
-                
-                try {
-                    // Fetch more reviews from the database
-                    const newData = await this.fetchReviewsWithPagination(
-                        config.widgetId, 
-                        widgetState.currentOffset, 
-                        CONFIG.MASONRY_SETTINGS.LOAD_MORE_INCREMENT
-                    );
-                    
-                    if (newData && newData.reviews && newData.reviews.length > 0) {
-                        // Update the widget with new data
-                        const newDisplayCount = widgetState.displayCount + CONFIG.MASONRY_SETTINGS.LOAD_MORE_INCREMENT;
-                        widgetState.isExpanded = true;
-                        this.renderWidget(container, newData, config, newDisplayCount);
-                    } else {
-                        // No more reviews to load
-                        loadMoreBtn.textContent = 'No More Reviews';
-                        loadMoreBtn.disabled = true;
-                    }
-                    
-                } catch (error) {
-                    console.error('Error loading more reviews:', error);
-                    loadMoreBtn.textContent = 'Load More Reviews';
-                    loadMoreBtn.disabled = false;
-                }
-            });
-        }
-    },
-
-    showReviewModal: function(review, allData, config) {
-        // Only show modal if review has content or text
-        if (!((review.content && review.content.trim()) || (review.text && review.text.trim()))) return;
-        if (document.querySelector('.reviewhub-masonry-modal-overlay')) return;
-
-        const { widgetSettings } = allData;
-
-        const author = this.escapeHtml(review.author || 'Anonymous');
-        const initials = this.getInitials(review.author);
-        const profilePicture = review.profilePicture;
-        const date = this.formatDate(review.postedAt);
-        const rating = parseFloat(review.rating) || 0;
-        const stars = this.generateStars(rating);
-        const content = this.escapeHtml(review.content || review.text || '');
-        const displayContent = content.replace(/\n/g, '<br>');
-        const source = this.detectReviewSource(review, widgetSettings);
-        const isVerified = true;
-
-        const modalOverlay = document.createElement('div');
-        modalOverlay.className = 'reviewhub-masonry-modal-overlay';
-        
-        const showAvatarsSetting = widgetSettings.showProfilePictures !== false;
-        const showDatesSetting = widgetSettings.showDates !== false;
-        const showRatingsSetting = widgetSettings.showRatings !== false;
-
-        // Generate rating display for modal based on platform
-        let modalRatingDisplay = '';
-        if (showRatingsSetting) {
-          if (source === 'facebook') {
-            modalRatingDisplay = this.generateRecommendationStatus(review);
-          } else if (rating > 0) {
-            modalRatingDisplay = `<div class="reviewhub-masonry-modal-rating">${stars}</div>`;
+    attachModalEventListeners: function (container, reviews, allData, config) {
+      container.querySelectorAll('.rh-masonry-read-more').forEach(button => {
+        button.addEventListener('click', (e) => {
+          e.preventDefault();
+          const reviewIndex = parseInt(button.getAttribute('data-review-index'));
+          if (!isNaN(reviewIndex) && reviews[reviewIndex]) {
+            this.showReviewModal(reviews[reviewIndex], allData, config);
           }
-        }
+        });
+      });
+    },
 
-        const modalHTML = `
+    attachLoadMoreEventListeners: function (container, data, config) {
+      const loadMoreBtn = container.querySelector('.rh-masonry-load-more-btn');
+
+      if (loadMoreBtn) {
+        loadMoreBtn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          const widgetState = this.widgetStates.get(config.widgetId);
+
+          // Show loading state
+          loadMoreBtn.textContent = 'Loading...';
+          loadMoreBtn.disabled = true;
+
+          try {
+            // Fetch more reviews from the database
+            const newData = await this.fetchReviewsWithPagination(
+              config.widgetId,
+              widgetState.currentOffset,
+              CONFIG.MASONRY_SETTINGS.LOAD_MORE_INCREMENT
+            );
+
+            if (newData && newData.reviews && newData.reviews.length > 0) {
+              // Update the widget with new data
+              const newDisplayCount = widgetState.displayCount + CONFIG.MASONRY_SETTINGS.LOAD_MORE_INCREMENT;
+              widgetState.isExpanded = true;
+              this.renderWidget(container, newData, config, newDisplayCount);
+            } else {
+              // No more reviews to load
+              loadMoreBtn.textContent = 'No More Reviews';
+              loadMoreBtn.disabled = true;
+            }
+
+          } catch (error) {
+            console.error('Error loading more reviews:', error);
+            loadMoreBtn.textContent = 'Load More Reviews';
+            loadMoreBtn.disabled = false;
+          }
+        });
+      }
+    },
+
+    showReviewModal: function (review, allData, config) {
+      // Only show modal if review has content or text
+      if (!((review.content && review.content.trim()) || (review.text && review.text.trim()))) return;
+      if (document.querySelector('.reviewhub-masonry-modal-overlay')) return;
+
+      const { widgetSettings } = allData;
+
+      const author = this.escapeHtml(review.author || 'Anonymous');
+      const initials = this.getInitials(review.author);
+      const profilePicture = review.profilePicture;
+      const date = this.formatDate(review.postedAt);
+      const rating = parseFloat(review.rating) || 0;
+      const stars = this.generateStars(rating);
+      const content = this.escapeHtml(review.content || review.text || '');
+      const displayContent = content.replace(/\n/g, '<br>');
+      const source = this.detectReviewSource(review, widgetSettings);
+      const isVerified = true;
+
+      const modalOverlay = document.createElement('div');
+      modalOverlay.className = 'reviewhub-masonry-modal-overlay';
+
+      const showAvatarsSetting = widgetSettings.showProfilePictures !== false;
+      const showDatesSetting = widgetSettings.showDates !== false;
+      const showRatingsSetting = widgetSettings.showRatings !== false;
+
+      // Generate rating display for modal based on platform
+      let modalRatingDisplay = '';
+      if (showRatingsSetting) {
+        if (source === 'facebook') {
+          modalRatingDisplay = this.generateRecommendationStatus(review);
+        } else if (rating > 0) {
+          modalRatingDisplay = `<div class="reviewhub-masonry-modal-rating">${stars}</div>`;
+        }
+      }
+
+      const modalHTML = `
             <div class="reviewhub-masonry-modal">
                 <button class="reviewhub-masonry-modal-close" aria-label="Close modal">&times;</button>
                 <div class="reviewhub-masonry-modal-header">
                     <div class="reviewhub-masonry-modal-avatar">
-                        ${profilePicture && showAvatarsSetting ? 
-                          `<span>${initials}</span>` : 
-                          `<span>${initials}</span>`
-                        }
+                        ${profilePicture && showAvatarsSetting ?
+          `<span>${initials}</span>` :
+          `<span>${initials}</span>`
+        }
                     </div>
                     <div class="reviewhub-masonry-modal-author-details">
                         <div class="reviewhub-masonry-modal-author-line">
@@ -1261,43 +1353,43 @@
                 </div>
             </div>
         `;
-        modalOverlay.innerHTML = modalHTML;
-        document.body.appendChild(modalOverlay);
-        document.body.style.overflow = 'hidden';
+      modalOverlay.innerHTML = modalHTML;
+      document.body.appendChild(modalOverlay);
+      document.body.style.overflow = 'hidden';
 
-        // Trigger transition
-        setTimeout(() => modalOverlay.classList.add('visible'), 10);
+      // Trigger transition
+      setTimeout(() => modalOverlay.classList.add('visible'), 10);
 
-        const closeModal = () => {
-            modalOverlay.classList.remove('visible');
-            setTimeout(() => {
-                document.body.removeChild(modalOverlay);
-                document.body.style.overflow = '';
-            }, 300);
-            document.removeEventListener('keydown', handleEscape);
-        };
+      const closeModal = () => {
+        modalOverlay.classList.remove('visible');
+        setTimeout(() => {
+          document.body.removeChild(modalOverlay);
+          document.body.style.overflow = '';
+        }, 300);
+        document.removeEventListener('keydown', handleEscape);
+      };
 
-        modalOverlay.querySelector('.reviewhub-masonry-modal-close').addEventListener('click', closeModal);
-        modalOverlay.addEventListener('click', (e) => {
-            if (e.target === modalOverlay) {
-                closeModal();
-            }
-        });
-        
-        const handleEscape = (e) => {
-            if (e.key === 'Escape') closeModal();
-        };
-        document.addEventListener('keydown', handleEscape);
+      modalOverlay.querySelector('.reviewhub-masonry-modal-close').addEventListener('click', closeModal);
+      modalOverlay.addEventListener('click', (e) => {
+        if (e.target === modalOverlay) {
+          closeModal();
+        }
+      });
+
+      const handleEscape = (e) => {
+        if (e.key === 'Escape') closeModal();
+      };
+      document.addEventListener('keydown', handleEscape);
     },
 
-    initWidget: async function(userConfig) {
+    initWidget: async function (userConfig) {
       let container;
-      const config = { 
-          widgetId: null, 
-          containerId: null, 
-          themeColor: '#3B82F6', 
-          layout: 'masonry',
-          ...userConfig 
+      const config = {
+        widgetId: null,
+        containerId: null,
+        themeColor: '#3B82F6',
+        layout: 'masonry',
+        ...userConfig
       };
 
       this.injectStyles();
@@ -1312,12 +1404,12 @@
           return;
         }
       } else if (config._scriptTag) {
-          container = document.createElement('div');
-          config._scriptTag.parentNode.insertBefore(container, config._scriptTag.nextSibling);
+        container = document.createElement('div');
+        config._scriptTag.parentNode.insertBefore(container, config._scriptTag.nextSibling);
       } else {
         return;
       }
-      
+
       container.className = 'reviewhub-masonry-widget-container';
       container.innerHTML = `
         <div class="reviewhub-masonry-loading">
@@ -1331,13 +1423,13 @@
       container.style.setProperty('--masonry-theme-color-light', this.lightenColor(config.themeColor, 90));
 
       if (!config.widgetId) {
-          this.showError(container, new Error('Widget ID is missing.'), config, null);
-          return;
+        this.showError(container, new Error('Widget ID is missing.'), config, null);
+        return;
       }
 
       const retryLoad = () => {
         container.innerHTML = '';
-        this.initWidget(config); 
+        this.initWidget(config);
       };
 
       try {
@@ -1362,12 +1454,12 @@
         }
 
         if (data && data.reviews) {
-          data.widgetSettings = data.widgetSettings || {}; 
-          
+          data.widgetSettings = data.widgetSettings || {};
+
           // Log the number of reviews fetched from database
           const reviewCount = data.reviews.length;
           console.log(`📊 Reviews fetched from database: ${reviewCount} reviews for widget ${config.widgetId} (layout: ${config.layout})`);
-          
+
           this.renderWidget(container, data, config);
         } else {
           throw new Error('No reviews data received from API.');
@@ -1378,14 +1470,14 @@
     },
 
     // Public init method
-    init: function(userConfig) {
+    init: function (userConfig) {
       const config = typeof userConfig === 'string' ? { widgetId: userConfig } : userConfig;
-      
+
       if (document.readyState === 'loading') {
-          window.ReviewHubMasonry._pendingInitializations = window.ReviewHubMasonry._pendingInitializations || [];
-          window.ReviewHubMasonry._pendingInitializations.push(config);
+        window.ReviewHubMasonry._pendingInitializations = window.ReviewHubMasonry._pendingInitializations || [];
+        window.ReviewHubMasonry._pendingInitializations.push(config);
       } else {
-          this.initWidget(config);
+        this.initWidget(config);
       }
     }
   };
@@ -1401,28 +1493,28 @@
         layout: script.getAttribute('data-layout') || 'masonry',
         _scriptTag: script
       };
-      
+
       Object.keys(config).forEach(key => config[key] === undefined && delete config[key]);
       window.ReviewHubMasonry.initWidget(config);
     });
   }
-  
+
   function processPendingInitializations() {
-      if (window.ReviewHubMasonry._pendingInitializations) {
-          window.ReviewHubMasonry._pendingInitializations.forEach(config => window.ReviewHubMasonry.initWidget(config));
-          delete window.ReviewHubMasonry._pendingInitializations;
-      }
+    if (window.ReviewHubMasonry._pendingInitializations) {
+      window.ReviewHubMasonry._pendingInitializations.forEach(config => window.ReviewHubMasonry.initWidget(config));
+      delete window.ReviewHubMasonry._pendingInitializations;
+    }
   }
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-        initializeWidgetsFromScripts();
-        processPendingInitializations();
+      initializeWidgetsFromScripts();
+      processPendingInitializations();
     });
   } else {
     setTimeout(() => {
-        initializeWidgetsFromScripts();
-        processPendingInitializations();
+      initializeWidgetsFromScripts();
+      processPendingInitializations();
     }, 0);
   }
 
