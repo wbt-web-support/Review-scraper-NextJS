@@ -1414,35 +1414,56 @@
           loadMoreBtn.disabled = true;
 
           try {
-            // Since we loaded all reviews initially, just increase the display count
-            modalState.displayCount += CONFIG.BADGE_SETTINGS.LOAD_MORE_INCREMENT;
-
-            // Update the reviews section without recreating the modal
-            const reviewsContainer = modalElement.querySelector('.reviewhub-badge-modal-reviews');
-            const newReviewsHtml = this.generateReviewsHtml(
-              modalState.loadedReviews.slice(0, modalState.displayCount),
-              widgetSettings
+            // Fetch more reviews from the server
+            const newData = await this.fetchReviewsWithPagination(
+              config.widgetId,
+              modalState.loadedReviews.length, // Use current count as offset
+              CONFIG.BADGE_SETTINGS.LOAD_MORE_INCREMENT
             );
-            reviewsContainer.innerHTML = newReviewsHtml;
 
-            // Update load more button visibility
-            const hasMoreReviews = modalState.displayCount < modalState.loadedReviews.length;
-            console.log(`[Badge Load More] Updated state:`, {
-              displayCount: modalState.displayCount,
-              loadedReviews: modalState.loadedReviews.length,
-              hasMoreReviews
-            });
+            if (newData && newData.reviews && newData.reviews.length > 0) {
+              // Append new reviews to the loaded reviews
+              modalState.loadedReviews = [...modalState.loadedReviews, ...newData.reviews];
+              modalState.displayCount = modalState.loadedReviews.length;
 
-            if (!hasMoreReviews) {
+              // Update total if provided
+              if (newData.totalReviewCount) {
+                modalState.totalReviews = newData.totalReviewCount;
+              }
+
+              // Update the reviews section without recreating the modal
+              const reviewsContainer = modalElement.querySelector('.reviewhub-badge-modal-reviews');
+              const newReviewsHtml = this.generateReviewsHtml(
+                modalState.loadedReviews,
+                widgetSettings
+              );
+              reviewsContainer.innerHTML = newReviewsHtml;
+
+              // Check if there are more reviews to load from server
+              const hasMoreReviews = modalState.loadedReviews.length < modalState.totalReviews;
+
+              console.log(`[Badge Load More] Updated state:`, {
+                loadedReviews: modalState.loadedReviews.length,
+                totalReviews: modalState.totalReviews,
+                hasMoreReviews,
+                newReviewsFetched: newData.reviews.length
+              });
+
+              if (!hasMoreReviews) {
+                loadMoreBtn.textContent = 'No More Reviews';
+                loadMoreBtn.disabled = true;
+                loadMoreBtn.style.opacity = '0.7';
+                loadMoreBtn.style.cursor = 'not-allowed';
+              } else {
+                loadMoreBtn.textContent = 'Load More Reviews';
+                loadMoreBtn.disabled = false;
+                loadMoreBtn.style.opacity = '1';
+                loadMoreBtn.style.cursor = 'pointer';
+              }
+            } else {
+              // No more reviews available
               loadMoreBtn.textContent = 'No More Reviews';
               loadMoreBtn.disabled = true;
-              loadMoreBtn.style.opacity = '0.7';
-              loadMoreBtn.style.cursor = 'not-allowed';
-            } else {
-              loadMoreBtn.textContent = 'Load More Reviews';
-              loadMoreBtn.disabled = false;
-              loadMoreBtn.style.opacity = '1';
-              loadMoreBtn.style.cursor = 'pointer';
             }
           } catch (error) {
             console.error('Error loading more reviews:', error);
