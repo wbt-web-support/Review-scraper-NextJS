@@ -1170,21 +1170,7 @@
           ratingHtml = `<span class="rh-header-stars">${stars}</span> <span class="rh-header-rating-text">${ratingVal}/5</span>`;
         }
 
-        headerHtml = `
-          <div class="reviewhub-grid-header">
-             <div class="reviewhub-grid-header-content">
-               <span class="reviewhub-grid-header-title">${businessName || 'Reviews'}</span>
-               <div class="reviewhub-grid-header-stats">
-                 ${ratingHtml}
-                 <span class="reviewhub-grid-header-dot">•</span>
-                 <span class="reviewhub-grid-header-count">${reviewCount} Reviews</span>
-               </div>
-             </div>
-             <div class="reviewhub-grid-header-powered">
-                <img src="${platformLogo}" alt="${platformName}" style="height: 20px; width: 20px;">
-             </div>
-          </div>
-        `;
+      
 
         // Inject styles for header if not already present
         if (!document.getElementById('rh-grid-header-styles')) {
