@@ -1498,9 +1498,7 @@
           <button class="rh-carousel-arrow rh-prev" aria-label="Previous Review"><i class="rh-fas rh-fa-chevron-left"></i></button>
           <button class="rh-carousel-arrow rh-next" aria-label="Next Review"><i class="rh-fas rh-fa-chevron-right"></i></button>
           <ul class="rh-carousel-dots" id="${carouselId}-dots"></ul>
-          <div class="rh-carousel-footer" style="text-align: center; margin-top: 12px; font-size: 0.85rem; color: #6B7280; font-weight: 500;">
-             ${data.averageRating || '5.0'} ${platformName === 'Facebook' ? '' : 'Stars'} • ${totalReviews} Reviews
-          </div>
+          
         </div>
       `;
 
