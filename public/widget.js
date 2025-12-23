@@ -40,7 +40,8 @@
 
     DEFAULT_LAYOUT: 'carousel',
     SCRIPT_LOAD_TIMEOUT: 10000,
-    RETRY_ATTEMPTS: 3
+    RETRY_ATTEMPTS: 3,
+    VERSION: '1.0.1' // Increment version for cache busting
   };
 
   window.ReviewHubMain = {
@@ -88,7 +89,7 @@
           }
 
           const script = document.createElement('script');
-          script.src = `${CONFIG.API_DOMAIN}/${widgetFile}?v=${this.version}&t=${Date.now()}`;
+          script.src = `${CONFIG.API_DOMAIN}/${widgetFile}?v=${CONFIG.VERSION}`;
           script.async = true;
 
           // Set up timeout
@@ -99,15 +100,21 @@
           script.onload = () => {
             clearTimeout(timeoutId);
 
-            // Wait a bit for the widget to initialize
-            setTimeout(() => {
-              if (window[widgetClass]) {
-                this.loadedWidgets.add(layout);
-                resolveLoad(window[widgetClass]);
-              } else {
-                rejectLoad(new Error(`Widget class ${widgetClass} not found after loading ${widgetFile}`));
-              }
-            }, 100);
+            // Immediate check for class
+            if (window[widgetClass]) {
+              this.loadedWidgets.add(layout);
+              resolveLoad(window[widgetClass]);
+            } else {
+              // Very brief wait only if not immediately available
+              setTimeout(() => {
+                if (window[widgetClass]) {
+                  this.loadedWidgets.add(layout);
+                  resolveLoad(window[widgetClass]);
+                } else {
+                  rejectLoad(new Error(`Widget class ${widgetClass} not found after loading ${widgetFile}`));
+                }
+              }, 10);
+            }
           };
 
           script.onerror = () => {
@@ -466,20 +473,20 @@
     }
   };
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      // Start preloading common widgets
-      window.ReviewHubMain.preloadCommonWidgets();
-      initializeWidgetsFromScripts();
-      processPendingInitializations();
-    });
+  // Auto-run: Try immediately, then also on various ready states
+  function run() {
+    window.ReviewHubMain.preloadCommonWidgets();
+    initializeWidgetsFromScripts();
+    processPendingInitializations();
+  }
+
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    run();
   } else {
-    setTimeout(() => {
-      // Start preloading common widgets
-      window.ReviewHubMain.preloadCommonWidgets();
-      initializeWidgetsFromScripts();
-      processPendingInitializations();
-    }, 0);
+    // If we're early, run immediately but also on DOMContentLoaded just in case
+    run();
+    document.addEventListener('DOMContentLoaded', run);
+    window.addEventListener('load', run);
   }
 
 })(); 

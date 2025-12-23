@@ -2308,17 +2308,18 @@
     }
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      initializeWidgetsFromScripts();
-      processPendingInitializations();
-    });
+  // Auto-run: Try immediately, then also on various ready states
+  function run() {
+    initializeWidgetsFromScripts();
+    processPendingInitializations();
+  }
+
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    run();
   } else {
-    // DOMContentLoaded has already fired
-    setTimeout(() => { // Use setTimeout to ensure ReviewHubV2 object is fully parsed
-      initializeWidgetsFromScripts();
-      processPendingInitializations();
-    }, 0);
+    run();
+    document.addEventListener('DOMContentLoaded', run);
+    window.addEventListener('load', run);
   }
 
 })();
