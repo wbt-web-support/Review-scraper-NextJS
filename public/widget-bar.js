@@ -1533,8 +1533,23 @@
       };
 
       try {
-        // Use standard fetch logic for all layouts now, including 'bar'
-        data = await this.fetchWithRetry(apiUrl);
+        let data;
+        const widgetId = config.widgetId;
+
+        // Check for pre-fetched data from widget.js
+        if (window.ReviewHubMain && window.ReviewHubMain.dataCache && window.ReviewHubMain.dataCache.has(widgetId)) {
+          try {
+            console.log(`[ReviewHubBar] Using pre-fetched data for ${widgetId}`);
+            data = await window.ReviewHubMain.dataCache.get(widgetId);
+          } catch (e) {
+            console.warn(`[ReviewHubBar] Pre-fetch lookup failed for ${widgetId}, falling back...`);
+          }
+        }
+
+        if (!data) {
+          // Use standard fetch logic for all layouts now, including 'bar'
+          data = await this.fetchWithRetry(apiUrl);
+        }
 
         if (data && data.reviews) {
           data.widgetSettings = data.widgetSettings || {};

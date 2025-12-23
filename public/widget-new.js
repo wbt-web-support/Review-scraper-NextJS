@@ -2210,8 +2210,23 @@
 
       try {
         // Use pagination for initial load
-        console.log(`🚀 Initial widget load: fetching ${CONFIG.CAROUSEL_SETTINGS.PAGINATION.INITIAL_REVIEW_COUNT} reviews`);
-        const data = await this.fetchReviewsWithPagination(config, 0, CONFIG.CAROUSEL_SETTINGS.PAGINATION.INITIAL_REVIEW_COUNT);
+        let data;
+        const widgetId = config.widgetId;
+
+        // Check for pre-fetched data from widget.js
+        if (window.ReviewHubMain && window.ReviewHubMain.dataCache && window.ReviewHubMain.dataCache.has(widgetId)) {
+          try {
+            console.log(`[ReviewHubV2] Using pre-fetched data for ${widgetId}`);
+            data = await window.ReviewHubMain.dataCache.get(widgetId);
+          } catch (e) {
+            console.warn(`[ReviewHubV2] Pre-fetch lookup failed for ${widgetId}, falling back...`);
+          }
+        }
+
+        if (!data) {
+          console.log(`🚀 Initial widget load: fetching ${CONFIG.CAROUSEL_SETTINGS.PAGINATION.INITIAL_REVIEW_COUNT} reviews`);
+          data = await this.fetchReviewsWithPagination(config, 0, CONFIG.CAROUSEL_SETTINGS.PAGINATION.INITIAL_REVIEW_COUNT);
+        }
         if (data && data.reviews) {
           // Ensure widgetSettings exists, even if empty, to avoid errors
           data.widgetSettings = data.widgetSettings || {};
