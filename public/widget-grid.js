@@ -1170,7 +1170,7 @@
           ratingHtml = `<span class="rh-header-stars">${stars}</span> <span class="rh-header-rating-text">${ratingVal}/5</span>`;
         }
 
-      
+
 
         // Inject styles for header if not already present
         if (!document.getElementById('rh-grid-header-styles')) {
@@ -1526,16 +1526,18 @@
     }
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      initializeWidgetsFromScripts();
-      processPendingInitializations();
-    });
+  // Auto-run: Try immediately, then also on various ready states
+  function run() {
+    initializeWidgetsFromScripts();
+    processPendingInitializations();
+  }
+
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    run();
   } else {
-    setTimeout(() => {
-      initializeWidgetsFromScripts();
-      processPendingInitializations();
-    }, 0);
+    run();
+    document.addEventListener('DOMContentLoaded', run);
+    window.addEventListener('load', run);
   }
 
 })(); 

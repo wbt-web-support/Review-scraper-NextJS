@@ -1612,16 +1612,18 @@
     }
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      initializeWidgetsFromScripts();
-      processPendingInitializations();
-    });
+  // Auto-run: Try immediately, then also on various ready states
+  function run() {
+    initializeWidgetsFromScripts();
+    processPendingInitializations();
+  }
+
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    run();
   } else {
-    setTimeout(() => {
-      initializeWidgetsFromScripts();
-      processPendingInitializations();
-    }, 0);
+    run();
+    document.addEventListener('DOMContentLoaded', run);
+    window.addEventListener('load', run);
   }
 
 })(); 
