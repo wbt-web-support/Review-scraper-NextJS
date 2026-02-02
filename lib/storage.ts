@@ -1067,12 +1067,13 @@ export interface CreateWidgetArgs {
   businessUrlSource: 'GoogleBusinessUrl' | 'FacebookBusinessUrl';
   urlHash: string;
   name: string;
-  type?: "grid" | "carousel" | "list" | "masonry" | "badge";
+  type?: "grid" | "carousel" | "list" | "masonry" | "badge" | "bar";
   minRating?: number;
   themeColor?: string;
   showRatings?: boolean;
   showDates?: boolean;
   showProfilePictures?: boolean;
+  initialReviewCount?: number;
   settings?: {
     themeColor?: string;
     minRating?: number;
@@ -1096,6 +1097,7 @@ export const createWidget = async (widgetData: CreateWidgetArgs): Promise<IWidge
     showRatings: widgetData.showRatings ?? true,
     showDates: widgetData.showDates ?? true,
     showProfilePictures: widgetData.showProfilePictures ?? true,
+    initialReviewCount: widgetData.initialReviewCount ?? 10,
     views: 0,
   };
   console.log("[Storage/createWidget] Data for new WidgetModel:", newWidgetDocumentData);
@@ -1106,7 +1108,7 @@ export const createWidget = async (widgetData: CreateWidgetArgs): Promise<IWidge
 };
 interface UpdateWidgetArgs {
   name?: string;
-  type?: string;
+  type?: "grid" | "carousel" | "list" | "masonry" | "badge" | "bar";
   maxReviews?: number;
   minRating?: number;
   businessUrlId?: string;
@@ -1114,6 +1116,7 @@ interface UpdateWidgetArgs {
   showRatings?: boolean;
   showDates?: boolean;
   showProfilePictures?: boolean;
+  initialReviewCount?: number;
   settings?: Record<string, unknown>;
 }
 export const updateWidget = async (id: string, widgetData: UpdateWidgetArgs): Promise<IWidget | null> => {

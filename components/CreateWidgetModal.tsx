@@ -24,10 +24,10 @@ import {
 } from "../components/ui/select";
 import { Switch } from "../components/ui/switch";
 import {
-  Plus, 
-  Edit3, 
-  Eye, 
-  Code2, 
+  Plus,
+  Edit3,
+  Eye,
+  Code2,
   Sparkles,
   Settings,
   Grid3X3,
@@ -55,14 +55,16 @@ interface CreateWidgetModalProps {
   initialTab?: 'create' | 'preview' | 'embed';
 }
 
-interface FormData {
+export interface FormValues {
   name: string;
   businessUrlId: string;
+  layout: "grid" | "carousel" | "list" | "masonry" | "badge" | "bar";
   minRating: number;
   showRatings: boolean;
   showDates: boolean;
   showProfilePictures: boolean;
   themeColor: string;
+  initialReviewCount: number;
 }
 
 const CreateWidgetModal = ({
@@ -80,8 +82,7 @@ const CreateWidgetModal = ({
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
-
-  const [formData, setFormData] = useState<FormData>({
+  const [formData, setFormData] = useState<FormValues>({
     name: "",
     businessUrlId: "",
     minRating: 1,
@@ -89,10 +90,12 @@ const CreateWidgetModal = ({
     showDates: true,
     showProfilePictures: true,
     themeColor: "#000000", // Default to black
+    initialReviewCount: 12,
+    layout: "grid",
   });
 
   // Reset form when modal opens/closes or mode changes
-useEffect(() => {
+  useEffect(() => {
     if (isOpen) {
       if (mode === 'edit' && widget) {
         setFormData({
@@ -103,17 +106,21 @@ useEffect(() => {
           showDates: widget.showDates ?? true,
           showProfilePictures: widget.showProfilePictures ?? true,
           themeColor: widget.themeColor || "#000000",
+          initialReviewCount: widget.initialReviewCount || 12,
+          layout: widget.type || "grid",
         });
         setSelectedLayout(widget.type || "grid");
       } else {
         setFormData({
-            name: "",
+          name: "",
           businessUrlId: "",
           minRating: 2, // Default to "recommended only" which works for both Google (2+ stars) and Facebook
-            showRatings: true,
-            showDates: true,
-            showProfilePictures: true,
+          showRatings: true,
+          showDates: true,
+          showProfilePictures: true,
           themeColor: "#000000",
+          initialReviewCount: 12,
+          layout: "grid",
         });
         setSelectedLayout("grid");
       }
@@ -129,7 +136,7 @@ useEffect(() => {
       };
       return apiRequest<IWidget>("POST", "/api/widgets", payload);
     },
-   onSuccess: (createdWidget) => {
+    onSuccess: (createdWidget) => {
       queryClient.invalidateQueries({ queryKey: ["widgets"] });
       queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
       toast({
@@ -180,7 +187,7 @@ useEffect(() => {
 
   const handleSubmit = () => {
     console.log('Form submission started', { formData, businessUrls });
-    
+
     if (!formData.name.trim()) {
       toast({
         title: "Validation Error",
@@ -196,8 +203,8 @@ useEffect(() => {
         description: "Please select a business URL.",
         variant: "destructive",
       });
-    return;
-  }
+      return;
+    }
 
     // Check selected business URL details
     const selectedBusinessUrl = businessUrls.find(url => url._id === formData.businessUrlId);
@@ -212,6 +219,7 @@ useEffect(() => {
       showDates: formData.showDates,
       showProfilePictures: formData.showProfilePictures,
       themeColor: formData.themeColor,
+      initialReviewCount: formData.initialReviewCount,
     };
 
     console.log('Submitting data:', submitData);
@@ -229,13 +237,13 @@ useEffect(() => {
   const domain = typeof window !== 'undefined'
     ? window.location.origin
     : process.env.NEXT_PUBLIC_APP_URL || 'https://your-app-domain.com';
-  
+
   const widgetId = mode === 'edit' && widget ? widget._id : "YOUR_WIDGET_ID";
-  
+
   const generateEmbedCode = (layout: string) => {
     // Use different attribute for carousel to avoid conflicts with other widgets
     const widgetIdAttribute = layout === 'carousel' ? 'data-reviewhub-widget-id' : 'data-widget-id';
-    
+
     // Map layout to the correct widget file
     const getWidgetFile = (layout: string) => {
       switch (layout) {
@@ -254,7 +262,7 @@ useEffect(() => {
           return 'widget.js';
       }
     };
-    
+
     return `<div id="reviewhub-widget"></div>
 <script src="${domain}/${getWidgetFile(layout)}" 
         ${widgetIdAttribute}="${widgetId}"
@@ -277,12 +285,12 @@ useEffect(() => {
       })
       .catch((err) => {
         console.error("Copy failed:", err);
-        toast({ 
+        toast({
           title: "Copy Failed",
           description: "Could not copy code. Please try again.",
           variant: "destructive",
         });
-    });
+      });
   };
 
   const layoutOptions = [
@@ -313,25 +321,21 @@ useEffect(() => {
               key={option.value}
               type="button"
               onClick={() => setSelectedLayout(option.value as any)}
-              className={`p-4 rounded-xl border-2 transition-all duration-200 text-center group ${
-                selectedLayout === option.value
-                  ? 'border-blue-500 bg-blue-50 shadow-md'
-                  : 'border-gray-200 hover:border-blue-200 hover:bg-blue-25'
-              }`}
+              className={`p-4 rounded-xl border-2 transition-all duration-200 text-center group ${selectedLayout === option.value
+                ? 'border-blue-500 bg-blue-50 shadow-md'
+                : 'border-gray-200 hover:border-blue-200 hover:bg-blue-25'
+                }`}
             >
-              <div className={`w-8 h-8 mx-auto mb-2 ${
-                selectedLayout === option.value ? 'text-blue-600' : 'text-gray-400 group-hover:text-blue-500'
-              }`}>
+              <div className={`w-8 h-8 mx-auto mb-2 ${selectedLayout === option.value ? 'text-blue-600' : 'text-gray-400 group-hover:text-blue-500'
+                }`}>
                 <IconComponent className="w-full h-full" />
               </div>
-              <div className={`font-medium text-sm ${
-                selectedLayout === option.value ? 'text-blue-900' : 'text-gray-700'
-              }`}>
+              <div className={`font-medium text-sm ${selectedLayout === option.value ? 'text-blue-900' : 'text-gray-700'
+                }`}>
                 {option.label}
               </div>
-              <div className={`text-xs mt-1 ${
-                selectedLayout === option.value ? 'text-blue-600' : 'text-gray-500'
-              }`}>
+              <div className={`text-xs mt-1 ${selectedLayout === option.value ? 'text-blue-600' : 'text-gray-500'
+                }`}>
                 {option.description}
               </div>
             </button>
@@ -343,7 +347,7 @@ useEffect(() => {
 
   const PreviewFrame = () => {
     const embedCode = generateEmbedCode(selectedLayout);
-    
+
     if (mode === 'create') {
       // For create mode, show a placeholder with layout info
       return (
@@ -419,15 +423,15 @@ useEffect(() => {
       <DialogContent className="max-w-6xl overflow-hidden p-0">
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-50 via-white to-indigo-50 px-8 py-6 border-b border-gray-100">
-        <DialogHeader>
+          <DialogHeader>
             <DialogTitle className="flex items-center gap-3 text-2xl">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
                 {mode === 'edit' ? <Edit3 className="w-5 h-5 text-white" /> : <Plus className="w-5 h-5 text-white" />}
               </div>
               {mode === 'edit' ? `Edit: ${widget?.name || 'Widget'}` : 'Create New Widget'}
             </DialogTitle>
-          
-        </DialogHeader>
+
+          </DialogHeader>
         </div>
 
         {/* Tabs Navigation */}
@@ -446,7 +450,7 @@ useEffect(() => {
                 <Code2 className="h-4 w-4" />
                 Embed Code
               </TabsTrigger>
-          </TabsList>
+            </TabsList>
 
             {/* Content */}
             <div className="mt-6 overflow-y-auto">
@@ -470,7 +474,7 @@ useEffect(() => {
                         placeholder="e.g., Homepage Reviews, Product Reviews"
                         className="mt-1"
                       />
-                </div>
+                    </div>
 
                     <div className="w-1/2">
                       <Label htmlFor="businessUrl" className="text-sm font-medium text-gray-700">
@@ -512,28 +516,26 @@ useEffect(() => {
                       </Label>
                       <div className="flex flex-col gap-4">
                         <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setFormData(prev => ({ ...prev, themeColor: "#000000" }))}
-                          className={`w-12 h-12 rounded-xl border-2 transition-all duration-200 ${
-                            formData.themeColor === "#000000" 
-                              ? 'border-blue-500 shadow-lg' 
+                          <button
+                            type="button"
+                            onClick={() => setFormData(prev => ({ ...prev, themeColor: "#000000" }))}
+                            className={`w-12 h-12 rounded-xl border-2 transition-all duration-200 ${formData.themeColor === "#000000"
+                              ? 'border-blue-500 shadow-lg'
                               : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                          style={{ backgroundColor: "#000000" }}
-                          title="Black Theme"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setFormData(prev => ({ ...prev, themeColor: "#FFFFFF" }))}
-                          className={`w-12 h-12 rounded-xl border-2 transition-all duration-200 ${
-                            formData.themeColor === "#FFFFFF" 
-                              ? 'border-blue-500 shadow-lg' 
+                              }`}
+                            style={{ backgroundColor: "#000000" }}
+                            title="Black Theme"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setFormData(prev => ({ ...prev, themeColor: "#FFFFFF" }))}
+                            className={`w-12 h-12 rounded-xl border-2 transition-all duration-200 ${formData.themeColor === "#FFFFFF"
+                              ? 'border-blue-500 shadow-lg'
                               : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                          style={{ backgroundColor: "#FFFFFF" }}
-                          title="White Theme"
-                        />
+                              }`}
+                            style={{ backgroundColor: "#FFFFFF" }}
+                            title="White Theme"
+                          />
                         </div>
                         <div className="ml-0">
                           <p className="text-sm font-medium text-gray-700">
@@ -543,7 +545,7 @@ useEffect(() => {
                             Clean, professional look for any website
                           </p>
                         </div>
-                        
+
                       </div>
                     </div>
 
@@ -582,13 +584,13 @@ useEffect(() => {
                             onCheckedChange={(checked) => setFormData(prev => ({ ...prev, showProfilePictures: checked }))}
                           />
                         </div>
-                        
+
                         {/* Minimum Rating - Only show for Google business URLs */}
                         {(() => {
                           const selectedBusinessUrl = businessUrls.find(url => url._id === formData.businessUrlId);
                           const isGoogleBusiness = selectedBusinessUrl?.source === 'google';
                           const isFacebookBusiness = selectedBusinessUrl?.source === 'facebook';
-                          
+
                           if (isGoogleBusiness) {
                             return (
                               <div>
@@ -633,7 +635,7 @@ useEffect(() => {
                                       <p className="text-sm font-medium text-blue-900">Facebook Reviews</p>
                                       <p className="text-xs text-blue-700 mt-1">
                                         Facebook reviews use "recommended" vs "not recommended" instead of star ratings.
-                                        {formData.minRating === 2 
+                                        {formData.minRating === 2
                                           ? " Only positive (recommended) reviews will be shown."
                                           : " Both positive and negative reviews will be displayed."
                                         }
@@ -666,9 +668,25 @@ useEffect(() => {
                               </div>
                             );
                           }
-                          
+
                           return null; // Don't show anything if no business URL is selected
                         })()}
+                      </div>
+
+                      <div className="flex gap-4 items-end">
+                        <div className="w-1/2">
+                          <Label htmlFor="initialReviewCount" className="text-sm font-medium text-gray-700">Initial Reviews to Show</Label>
+                          <p className="text-xs text-gray-500 mb-1">Number of reviews displayed on page load</p>
+                          <Input
+                            id="initialReviewCount"
+                            type="number"
+                            min={1}
+                            max={50}
+                            value={formData.initialReviewCount}
+                            onChange={(e) => setFormData(prev => ({ ...prev, initialReviewCount: parseInt(e.target.value) || 10 }))}
+                            className="mt-1"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -707,7 +725,7 @@ useEffect(() => {
 
               <TabsContent value="embed" className="space-y-6 px-0">
                 <LayoutSelector />
-                
+
                 <div className="bg-white border border-gray-200 rounded-xl p-6">
                   <div className="flex items-center justify-between mb-4">
                     <div>
@@ -722,19 +740,18 @@ useEffect(() => {
                     <Button
                       variant="outline"
                       size="sm"
-                      className={`transition-all duration-200 ${
-                        copiedCode === selectedLayout 
-                          ? 'bg-green-50 border-green-300 text-green-700' 
-                          : 'hover:bg-blue-50 hover:border-blue-300'
-                      }`}
+                      className={`transition-all duration-200 ${copiedCode === selectedLayout
+                        ? 'bg-green-50 border-green-300 text-green-700'
+                        : 'hover:bg-blue-50 hover:border-blue-300'
+                        }`}
                       onClick={() => handleCopyCode(generateEmbedCode(selectedLayout))}
                     >
                       {copiedCode === selectedLayout ? (
                         <>
                           <Check className="h-4 w-4 mr-1" />
                           Copied!
-              </>
-            ) : (
+                        </>
+                      ) : (
                         <>
                           <Copy className="h-4 w-4 mr-1" />
                           Copy Code
@@ -742,7 +759,7 @@ useEffect(() => {
                       )}
                     </Button>
                   </div>
-                  
+
                   <div className="relative">
                     <pre className="bg-gray-900 text-gray-100 rounded-xl p-4 text-sm overflow-x-auto border border-gray-200">
                       <code>{generateEmbedCode(selectedLayout)}</code>
@@ -762,7 +779,7 @@ useEffect(() => {
                         Want to display multiple review widgets on the same page? Each widget needs a unique container ID.
                         Here's how to set it up:
                       </p>
-                      
+
                       <div className="space-y-4">
                         <div className="bg-white rounded-lg border border-blue-200 p-4">
                           <h5 className="font-medium text-blue-900 mb-2 flex items-center gap-2">
@@ -770,7 +787,7 @@ useEffect(() => {
                             First Widget (Homepage Reviews)
                           </h5>
                           <pre className="bg-gray-50 text-gray-800 rounded-lg p-3 text-xs overflow-x-auto border">
-<code>{`<div id="homepage-reviews"></div>
+                            <code>{`<div id="homepage-reviews"></div>
 <script src="${domain}/${selectedLayout === 'bar' ? 'widget-bar.js' : selectedLayout === 'grid' ? 'widget-grid.js' : selectedLayout === 'list' ? 'widget-list.js' : selectedLayout === 'masonry' ? 'widget-masonry.js' : selectedLayout === 'badge' ? 'widget-badge.js' : 'widget.js'}" 
         ${selectedLayout === 'carousel' ? 'data-reviewhub-widget-id' : 'data-widget-id'}="${widgetId}"
         data-layout="${selectedLayout}"
@@ -785,7 +802,7 @@ useEffect(() => {
                             Second Widget (Footer Reviews)
                           </h5>
                           <pre className="bg-gray-50 text-gray-800 rounded-lg p-3 text-xs overflow-x-auto border">
-<code>{`<div id="footer-reviews"></div>
+                            <code>{`<div id="footer-reviews"></div>
 <script src="${domain}/widget-badge.js" 
         data-widget-id="ANOTHER_WIDGET_ID"
         data-layout="badge"
@@ -821,7 +838,7 @@ useEffect(() => {
                       <div>
                         <h4 className="font-semibold text-amber-900 mb-2">Ready to Embed?</h4>
                         <p className="text-amber-700 text-sm mb-4">
-                          Create your widget first to get the actual embed code with a real widget ID. 
+                          Create your widget first to get the actual embed code with a real widget ID.
                           The code above shows the structure but needs to be generated after widget creation.
                         </p>
                         <Button
@@ -831,17 +848,17 @@ useEffect(() => {
                           className="border-amber-300 text-amber-800 hover:bg-amber-100"
                         >
                           ← Back to Create Widget
-                  </Button>
+                        </Button>
                       </div>
                     </div>
                   </div>
-            )}
-          </TabsContent>
+                )}
+              </TabsContent>
             </div>
-        </Tabs>
+          </Tabs>
         </div>
 
-       
+
       </DialogContent>
     </Dialog>
   );

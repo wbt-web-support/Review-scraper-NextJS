@@ -23,7 +23,7 @@
     RETRY_DELAY: 3000,
     TIMEOUT: 10000,
     LIST_SETTINGS: {
-      INITIAL_REVIEW_COUNT: 8,  // Show 10 reviews initially for list layout
+      INITIAL_REVIEW_COUNT: 12,  // Show 10 reviews initially for list layout
       LOAD_MORE_INCREMENT: 8     // Load 8 more reviews when "Load More" is clicked
     }
   };
@@ -1065,9 +1065,9 @@
       }).join('');
     },
 
-    generateLoadMoreButtons: function (widgetState, totalReviewCount) {
+    generateLoadMoreButtons: function (widgetState, totalReviewCount, initialReviewCountFallback = CONFIG.LIST_SETTINGS.INITIAL_REVIEW_COUNT) {
       const hasMoreReviews = totalReviewCount > widgetState.loadedReviews.length;
-      const canShowLess = widgetState.displayCount > CONFIG.LIST_SETTINGS.INITIAL_REVIEW_COUNT;
+      const canShowLess = widgetState.displayCount > initialReviewCountFallback;
 
       if (hasMoreReviews || canShowLess) {
         const loadMoreButton = hasMoreReviews ?
@@ -1097,9 +1097,11 @@
 
       // Get or create widget state
       const widgetId = config.widgetId;
+      const initialCount = widgetSettings.initialReviewCount || CONFIG.LIST_SETTINGS.INITIAL_REVIEW_COUNT;
+
       if (!this.widgetStates.has(widgetId)) {
         this.widgetStates.set(widgetId, {
-          displayCount: displayCount || CONFIG.LIST_SETTINGS.INITIAL_REVIEW_COUNT,
+          displayCount: displayCount || initialCount,
           loadedReviews: reviews || [],
           currentOffset: reviews ? reviews.length : 0,
           isExpanded: false
@@ -1135,12 +1137,12 @@
       const reviewsToShow = filteredReviews.slice(0, currentDisplayCount);
       const totalReviews = totalReviewCount || filteredReviews.length;
       const hasMoreReviews = totalReviews > widgetState.loadedReviews.length;
-      const canShowLess = currentDisplayCount > CONFIG.LIST_SETTINGS.INITIAL_REVIEW_COUNT;
+      const canShowLess = currentDisplayCount > initialCount;
 
       const reviewItemsHtml = this.generateReviewsHtml(reviewsToShow, widgetSettings);
 
       // Generate load more/show less buttons
-      const loadMoreButtonsHtml = this.generateLoadMoreButtons(widgetState, totalReviews);
+      const loadMoreButtonsHtml = this.generateLoadMoreButtons(widgetState, totalReviews, initialCount);
 
       // Generate Header
       let headerHtml = '';
@@ -1311,9 +1313,10 @@
         showLessBtn.addEventListener('click', (e) => {
           e.preventDefault();
           const widgetState = this.widgetStates.get(config.widgetId);
-          widgetState.displayCount = CONFIG.LIST_SETTINGS.INITIAL_REVIEW_COUNT;
+          const initialCount = data.widgetSettings.initialReviewCount || CONFIG.LIST_SETTINGS.INITIAL_REVIEW_COUNT;
+          widgetState.displayCount = initialCount;
           widgetState.isExpanded = false;
-          this.renderWidget(container, data, config, CONFIG.LIST_SETTINGS.INITIAL_REVIEW_COUNT);
+          this.renderWidget(container, data, config, initialCount);
 
           // Smooth scroll to top
           container.scrollIntoView({ behavior: 'smooth', block: 'start' });

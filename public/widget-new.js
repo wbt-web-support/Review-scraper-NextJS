@@ -40,7 +40,7 @@
         mobile: 1         // Mobile (< 900px)
       },
       PAGINATION: {
-        INITIAL_REVIEW_COUNT: 8,  // Show 12 reviews initially for carousel
+        INITIAL_REVIEW_COUNT: 12,  // Show 12 reviews initially for carousel
         LOAD_MORE_INCREMENT: 8     // Load 8 more reviews when needed
       }
     }

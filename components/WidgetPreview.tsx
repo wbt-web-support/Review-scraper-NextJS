@@ -13,7 +13,7 @@ import GoogleReviewsBadge from "./GoogleReviewsBadge";
 
 export interface IReviewItemFromAPI {
   _id?: string;
-  reviewId?: string; 
+  reviewId?: string;
   author: string;
   content: string;
   rating?: number;
@@ -25,23 +25,24 @@ export interface IReviewItemFromAPI {
 export interface IWidgetSettingsFromForm {
   name?: string;
   themeColor: string;
-  layout: "grid" | "carousel" | "list" | "masonry" | "badge";
+  layout: "grid" | "carousel" | "list" | "masonry" | "badge" | "bar";
   minRating?: number;
+  initialReviewCount?: number;
   showRatings: boolean;
   showDates: boolean;
   showProfilePictures: boolean;
   businessUrl?: {
-      _id: string;
-      name: string;
-      url?: string;
-      source: 'google' | 'facebook';
+    _id: string;
+    name: string;
+    url?: string;
+    source: 'google' | 'facebook';
   };
   platformName?: string;
   reviewFilter?: 'recommended_only' | 'all_reviews';
   reviewFilterDisplay?: string;
 }
 interface WidgetPreviewProps {
-  widget: IWidgetSettingsFromForm; 
+  widget: IWidgetSettingsFromForm;
   reviews: IReviewItemFromAPI[];
   isLoadingReviews?: boolean;
   totalReviewCount?: number;
@@ -101,10 +102,10 @@ function ReviewCarousel({ filteredReviews, getReviewKey, displaySettingsForCard,
               style={{ width: `calc(100% / ${visibleCount})` }}
             >
               <div className="p-1 h-full">
-                <SingleReviewCard 
-                  review={review} 
-                  displaySettings={displaySettingsForCard} 
-                  sourcePlatform={source} 
+                <SingleReviewCard
+                  review={review}
+                  displaySettings={displaySettingsForCard}
+                  sourcePlatform={source}
                   widgetStyleCard
                 />
               </div>
@@ -118,7 +119,7 @@ function ReviewCarousel({ filteredReviews, getReviewKey, displaySettingsForCard,
           className="absolute left-2 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full bg-white/80 backdrop-blur-sm text-gray-700 shadow-md border border-gray-200 hover:bg-gray-100 flex items-center justify-center"
           onClick={() => setCurrent(current - 1)}
         >
-          <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15.5 19L9.5 12L15.5 5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15.5 19L9.5 12L15.5 5" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </button>
       )}
       {current < maxIndex && (
@@ -126,7 +127,7 @@ function ReviewCarousel({ filteredReviews, getReviewKey, displaySettingsForCard,
           className="absolute right-2 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full bg-white/80 backdrop-blur-sm text-gray-700 shadow-md border border-gray-200 hover:bg-gray-100 flex items-center justify-center"
           onClick={() => setCurrent(current + 1)}
         >
-          <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8.5 5L14.5 12L8.5 19" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8.5 5L14.5 12L8.5 19" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </button>
       )}
       {/* Dots */}
@@ -148,8 +149,8 @@ function ReviewCarousel({ filteredReviews, getReviewKey, displaySettingsForCard,
   );
 }
 
-const WidgetPreview = ({ 
-  widget, 
+const WidgetPreview = ({
+  widget,
   reviews,
   isLoadingReviews = false,
   totalReviewCount
@@ -162,7 +163,7 @@ const WidgetPreview = ({
       console.warn("[WidgetPreview] 'reviews' prop is not an array, returning empty for filteredReviews. Received:", reviews);
       return [];
     }
-    
+
     return reviews
       .filter(review => {
         // For Facebook reviews, use reviewFilter instead of minRating
@@ -174,7 +175,7 @@ const WidgetPreview = ({
             return review.recommendationStatus === 'recommended' || review.recommendationStatus === 'not_recommended';
           }
         }
-        
+
         // For Google reviews, use minRating (default to 1 if not set)
         const minRating = settings.minRating ?? 1;
         return review.rating === undefined || review.rating === null || review.rating >= minRating;
@@ -202,45 +203,45 @@ const WidgetPreview = ({
 
   const NoFilteredReviews = () => (
     <div style={colorStyle} className="text-center py-10 text-muted-foreground">
-        <i className="fas fa-filter text-3xl mb-4"></i>
-        <h4 className="font-semibold text-lg text-foreground">No Reviews Match Filters</h4>
-        <p className="text-sm">Try adjusting the minimum rating in the settings.</p>
+      <i className="fas fa-filter text-3xl mb-4"></i>
+      <h4 className="font-semibold text-lg text-foreground">No Reviews Match Filters</h4>
+      <p className="text-sm">Try adjusting the minimum rating in the settings.</p>
     </div>
   );
 
-if (!isLoadingReviews && filteredReviews.length === 0 && settings.layout !== 'badge') { // Use the prop
+  if (!isLoadingReviews && filteredReviews.length === 0 && settings.layout !== 'badge') { // Use the prop
     return (
-        <div style={colorStyle} className="border border-border rounded-lg p-6 bg-card text-card-foreground text-center min-h-[200px] flex flex-col justify-center items-center">
-            <i className="fas fa-star text-3xl text-muted-foreground mb-4"></i>
-            <h4 className="font-semibold text-lg text-foreground">No Reviews Match Filters</h4>
-            <p className="text-sm text-muted-foreground">
-                Try adjusting the minimum rating or this source has no reviews that meet the criteria.
-            </p>
-        </div>
+      <div style={colorStyle} className="border border-border rounded-lg p-6 bg-card text-card-foreground text-center min-h-[200px] flex flex-col justify-center items-center">
+        <i className="fas fa-star text-3xl text-muted-foreground mb-4"></i>
+        <h4 className="font-semibold text-lg text-foreground">No Reviews Match Filters</h4>
+        <p className="text-sm text-muted-foreground">
+          Try adjusting the minimum rating or this source has no reviews that meet the criteria.
+        </p>
+      </div>
     );
   }
   return (
-    <div 
+    <div
       className="w-full max-w-full border border-border rounded-lg p-3 sm:p-4 bg-card text-card-foreground transition-theme"
       style={colorStyle}
     >
       {settings.layout === 'grid' && filteredReviews.length > 0 && (
-      <>
+        <>
           {isLoadingReviews && filteredReviews.length === 0 && <p className="text-center text-muted-foreground">Loading reviews...</p>}
           {!isLoadingReviews && filteredReviews.length === 0 && <NoFilteredReviews />}
           {filteredReviews.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
               {filteredReviews.map((review, index) => (
-                <SingleReviewCard 
-                  key={getReviewKey(review, index)} 
-                  review={review} 
-                  displaySettings={displaySettingsForCard} 
+                <SingleReviewCard
+                  key={getReviewKey(review, index)}
+                  review={review}
+                  displaySettings={displaySettingsForCard}
                   sourcePlatform={source}
                 />
               ))}
             </div>
           )}
-      </>
+        </>
       )
       }
       {settings.layout === 'carousel' && filteredReviews.length > 0 && (
@@ -256,38 +257,38 @@ if (!isLoadingReviews && filteredReviews.length === 0 && settings.layout !== 'ba
       {settings.layout === 'list' && filteredReviews.length > 0 && (
         <div className="space-y-3">
           {filteredReviews.map((review, index) => (
-            <SingleReviewCard 
-              key={getReviewKey(review, index)} 
-              review={review} 
-              displaySettings={displaySettingsForCard} 
+            <SingleReviewCard
+              key={getReviewKey(review, index)}
+              review={review}
+              displaySettings={displaySettingsForCard}
               sourcePlatform={source}
             />
           ))}
         </div>
       )}
-      
-     {settings.layout === 'masonry' && filteredReviews.length > 0 && (
-        <div className="columns-1 sm:columns-2 gap-3 space-y-3"> 
+
+      {settings.layout === 'masonry' && filteredReviews.length > 0 && (
+        <div className="columns-1 sm:columns-2 gap-3 space-y-3">
           {filteredReviews.map((review, index) => (
             <div key={getReviewKey(review, index)} className="break-inside-avoid-column">
-              <SingleReviewCard 
-                review={review} 
-                displaySettings={displaySettingsForCard} 
+              <SingleReviewCard
+                review={review}
+                displaySettings={displaySettingsForCard}
                 sourcePlatform={source}
               />
             </div>
           ))}
         </div>
       )}
-      
-        {settings.layout === 'badge' && (
+
+      {settings.layout === 'badge' && (
         <div className="flex justify-center items-center py-4">
           <GoogleReviewsBadge
             businessName={businessName}
             rating={avgRating}
             reviewCount={
-              totalReviewCount !== undefined && totalReviewCount !== null 
-                ? totalReviewCount 
+              totalReviewCount !== undefined && totalReviewCount !== null
+                ? totalReviewCount
                 : (reviews ? reviews.length : 0)
             }
             reviews={filteredReviews.slice(0, 10).map(r => ({

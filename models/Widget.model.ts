@@ -23,6 +23,7 @@ export interface IWidget extends Document {
     url: string;
     source: 'google' | 'facebook';
   };
+  initialReviewCount?: number;
   totalReviewCount?: number; // Computed field, not stored in DB
   createdAt: Date;
   updatedAt: Date;
@@ -34,8 +35,9 @@ const WidgetSchema: Schema<IWidget> = new Schema({
   businessUrlId: { type: Schema.Types.ObjectId, refPath: 'businessUrlSource', required: true, index: true },
   urlHash: { type: String, required: false, index: true },
   name: { type: String, required: true },
-  type: { type: String, enum: ['list', 'grid', 'carousel', 'badge', 'masonry'], default: 'list' },
+  type: { type: String, enum: ['list', 'grid', 'carousel', 'badge', 'masonry', 'bar'], default: 'list' },
   maxReviews: { type: Number, default: 10, required: false },
+  initialReviewCount: { type: Number, default: 12, required: false },
   minRating: { type: Number, default: 1 },
   settings: { type: Schema.Types.Mixed, default: {} },
   views: { type: Number, default: 0 },

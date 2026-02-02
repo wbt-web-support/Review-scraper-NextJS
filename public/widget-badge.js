@@ -23,7 +23,7 @@
     RETRY_DELAY: 3000,
     TIMEOUT: 10000,
     BADGE_SETTINGS: {
-      INITIAL_REVIEW_COUNT: 8, // Show first 8 reviews initially in modal
+      INITIAL_REVIEW_COUNT: 12, // Show first 8 reviews initially in modal
       LOAD_MORE_INCREMENT: 6   // Load 6 more reviews each time
     }
   };
@@ -1270,12 +1270,14 @@
 
       // Initialize modal state for pagination
       const modalId = `modal-${config.widgetId}`;
+      const initialCount = widgetSettings.initialReviewCount || CONFIG.BADGE_SETTINGS.INITIAL_REVIEW_COUNT;
+
       if (!this.modalStates.has(modalId)) {
         this.modalStates.set(modalId, {
           loadedReviews: reviews || [],
           currentOffset: reviews ? reviews.length : 0,
           totalReviews: totalReviewCount || (reviews ? reviews.length : 0), // Use actual total or loaded count
-          displayCount: Math.min(CONFIG.BADGE_SETTINGS.INITIAL_REVIEW_COUNT, (reviews ? reviews.length : 0)),
+          displayCount: Math.min(initialCount, (reviews ? reviews.length : 0)),
           isFetching: false
         });
       }
