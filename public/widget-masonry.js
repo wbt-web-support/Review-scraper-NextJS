@@ -35,7 +35,7 @@
         desktop: 1024,
         wide: 1280
       },
-      INITIAL_REVIEW_COUNT: 12, // Show first 12 reviews initially
+      INITIAL_REVIEW_COUNT: 8, // Show first 12 reviews initially
       LOAD_MORE_INCREMENT: 8    // Load 8 more reviews each time
     }
   };
