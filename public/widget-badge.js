@@ -1270,7 +1270,7 @@
 
       // Initialize modal state for pagination
       const modalId = `modal-${config.widgetId}`;
-      const initialCount = widgetSettings.initialReviewCount || CONFIG.BADGE_SETTINGS.INITIAL_REVIEW_COUNT;
+      const initialCount = CONFIG.BADGE_SETTINGS.INITIAL_REVIEW_COUNT;
 
       if (!this.modalStates.has(modalId)) {
         this.modalStates.set(modalId, {

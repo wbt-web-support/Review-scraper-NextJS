@@ -1043,19 +1043,22 @@
 
     // Pagination functions
     fetchReviewsWithPagination: async function (config, offset, limit) {
-      const cacheKey = `${config.widgetId}-${offset}-${limit}`;
+      const cacheKey = `${config.widgetId}-${offset}-${limit || 'default'}`;
 
       // Check cache first
       if (this.reviewCache.has(cacheKey)) {
-        console.log(`📊 Reviews fetched from cache: ${limit} reviews for widget ${config.widgetId} (offset: ${offset})`);
+        console.log(`📊 Reviews fetched from cache: ${limit || 'default'} reviews for widget ${config.widgetId} (offset: ${offset})`);
         return this.reviewCache.get(cacheKey);
       }
 
       const params = new URLSearchParams({
-        limit: limit.toString(),
         offset: offset.toString(),
         layout: 'carousel'
       });
+
+      if (limit) {
+        params.append('limit', limit.toString());
+      }
 
       const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${config.widgetId}?${params.toString()}`;
 

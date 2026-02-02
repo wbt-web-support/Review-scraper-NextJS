@@ -673,21 +673,23 @@ const CreateWidgetModal = ({
                         })()}
                       </div>
 
-                      <div className="flex gap-4 items-end">
-                        <div className="w-1/2">
-                          <Label htmlFor="initialReviewCount" className="text-sm font-medium text-gray-700">Initial Reviews to Show</Label>
-                          <p className="text-xs text-gray-500 mb-1">Number of reviews displayed on page load</p>
-                          <Input
-                            id="initialReviewCount"
-                            type="number"
-                            min={1}
-                            max={50}
-                            value={formData.initialReviewCount}
-                            onChange={(e) => setFormData(prev => ({ ...prev, initialReviewCount: parseInt(e.target.value) || 10 }))}
-                            className="mt-1"
-                          />
+                      {selectedLayout === 'grid' && (
+                        <div className="flex gap-4 items-end">
+                          <div className="w-1/2">
+                            <Label htmlFor="initialReviewCount" className="text-sm font-medium text-gray-700">Initial Reviews to Show</Label>
+                            <p className="text-xs text-gray-500 mb-1">Number of reviews displayed on page load</p>
+                            <Input
+                              id="initialReviewCount"
+                              type="number"
+                              min={1}
+                              max={50}
+                              value={formData.initialReviewCount}
+                              onChange={(e) => setFormData(prev => ({ ...prev, initialReviewCount: parseInt(e.target.value) || 12 }))}
+                              className="mt-1"
+                            />
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                   </div>
                 </div>
