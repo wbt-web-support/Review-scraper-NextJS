@@ -917,9 +917,9 @@
     },
 
     // New function to fetch reviews with pagination
-    fetchReviewsWithPagination: async function (widgetId, offset = 0, limit = 12) {
+    fetchReviewsWithPagination: async function (widgetId, offset = 0, limit = null) {
       const params = new URLSearchParams();
-      params.append('limit', limit.toString());
+      if (limit) params.append('limit', limit.toString());
       params.append('offset', offset.toString());
       params.append('layout', 'grid');
 
@@ -1140,7 +1140,7 @@
         loadMoreButtonsHtml = `
           <div class="reviewhub-grid-load-more-container">
             ${loadMoreButton}
-         
+            ${showLessButton}
           </div>
         `;
       }
@@ -1301,9 +1301,10 @@
         showLessBtn.addEventListener('click', (e) => {
           e.preventDefault();
           const widgetState = this.widgetStates.get(config.widgetId);
-          widgetState.displayCount = CONFIG.GRID_SETTINGS.INITIAL_REVIEW_COUNT;
+          const initialCount = data.widgetSettings.initialReviewCount || CONFIG.GRID_SETTINGS.INITIAL_REVIEW_COUNT;
+          widgetState.displayCount = initialCount;
           widgetState.isExpanded = false;
-          this.renderWidget(container, data, config, CONFIG.GRID_SETTINGS.INITIAL_REVIEW_COUNT);
+          this.renderWidget(container, data, config, initialCount);
 
           // Smooth scroll to top of widget
           container.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1466,7 +1467,8 @@
       if (!data) {
         if (config.layout === 'grid') {
           try {
-            data = await this.fetchReviewsWithPagination(config.widgetId, 0, CONFIG.GRID_SETTINGS.INITIAL_REVIEW_COUNT);
+            // Use API default for initial fetch
+            data = await this.fetchReviewsWithPagination(config.widgetId, 0);
           } catch (error) {
             // Fallback to old method if pagination fails
             const params = new URLSearchParams();

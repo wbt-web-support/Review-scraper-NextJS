@@ -914,9 +914,9 @@
     },
 
     // New function to fetch reviews with pagination
-    fetchReviewsWithPagination: async function (widgetId, offset = 0, limit = 12) {
+    fetchReviewsWithPagination: async function (widgetId, offset = 0, limit = null) {
       const params = new URLSearchParams();
-      params.append('limit', limit.toString());
+      if (limit) params.append('limit', limit.toString());
       params.append('offset', offset.toString());
       params.append('layout', 'masonry');
 
@@ -1010,7 +1010,7 @@
 
       // Get or create widget state
       const widgetId = config.widgetId;
-      const initialCount = widgetSettings.initialReviewCount || CONFIG.MASONRY_SETTINGS.INITIAL_REVIEW_COUNT;
+      const initialCount = CONFIG.MASONRY_SETTINGS.INITIAL_REVIEW_COUNT;
 
       if (!this.widgetStates.has(widgetId)) {
         this.widgetStates.set(widgetId, {
@@ -1063,6 +1063,7 @@
       const currentDisplayCount = Math.min(widgetState.displayCount, filteredReviews.length);
       const reviewsToShow = filteredReviews.slice(0, currentDisplayCount);
       const hasMoreReviews = totalReviews > widgetState.currentOffset;
+      const canShowLess = currentDisplayCount > initialCount;
 
       // Debug logging for button visibility
       console.log(`[Masonry Widget] Button visibility check:`, {
@@ -1132,12 +1133,18 @@
         `;
       }).join('');
 
-      // Generate load more button - only show if there are more reviews to load
+      // Generate load more/show less buttons
       let loadMoreButtonsHtml = '';
-      if (hasMoreReviews) {
+      if (hasMoreReviews || canShowLess) {
+        const loadMoreButton = hasMoreReviews ?
+          `<button class="rh-masonry-load-more-btn" data-action="load-more">Load More Reviews</button>` : '';
+        const showLessButton = canShowLess ?
+          `<button class="rh-masonry-show-less-btn" data-action="show-less">Show Less</button>` : '';
+
         loadMoreButtonsHtml = `
           <div class="rh-masonry-load-more-container">
-            <button class="rh-masonry-load-more-btn" data-action="load-more">Load More Reviews</button>
+            ${loadMoreButton}
+            ${showLessButton}
           </div>
         `;
       }
@@ -1275,6 +1282,21 @@
             loadMoreBtn.textContent = 'Load More Reviews';
             loadMoreBtn.disabled = false;
           }
+        });
+      }
+
+      const showLessBtn = container.querySelector('.rh-masonry-show-less-btn');
+      if (showLessBtn) {
+        showLessBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const widgetState = this.widgetStates.get(config.widgetId);
+          const initialCount = CONFIG.MASONRY_SETTINGS.INITIAL_REVIEW_COUNT;
+          widgetState.displayCount = initialCount;
+          widgetState.isExpanded = false;
+          this.renderWidget(container, data, config, initialCount);
+
+          // Smooth scroll to top
+          container.scrollIntoView({ behavior: 'smooth', block: 'start' });
         });
       }
     },

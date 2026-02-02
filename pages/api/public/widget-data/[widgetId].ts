@@ -133,16 +133,16 @@ export default async function handler(
       const offset = offsetQuery ? parseInt(offsetQuery as string) : 0;
       let requestedLimit;
       
-      // Use initialReviewCount from database as the default limit
-      const defaultLimit = widgetDoc.initialReviewCount || (layoutQuery === 'badge' ? 8 : 12);
-      
-      if (layoutQuery === 'badge' || (layoutQuery === undefined && widgetDoc.type === 'badge')) {
-        requestedLimit = limitQuery ? parseInt(limitQuery as string) : (widgetDoc.initialReviewCount || 8); 
-      } else if (layoutQuery === 'bar' || (layoutQuery === undefined && widgetDoc.type === 'bar')) {
-        requestedLimit = limitQuery ? parseInt(limitQuery as string) : (widgetDoc.initialReviewCount || 8); 
+      // Determine default limit based on layout
+      // ONLY the grid layout respects the widgetDoc.initialReviewCount setting
+      let defaultLimit;
+      if (layoutQuery === 'grid' || (layoutQuery === undefined && widgetDoc.type === 'grid')) {
+        defaultLimit = widgetDoc.initialReviewCount || 12;
       } else {
-        requestedLimit = limitQuery ? parseInt(limitQuery as string) : defaultLimit; 
+        defaultLimit = 12; // Default for all other layouts
       }
+      
+      requestedLimit = limitQuery ? parseInt(limitQuery as string) : defaultLimit;
       
       console.log(`[Widget API] Pagination: offset=${offset}, limit=${requestedLimit}, layout=${layoutQuery}`);
       
@@ -237,7 +237,7 @@ export default async function handler(
       themeColor: widgetDoc.themeColor || '#3B82F6',
       layout: (widgetDoc.type as "grid" | "carousel" | "list" | "masonry" | "badge" | "bar") || "grid",
       minRating: widgetSource === 'google' ? (widgetDoc.minRating || 1) : undefined, // Only include minRating for Google
-      initialReviewCount: widgetDoc.initialReviewCount || 10,
+      initialReviewCount: widgetDoc.initialReviewCount || 12,
       showRatings: widgetDoc.showRatings !== undefined ? widgetDoc.showRatings : true,
       showDates: widgetDoc.showDates !== undefined ? widgetDoc.showDates : true,
       showProfilePictures: widgetDoc.showProfilePictures !== undefined ? widgetDoc.showProfilePictures : true,

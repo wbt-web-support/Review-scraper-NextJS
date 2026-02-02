@@ -963,19 +963,22 @@
 
     // Pagination functions
     fetchReviewsWithPagination: async function (config, offset, limit) {
-      const cacheKey = `${config.widgetId}-${offset}-${limit}`;
+      const cacheKey = `${config.widgetId}-${offset}-${limit || 'default'}`;
 
       // Check cache first
       if (this.reviewCache.has(cacheKey)) {
-        console.log(`📊 Reviews fetched from cache: ${limit} reviews for widget ${config.widgetId} (offset: ${offset})`);
+        console.log(`📊 Reviews fetched from cache: ${limit || 'default'} reviews for widget ${config.widgetId} (offset: ${offset})`);
         return this.reviewCache.get(cacheKey);
       }
 
       const params = new URLSearchParams({
-        limit: limit.toString(),
         offset: offset.toString(),
         layout: 'list'
       });
+
+      if (limit) {
+        params.append('limit', limit.toString());
+      }
 
       const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${config.widgetId}?${params.toString()}`;
 
@@ -1097,7 +1100,7 @@
 
       // Get or create widget state
       const widgetId = config.widgetId;
-      const initialCount = widgetSettings.initialReviewCount || CONFIG.LIST_SETTINGS.INITIAL_REVIEW_COUNT;
+      const initialCount = CONFIG.LIST_SETTINGS.INITIAL_REVIEW_COUNT;
 
       if (!this.widgetStates.has(widgetId)) {
         this.widgetStates.set(widgetId, {
@@ -1313,7 +1316,7 @@
         showLessBtn.addEventListener('click', (e) => {
           e.preventDefault();
           const widgetState = this.widgetStates.get(config.widgetId);
-          const initialCount = data.widgetSettings.initialReviewCount || CONFIG.LIST_SETTINGS.INITIAL_REVIEW_COUNT;
+          const initialCount = CONFIG.LIST_SETTINGS.INITIAL_REVIEW_COUNT;
           widgetState.displayCount = initialCount;
           widgetState.isExpanded = false;
           this.renderWidget(container, data, config, initialCount);
