@@ -963,10 +963,10 @@
 
     // Pagination functions
     fetchReviewsWithPagination: async function (config, offset, limit) {
-      const cacheKey = `${config.widgetId}-${offset}-${limit || 'default'}`;
+      const cacheKey = `${config.widgetId}-${offset}-${limit || 'default'}-${config.t || 'live'}`;
 
-      // Check cache first
-      if (this.reviewCache.has(cacheKey)) {
+      // Check cache first (only if not nocache)
+      if (!config.nocache && this.reviewCache.has(cacheKey)) {
         console.log(`📊 Reviews fetched from cache: ${limit || 'default'} reviews for widget ${config.widgetId} (offset: ${offset})`);
         return this.reviewCache.get(cacheKey);
       }
@@ -976,9 +976,9 @@
         layout: 'list'
       });
 
-      if (limit) {
-        params.append('limit', limit.toString());
-      }
+      if (limit) params.append('limit', limit.toString());
+      if (config.nocache) params.append('nocache', 'true');
+      if (config.t) params.append('t', config.t);
 
       const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${config.widgetId}?${params.toString()}`;
 
@@ -1520,6 +1520,8 @@
         containerId: script.getAttribute('data-container-id') || null,
         themeColor: script.getAttribute('data-theme-color') || undefined,
         layout: script.getAttribute('data-layout') || 'list',
+        nocache: script.getAttribute('data-nocache') === 'true',
+        t: script.getAttribute('data-t') || undefined,
         _scriptTag: script
       };
 

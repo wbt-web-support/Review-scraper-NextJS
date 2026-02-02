@@ -917,11 +917,13 @@
     },
 
     // New function to fetch reviews with pagination
-    fetchReviewsWithPagination: async function (widgetId, offset = 0, limit = null) {
+    fetchReviewsWithPagination: async function (widgetId, offset = 0, limit = null, nocache = false, t = null) {
       const params = new URLSearchParams();
       if (limit) params.append('limit', limit.toString());
       params.append('offset', offset.toString());
       params.append('layout', 'grid');
+      if (nocache) params.append('nocache', 'true');
+      if (t) params.append('t', t);
 
       const queryString = params.toString();
       const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${widgetId}?${queryString}`;
@@ -1468,7 +1470,7 @@
         if (config.layout === 'grid') {
           try {
             // Use API default for initial fetch
-            data = await this.fetchReviewsWithPagination(config.widgetId, 0);
+            data = await this.fetchReviewsWithPagination(config.widgetId, 0, null, config.nocache, config.t);
           } catch (error) {
             // Fallback to old method if pagination fails
             const params = new URLSearchParams();
@@ -1529,6 +1531,8 @@
         containerId: script.getAttribute('data-container-id') || null,
         themeColor: script.getAttribute('data-theme-color') || undefined,
         layout: script.getAttribute('data-layout') || 'grid',
+        nocache: script.getAttribute('data-nocache') === 'true',
+        t: script.getAttribute('data-t') || undefined,
         _scriptTag: script
       };
 

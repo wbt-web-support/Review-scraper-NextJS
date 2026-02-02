@@ -1537,6 +1537,8 @@
       }
 
       const params = new URLSearchParams();
+      if (config.nocache) params.append('nocache', 'true');
+      if (config.t) params.append('t', config.t);
       const queryString = params.toString();
       const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${config.widgetId}${queryString ? '?' + queryString : ''}`;
 
@@ -1610,6 +1612,8 @@
         containerId: script.getAttribute('data-container-id') || null,
         themeColor: script.getAttribute('data-theme-color') || undefined,
         layout: script.getAttribute('data-layout') || 'badge',
+        nocache: script.getAttribute('data-nocache') === 'true',
+        t: script.getAttribute('data-t') || undefined,
         _scriptTag: script
       };
 

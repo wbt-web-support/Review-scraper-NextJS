@@ -264,9 +264,11 @@ const CreateWidgetModal = ({
     };
 
     return `<div id="reviewhub-widget"></div>
-<script src="${domain}/${getWidgetFile(layout)}" 
+<script src="${domain}/${getWidgetFile(layout)}?t=${Date.now()}" 
         ${widgetIdAttribute}="${widgetId}"
         data-layout="${layout}"
+        data-nocache="true"
+        data-t="${Date.now()}"
         data-container-id="reviewhub-widget">
 </script>`;
   };

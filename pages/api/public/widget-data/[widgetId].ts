@@ -14,27 +14,34 @@ export interface PublicWidgetDataResponse {
 }
 
 // CORS headers for widget embedding
-const setCorsHeaders = (res: NextApiResponse) => {
+const setCorsHeaders = (res: NextApiResponse, noCache: boolean = false) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
-  res.setHeader('Cache-Control', 'public, max-age=300'); // 5 minutes cache
+  
+  if (noCache) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  } else {
+    res.setHeader('Cache-Control', 'public, max-age=60'); // 1 minute cache
+  }
 };
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<PublicWidgetDataResponse | { message: string }>
 ) {
+  const { widgetId, nocache, t } = req.query;
+  const isNoCache = nocache === 'true' || t !== undefined;
+  
   // Set CORS headers for all requests
-  setCorsHeaders(res);
+  setCorsHeaders(res, isNoCache);
 
   // Handle preflight requests
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
-  const { widgetId } = req.query;
   const limitQuery = req.query.limit;
   const offsetQuery = req.query.offset; // Add offset parameter for pagination
   const layoutQuery = req.query.layout;
