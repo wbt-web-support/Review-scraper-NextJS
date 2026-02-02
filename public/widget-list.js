@@ -23,7 +23,7 @@
     RETRY_DELAY: 3000,
     TIMEOUT: 10000,
     LIST_SETTINGS: {
-      INITIAL_REVIEW_COUNT: 10,  // Show 10 reviews initially for list layout
+      INITIAL_REVIEW_COUNT: 8,  // Show 10 reviews initially for list layout
       LOAD_MORE_INCREMENT: 8     // Load 8 more reviews when "Load More" is clicked
     }
   };
