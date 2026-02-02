@@ -78,6 +78,7 @@ export default async function handler(
           showRatings: widgetClientData.showRatings ?? true,
           showDates: widgetClientData.showDates ?? true,
           showProfilePictures: widgetClientData.showProfilePictures ?? true,
+          initialReviewCount: widgetClientData.initialReviewCount || 10,
         };
         const createdWidget = await storage.createWidget(dataForStorage);
         return res.status(201).json(createdWidget);

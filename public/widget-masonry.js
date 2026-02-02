@@ -35,7 +35,7 @@
         desktop: 1024,
         wide: 1280
       },
-      INITIAL_REVIEW_COUNT: 8, // Show first 12 reviews initially
+      INITIAL_REVIEW_COUNT: 12, // Show first 12 reviews initially
       LOAD_MORE_INCREMENT: 8    // Load 8 more reviews each time
     }
   };
@@ -1010,9 +1010,11 @@
 
       // Get or create widget state
       const widgetId = config.widgetId;
+      const initialCount = widgetSettings.initialReviewCount || CONFIG.MASONRY_SETTINGS.INITIAL_REVIEW_COUNT;
+
       if (!this.widgetStates.has(widgetId)) {
         this.widgetStates.set(widgetId, {
-          displayCount: displayCount || CONFIG.MASONRY_SETTINGS.INITIAL_REVIEW_COUNT,
+          displayCount: displayCount || initialCount,
           isExpanded: false,
           loadedReviews: [], // Track all loaded reviews
           currentOffset: 0   // Track current offset for pagination

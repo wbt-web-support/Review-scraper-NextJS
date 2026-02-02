@@ -55,14 +55,16 @@ interface CreateWidgetModalProps {
   initialTab?: 'create' | 'preview' | 'embed';
 }
 
-interface FormData {
+export interface FormValues {
   name: string;
   businessUrlId: string;
+  layout: "grid" | "carousel" | "list" | "masonry" | "badge" | "bar";
   minRating: number;
   showRatings: boolean;
   showDates: boolean;
   showProfilePictures: boolean;
   themeColor: string;
+  initialReviewCount: number;
 }
 
 const CreateWidgetModal = ({
@@ -80,8 +82,7 @@ const CreateWidgetModal = ({
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
-
-  const [formData, setFormData] = useState<FormData>({
+  const [formData, setFormData] = useState<FormValues>({
     name: "",
     businessUrlId: "",
     minRating: 1,
@@ -89,6 +90,8 @@ const CreateWidgetModal = ({
     showDates: true,
     showProfilePictures: true,
     themeColor: "#000000", // Default to black
+    initialReviewCount: 12,
+    layout: "grid",
   });
 
   // Reset form when modal opens/closes or mode changes
@@ -103,6 +106,8 @@ const CreateWidgetModal = ({
           showDates: widget.showDates ?? true,
           showProfilePictures: widget.showProfilePictures ?? true,
           themeColor: widget.themeColor || "#000000",
+          initialReviewCount: widget.initialReviewCount || 12,
+          layout: widget.type || "grid",
         });
         setSelectedLayout(widget.type || "grid");
       } else {
@@ -114,6 +119,8 @@ const CreateWidgetModal = ({
           showDates: true,
           showProfilePictures: true,
           themeColor: "#000000",
+          initialReviewCount: 12,
+          layout: "grid",
         });
         setSelectedLayout("grid");
       }
@@ -212,6 +219,7 @@ const CreateWidgetModal = ({
       showDates: formData.showDates,
       showProfilePictures: formData.showProfilePictures,
       themeColor: formData.themeColor,
+      initialReviewCount: formData.initialReviewCount,
     };
 
     console.log('Submitting data:', submitData);
@@ -235,7 +243,7 @@ const CreateWidgetModal = ({
   const generateEmbedCode = (layout: string) => {
     // Use different attribute for carousel to avoid conflicts with other widgets
     const widgetIdAttribute = layout === 'carousel' ? 'data-reviewhub-widget-id' : 'data-widget-id';
-    
+
     // Map layout to the correct widget file
     const getWidgetFile = (layout: string) => {
       switch (layout) {
@@ -254,7 +262,7 @@ const CreateWidgetModal = ({
           return 'widget.js';
       }
     };
-    
+
     return `<div id="reviewhub-widget"></div>
 <script src="${domain}/${getWidgetFile(layout)}" 
         ${widgetIdAttribute}="${widgetId}"
@@ -663,6 +671,22 @@ const CreateWidgetModal = ({
 
                           return null; // Don't show anything if no business URL is selected
                         })()}
+                      </div>
+
+                      <div className="flex gap-4 items-end">
+                        <div className="w-1/2">
+                          <Label htmlFor="initialReviewCount" className="text-sm font-medium text-gray-700">Initial Reviews to Show</Label>
+                          <p className="text-xs text-gray-500 mb-1">Number of reviews displayed on page load</p>
+                          <Input
+                            id="initialReviewCount"
+                            type="number"
+                            min={1}
+                            max={50}
+                            value={formData.initialReviewCount}
+                            onChange={(e) => setFormData(prev => ({ ...prev, initialReviewCount: parseInt(e.target.value) || 10 }))}
+                            className="mt-1"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
