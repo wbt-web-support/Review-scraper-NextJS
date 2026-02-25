@@ -1,5 +1,4 @@
-import fetch from 'node-fetch';
-
+// Using native fetch API (available in Node.js 18+ and Next.js 15+)
 const API_ENDPOINT = '/api/scheduled/fetch-reviews';
 const TIMEOUT = 300000; // 5 minutes
 
