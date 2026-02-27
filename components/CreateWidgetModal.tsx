@@ -67,6 +67,11 @@ export interface FormValues {
   initialReviewCount: number;
 }
 
+// Version query used in widget bundle URLs so browsers/CDNs can cache between deployments.
+// Bump NEXT_PUBLIC_WIDGET_VERSION (or this default) when you need to invalidate caches.
+const WIDGET_VERSION =
+  process.env.NEXT_PUBLIC_WIDGET_VERSION ?? "1";
+
 const CreateWidgetModal = ({
   isOpen,
   onClose,
@@ -264,11 +269,10 @@ const CreateWidgetModal = ({
     };
 
     return `<div id="reviewhub-widget"></div>
-<script src="${domain}/${getWidgetFile(layout)}?t=${Date.now()}" 
+<script async fetchpriority="high"
+        src="${domain}/${getWidgetFile(layout)}?v=${WIDGET_VERSION}" 
         ${widgetIdAttribute}="${widgetId}"
         data-layout="${layout}"
-        data-nocache="true"
-        data-t="${Date.now()}"
         data-container-id="reviewhub-widget">
 </script>`;
   };
