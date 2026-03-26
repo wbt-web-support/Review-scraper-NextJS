@@ -92,7 +92,7 @@
     },
 
     generateStars: function (rating) {
-      // Uses Font Awesome 5 (same as widget-new.js)
+      // Uses Font Awesome 5 (same as widget-carousel.js)
       let starsHtml = '';
       for (let i = 1; i <= 5; i++) {
         if (rating >= i) {
@@ -271,7 +271,7 @@
                </div>
              </div>
              ${reviewRatingDisplay}
-             <div class="reviewhub-badge-modal-review-content">${this.escapeHtml(review.content)}</div>
+            <div class="reviewhub-badge-modal-review-content">${this.escapeHtml(review.content || review.text || '')}</div>
              <div class="reviewhub-badge-modal-review-source">
                <img src="${reviewPlatformLogo}" alt="${reviewPlatformName}" class="reviewhub-badge-modal-review-source-logo" />
                Posted on ${reviewPlatformName}
@@ -284,7 +284,7 @@
     injectStyles: function () {
       if (document.getElementById('reviewhub-badge-widget-styles')) return;
 
-      // Font Awesome for stars and icons (same as widget-new.js)
+      // Font Awesome for stars and icons (same as widget-carousel.js)
       if (!document.querySelector('link[href*="font-awesome"]')) {
         const fontAwesome = document.createElement('link');
         fontAwesome.rel = 'stylesheet';
@@ -1141,11 +1141,15 @@
     },
 
     renderWidget: function (container, data, config) {
-      const { widgetSettings, reviews, businessName, businessUrlLink, totalReviewCount } = data;
+      const { widgetSettings, reviews, businessName, businessUrlLink, totalReviewCount, totalFilteredReviewCount } = data;
       // Filter reviews based on widget settings
       const filteredReviews = this.filterReviews(reviews, widgetSettings);
+      const hasRawReviews = Array.isArray(reviews) && reviews.length > 0;
+      const reviewsForDisplay = (Array.isArray(filteredReviews) && filteredReviews.length > 0)
+        ? filteredReviews
+        : (hasRawReviews ? reviews : filteredReviews);
       // Detect platform from first review or widget settings
-      const platformSource = filteredReviews.length > 0 ? this.detectReviewSource(filteredReviews[0], widgetSettings) : 'google';
+      const platformSource = reviewsForDisplay.length > 0 ? this.detectReviewSource(reviewsForDisplay[0], widgetSettings) : 'google';
       const platformLogo = this.getPlatformLogo(platformSource);
       const platformName = platformSource === 'facebook' ? 'Facebook' : 'Google';
 
@@ -1157,7 +1161,7 @@
       container.style.setProperty('--badge-theme-color-dark', this.darkenColor(themeColor, 15));
       container.style.setProperty('--badge-theme-color-light', this.lightenColor(themeColor, 90));
 
-      if (!filteredReviews || filteredReviews.length === 0) {
+      if (!reviewsForDisplay || reviewsForDisplay.length === 0) {
         container.innerHTML = '<div class="reviewhub-badge-error"><div class="reviewhub-badge-error-title">No reviews to display.</div><div class="reviewhub-badge-error-message">Check back later or add some reviews!</div></div>';
         return;
       }
@@ -1165,7 +1169,7 @@
       // Calculate average rating or recommendation percentage for Facebook
       let avgRating, reviewCount, displayText;
       // ALWAYS use totalReviewCount from the server if available, falling back to array length only if missing
-      reviewCount = (typeof totalReviewCount === 'number') ? totalReviewCount : filteredReviews.length;
+      reviewCount = (typeof totalReviewCount === 'number') ? totalReviewCount : reviewsForDisplay.length;
 
       if (data.averageRating) {
         // Use server-provided average rating if available
@@ -1177,12 +1181,12 @@
         // Fallback to client-side calculation
         if (platformSource === 'facebook') {
           // For Facebook, calculate percentage of recommended reviews
-          const recommendedReviews = filteredReviews.filter(r => r.recommendationStatus === 'recommended').length;
-          const percentage = filteredReviews.length > 0 ? Math.round((recommendedReviews / filteredReviews.length) * 100) : 100;
+          const recommendedReviews = reviewsForDisplay.filter(r => r.recommendationStatus === 'recommended').length;
+          const percentage = reviewsForDisplay.length > 0 ? Math.round((recommendedReviews / reviewsForDisplay.length) * 100) : 100;
           avgRating = `${percentage}%`;
         } else {
           // For Google, use traditional star rating
-          avgRating = filteredReviews.length > 0 ? (filteredReviews.reduce((sum, r) => sum + (r.rating || 0), 0) / filteredReviews.length).toFixed(1) : '5.0';
+          avgRating = reviewsForDisplay.length > 0 ? (reviewsForDisplay.reduce((sum, r) => sum + (r.rating || 0), 0) / reviewsForDisplay.length).toFixed(1) : '5.0';
         }
       }
 
@@ -1198,9 +1202,9 @@
       let ratingDisplay = '';
       if (platformSource === 'facebook') {
         // Calculate recommendation status description
-        const recommendedCount = filteredReviews.filter(r => r.recommendationStatus === 'recommended').length;
-        const notRecommendedCount = filteredReviews.filter(r => r.recommendationStatus === 'not_recommended').length;
-        const recommendedPercentage = filteredReviews.length > 0 ? (recommendedCount / filteredReviews.length) * 100 : 100;
+        const recommendedCount = reviewsForDisplay.filter(r => r.recommendationStatus === 'recommended').length;
+        const notRecommendedCount = reviewsForDisplay.filter(r => r.recommendationStatus === 'not_recommended').length;
+        const recommendedPercentage = reviewsForDisplay.length > 0 ? (recommendedCount / reviewsForDisplay.length) * 100 : 100;
 
         let statusDescription = '';
         if (recommendedPercentage >= 80) {
@@ -1243,7 +1247,7 @@
       `;
 
       container.innerHTML = badgeHtml;
-      this.attachModalEventListener(container, { ...data, reviews: filteredReviews }, config);
+      this.attachModalEventListener(container, { ...data, reviews: reviewsForDisplay }, config);
     },
 
     attachModalEventListener: function (container, data, config) {
@@ -1266,17 +1270,19 @@
     },
 
     showReviewsModal: async function (data, config) {
-      const { widgetSettings, reviews, businessName, businessUrlLink, totalReviewCount } = data;
+      const { widgetSettings, reviews, businessName, businessUrlLink, totalReviewCount, totalFilteredReviewCount } = data;
 
       // Initialize modal state for pagination
       const modalId = `modal-${config.widgetId}`;
-      const initialCount = CONFIG.BADGE_SETTINGS.INITIAL_REVIEW_COUNT;
+      const initialCount = (widgetSettings && typeof widgetSettings.initialReviewCount === 'number' && widgetSettings.initialReviewCount > 0)
+        ? widgetSettings.initialReviewCount
+        : CONFIG.BADGE_SETTINGS.INITIAL_REVIEW_COUNT;
 
       if (!this.modalStates.has(modalId)) {
         this.modalStates.set(modalId, {
           loadedReviews: reviews || [],
           currentOffset: reviews ? reviews.length : 0,
-          totalReviews: totalReviewCount || (reviews ? reviews.length : 0), // Use actual total or loaded count
+          totalReviews: totalFilteredReviewCount || totalReviewCount || (reviews ? reviews.length : 0), // Prefer filtered server count for pagination
           displayCount: Math.min(initialCount, (reviews ? reviews.length : 0)),
           isFetching: false
         });
@@ -1325,18 +1331,17 @@
         reviewUrl = platformSource === 'facebook' ? 'https://www.facebook.com' : 'https://www.google.com/maps';
       }
 
-      // Determine how many reviews to show
-      const currentDisplayCount = Math.min(modalState.displayCount, filteredReviews.length);
-      const reviewsToShow = filteredReviews.slice(0, currentDisplayCount);
-
-      // Check if there are more reviews to display (since we loaded all reviews initially)
-      const hasMoreReviews = currentDisplayCount < filteredReviews.length;
+      // Keep modal behavior same as widget-bar.js:
+      // show all currently loaded reviews, and use server total for "has more"
+      const currentDisplayCount = modalState.loadedReviews.length;
+      const reviewsToShow = modalState.loadedReviews;
+      const hasMoreReviews = modalState.totalReviews > modalState.loadedReviews.length;
 
       console.log(`[Badge Modal] State:`, {
         loadedReviews: modalState.loadedReviews.length,
         totalReviews: modalState.totalReviews,
         currentDisplayCount,
-        filteredReviewsLength: filteredReviews.length,
+                filteredReviewsLength: filteredReviews.length,
         hasMoreReviews
       });
 
@@ -1428,9 +1433,9 @@
               modalState.loadedReviews = [...modalState.loadedReviews, ...newData.reviews];
               modalState.displayCount = modalState.loadedReviews.length;
 
-              // Update total if provided
-              if (newData.totalReviewCount) {
-                modalState.totalReviews = newData.totalReviewCount;
+              // Update total if provided (prefer filtered count)
+              if (newData.totalFilteredReviewCount || newData.totalReviewCount) {
+                modalState.totalReviews = newData.totalFilteredReviewCount || newData.totalReviewCount;
               }
 
               // Update the reviews section without recreating the modal
@@ -1442,7 +1447,7 @@
               reviewsContainer.innerHTML = newReviewsHtml;
 
               // Check if there are more reviews to load from server
-              const hasMoreReviews = modalState.loadedReviews.length < modalState.totalReviews;
+              const hasMoreReviews = modalState.totalReviews > modalState.loadedReviews.length;
 
               console.log(`[Badge Load More] Updated state:`, {
                 loadedReviews: modalState.loadedReviews.length,

@@ -22,7 +22,7 @@
 
     // Widget file mappings
     WIDGET_FILES: {
-      'carousel': 'widget-new.js',
+      'carousel': 'widget-carousel.js',
       'badge': 'widget-badge.js',
       'grid': 'widget-grid.js',
       'masonry': 'widget-masonry.js',
@@ -428,7 +428,7 @@
     },
 
     generateStars: function (rating) {
-      // Uses Font Awesome 5 (same as widget-new.js)
+      // Uses Font Awesome 5 (same as widget-carousel.js)
       let starsHtml = '';
       for (let i = 1; i <= 5; i++) {
         if (rating >= i) {

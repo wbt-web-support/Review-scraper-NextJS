@@ -681,7 +681,7 @@ export const getReviewStatsAndReviews = async (
                  $concat: [
                    { $ifNull: ["$reviews.author", "unknown"] }, 
                    "|", 
-                   { $substrCP: [{ $ifNull: ["$reviews.content", ""] }, 0, 20] } 
+                  { $substrCP: [{ $ifNull: ["$reviews.content", { $ifNull: ["$reviews.text", ""] }] }, 0, 20] } 
                  ] 
                }
              }
@@ -695,7 +695,20 @@ export const getReviewStatsAndReviews = async (
     // Definition of the filter criteria
     const filterCriteria = {
       $and: [
-        { "reviews.content": { $exists: true, $type: "string", $ne: "" } },
+        {
+          $expr: {
+            $gt: [
+              {
+                $strLenCP: {
+                  $trim: {
+                    input: { $ifNull: ["$reviews.content", { $ifNull: ["$reviews.text", ""] }] }
+                  }
+                }
+              },
+              0
+            ]
+          }
+        },
         ...(minRating !== undefined ? [
           source === 'facebook' 
             ? (minRating >= 2 

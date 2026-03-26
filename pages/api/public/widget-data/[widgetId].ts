@@ -10,6 +10,7 @@ export interface PublicWidgetDataResponse {
   businessName?: string; 
   businessUrlLink?: string;
   totalReviewCount?: number;
+  totalFilteredReviewCount?: number;
   averageRating?: number | string;
 }
 
@@ -81,6 +82,7 @@ export default async function handler(
     let fetchedBusinessName: string | undefined = undefined;
     let fetchedBusinessUrlLink: string | undefined = undefined;
     let totalReviewCount = 0; // Initialize totalReviewCount here
+    let totalFilteredReviewCount = 0;
 
     if (widgetDoc.businessUrlId) {
       const businessUrlDoc = await storage.getBusinessUrlById(widgetDoc.businessUrlId.toString());
@@ -140,14 +142,8 @@ export default async function handler(
       const offset = offsetQuery ? parseInt(offsetQuery as string) : 0;
       let requestedLimit;
       
-      // Determine default limit based on layout
-      // ONLY the grid layout respects the widgetDoc.initialReviewCount setting
-      let defaultLimit;
-      if (layoutQuery === 'grid' || (layoutQuery === undefined && widgetDoc.type === 'grid')) {
-        defaultLimit = widgetDoc.initialReviewCount || 12;
-      } else {
-        defaultLimit = 12; // Default for all other layouts
-      }
+      // Use widget-configured initial count across layouts when available
+      const defaultLimit = widgetDoc.initialReviewCount || 12;
       
       requestedLimit = limitQuery ? parseInt(limitQuery as string) : defaultLimit;
       
@@ -169,6 +165,7 @@ export default async function handler(
         
         reviews = statsAndReviews.reviews;
         totalReviewCount = statsAndReviews.totalCount;
+        totalFilteredReviewCount = statsAndReviews.filteredCount || statsAndReviews.totalCount;
         
         // Store average rating to return in response
         if (statsAndReviews.averageRating) {
@@ -214,7 +211,7 @@ export default async function handler(
       if (fallbackUrlHash) {
          console.log(`[Widget API] Fallback resolved urlHash: ${fallbackUrlHash}`);
          const offset = offsetQuery ? parseInt(offsetQuery as string) : 0;
-         const requestedLimit = limitQuery ? parseInt(limitQuery as string) : 8;
+         const requestedLimit = limitQuery ? parseInt(limitQuery as string) : (widgetDoc.initialReviewCount || 12);
          
          const statsAndReviews = await storage.getReviewStatsAndReviews(
             fallbackUrlHash,
@@ -229,6 +226,7 @@ export default async function handler(
           if (statsAndReviews) {
             reviews = statsAndReviews.reviews;
             totalReviewCount = statsAndReviews.totalCount;
+            totalFilteredReviewCount = statsAndReviews.filteredCount || statsAndReviews.totalCount;
              if (statsAndReviews.averageRating) {
                (res as any).averageRating = statsAndReviews.averageRating;
             }
@@ -264,7 +262,7 @@ export default async function handler(
 
     // Filter out blank content reviews at API level
     const filteredReviews = reviews.filter(review => {
-      const rawContent = review.content || '';
+      const rawContent = review.content || review.text || '';
       
       // Check if content exists and is a string
       if (!rawContent || typeof rawContent !== 'string') {
@@ -302,7 +300,8 @@ export default async function handler(
     
     for (const review of filteredReviews) {
       // Use the same deduplication logic as the widget - prefer reviewId if available
-      const uniqueKey = review.reviewId || `${review.author || ''}-${review.content || ''}-${review.postedAt || ''}`.toLowerCase().trim();
+      const reviewText = review.content || review.text || '';
+      const uniqueKey = review.reviewId || `${review.author || ''}-${reviewText}-${review.postedAt || ''}`.toLowerCase().trim();
       
       if (!seen.has(uniqueKey)) {
         seen.add(uniqueKey);
@@ -310,7 +309,7 @@ export default async function handler(
       } else {
         duplicates.push({
           author: review.author,
-          content: review.content?.substring(0, 50) + '...',
+          content: (review.content || review.text || '').substring(0, 50) + '...',
           reviewId: review.reviewId,
           key: uniqueKey
         });
@@ -344,6 +343,7 @@ export default async function handler(
       businessName: fetchedBusinessName,
       businessUrlLink: fetchedBusinessUrlLink,
       totalReviewCount,
+      totalFilteredReviewCount,
       averageRating: (res as any).averageRating,
     });
 

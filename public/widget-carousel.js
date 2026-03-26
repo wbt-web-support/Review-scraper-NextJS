@@ -5,7 +5,7 @@
 
   const CONFIG = {
     API_DOMAIN: (function () {
-      const scripts = document.querySelectorAll('script[src*="widget-new.js"]');
+      const scripts = document.querySelectorAll('script[src*="widget-carousel.js"]');
       if (scripts.length > 0) {
         const scriptSrc = scripts[scripts.length - 1].src;
         const url = new URL(scriptSrc);

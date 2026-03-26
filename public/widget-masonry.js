@@ -104,7 +104,7 @@
     },
 
     generateStars: function (rating) {
-      // Uses Font Awesome 5 (same as widget-new.js)
+      // Uses Font Awesome 5 (same as widget-carousel.js)
       let starsHtml = '';
       for (let i = 1; i <= 5; i++) {
         if (rating >= i) {
@@ -215,7 +215,7 @@
     injectStyles: function () {
       if (document.getElementById('reviewhub-masonry-widget-styles')) return;
 
-      // Font Awesome for stars and icons (same as widget-new.js)
+      // Font Awesome for stars and icons (same as widget-carousel.js)
       if (!document.querySelector('link[href*="font-awesome"]')) {
         const fontAwesome = document.createElement('link');
         fontAwesome.rel = 'stylesheet';
