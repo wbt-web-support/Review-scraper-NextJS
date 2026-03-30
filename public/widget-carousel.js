@@ -2260,7 +2260,7 @@
     }
     window.ReviewHubV2._autoInitialized = true;
 
-    const scriptTags = document.querySelectorAll('script[data-reviewhub-widget-id]:not([data-reviewhub-processed])');
+    const scriptTags = document.querySelectorAll('script[data-reviewhub-widget-id][src*="widget-carousel.js"]:not([data-reviewhub-processed])');
     scriptTags.forEach(script => {
       // Mark script as processed to prevent duplicate processing
       script.setAttribute('data-reviewhub-processed', 'true');

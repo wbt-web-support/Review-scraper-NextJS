@@ -332,6 +332,13 @@
 
     // Initialize multiple widgets in parallel
     initWidgetsParallel: async function (configs) {
+      // Start prefetching data for all widgets immediately, before scripts load
+      configs.forEach(config => {
+        if (config.widgetId) {
+          this.prefetchWidgetData(config.widgetId, config.layout || CONFIG.DEFAULT_LAYOUT);
+        }
+      });
+
       // Group configs by layout to load scripts efficiently
       const layoutGroups = new Map();
       configs.forEach(config => {
