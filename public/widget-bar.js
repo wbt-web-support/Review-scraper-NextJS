@@ -50,6 +50,13 @@
       return div.innerHTML;
     },
 
+    stripHtml: function (text) {
+      if (typeof text !== 'string') return '';
+      const div = document.createElement('div');
+      div.innerHTML = text.replace(/<br\s*\/?>/gi, ' ');
+      return (div.textContent || div.innerText || '').trim();
+    },
+
     getInitials: function (name) {
       if (!name) return '?';
       const words = name.trim().split(' ').filter(word => word.length > 0);
@@ -257,7 +264,7 @@
                </div>
              </div>
              ${reviewRatingDisplay}
-             <div class="reviewhub-bar-modal-review-content">${this.escapeHtml(review.content)}</div>
+             <div class="reviewhub-bar-modal-review-content">${this.escapeHtml(this.stripHtml(review.content || review.text || ''))}</div>
              <div class="reviewhub-bar-modal-review-source">
                <img src="${reviewPlatformLogo}" alt="${reviewPlatformName}" class="reviewhub-bar-modal-review-source-logo" />
                Posted on ${reviewPlatformName}
