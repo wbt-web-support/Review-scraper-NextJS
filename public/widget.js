@@ -240,7 +240,11 @@
     prefetchWidgetData: function (widgetId, layout) {
       if (this.dataCache.has(widgetId)) return this.dataCache.get(widgetId);
 
-      const url = `${CONFIG.API_DOMAIN}/api/public/widget-data/${widgetId}?layout=${layout || 'default'}`;
+      let url = `${CONFIG.API_DOMAIN}/api/public/widget-data/${widgetId}?layout=${layout || 'default'}`;
+      // For carousel, include pagination params so server returns a limited dataset (not all reviews)
+      if (layout === 'carousel') {
+        url += '&offset=0&limit=12';
+      }
 
       const prefetchPromise = fetch(url, {
         priority: 'high', // Modern browser hint
@@ -619,8 +623,11 @@
     }
   };
 
-  // Auto-run: Try immediately, then also on various ready states
+  // Auto-run: execute once when DOM is ready
+  var _didRun = false;
   function run() {
+    if (_didRun) return;
+    _didRun = true;
     window.ReviewHubMain.injectConnectionHints();
     window.ReviewHubMain.preloadCommonWidgets();
     initializeWidgetsFromScripts();
@@ -630,10 +637,8 @@
   if (document.readyState === 'complete' || document.readyState === 'interactive') {
     run();
   } else {
-    // If we're early, run immediately but also on DOMContentLoaded just in case
-    run();
     document.addEventListener('DOMContentLoaded', run);
-    window.addEventListener('load', run);
+    window.addEventListener('load', run); // fallback for edge cases
   }
 
 })(); 
