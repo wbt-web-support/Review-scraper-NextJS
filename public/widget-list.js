@@ -967,7 +967,7 @@
 
       // Check cache first (only if not nocache)
       if (!config.nocache && this.reviewCache.has(cacheKey)) {
-        console.log(`📊 Reviews fetched from cache: ${limit || 'default'} reviews for widget ${config.widgetId} (offset: ${offset})`);
+       
         return this.reviewCache.get(cacheKey);
       }
 
@@ -987,7 +987,7 @@
         if (data && data.reviews) {
           // Cache the result
           this.reviewCache.set(cacheKey, data);
-          console.log(`📊 Reviews fetched from database: ${data.reviews.length} reviews for widget ${config.widgetId} (layout: list, offset: ${offset})`);
+         
           return data;
         } else {
           throw new Error('No reviews data received from API.');
@@ -1092,12 +1092,7 @@
       const { widgetSettings, reviews, businessName, businessUrlLink, totalReviewCount } = data;
 
       // DEBUG: Log what we received from API
-      console.log('[List Widget] Data received:', {
-        totalReviewCount,
-        reviewsLength: reviews?.length,
-        dataKeys: Object.keys(data)
-      });
-
+    
       // Get or create widget state
       const widgetId = config.widgetId;
       const initialCount = CONFIG.LIST_SETTINGS.INITIAL_REVIEW_COUNT;
@@ -1157,8 +1152,6 @@
         const reviewCount = (typeof totalReviewCount === 'number' && totalReviewCount > 0)
           ? totalReviewCount
           : filteredReviews.length;
-
-        console.log('[List Widget] Header reviewCount:', reviewCount, 'from totalReviewCount:', totalReviewCount, 'filteredReviews.length:', filteredReviews.length);
 
         let ratingHtml = '';
         let ratingVal = data.averageRating || 0;
@@ -1476,7 +1469,6 @@
         // Check for pre-fetched data from widget.js
         if (window.ReviewHubMain && window.ReviewHubMain.dataCache && window.ReviewHubMain.dataCache.has(widgetId)) {
           try {
-            console.log(`[ReviewHubList] Using pre-fetched data for ${widgetId}`);
             data = await window.ReviewHubMain.dataCache.get(widgetId);
           } catch (e) {
             console.warn(`[ReviewHubList] Pre-fetch lookup failed for ${widgetId}, falling back...`);

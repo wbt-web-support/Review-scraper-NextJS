@@ -182,9 +182,9 @@
       const queryString = params.toString();
       const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${widgetId}?${queryString}`;
 
-      console.log(`[Bar Pagination] Fetching reviews: ${apiUrl}`);
+      
       const data = await this.fetchWithRetry(apiUrl);
-      console.log(`[Bar Pagination] Received ${data.reviews?.length || 0} reviews, total: ${data.totalReviewCount || 0}`);
+     
 
       return data;
     },
@@ -1328,14 +1328,6 @@
       // We have more if the total on server > what we have currently loaded
       const hasMoreReviews = modalState.totalReviews > modalState.loadedReviews.length;
 
-      console.log(`[Bar Modal] State:`, {
-        loadedReviews: modalState.loadedReviews.length,
-        totalReviews: modalState.totalReviews,
-        currentDisplayCount,
-        filteredReviewsLength: filteredReviews.length,
-        hasMoreReviews
-      });
-
       const reviewsHtml = this.generateReviewsHtml(reviewsToShow, widgetSettings);
 
       // Generate load more button - only show if there are more reviews to load
@@ -1543,7 +1535,7 @@
         // Check for pre-fetched data from widget.js
         if (window.ReviewHubMain && window.ReviewHubMain.dataCache && window.ReviewHubMain.dataCache.has(widgetId)) {
           try {
-            console.log(`[ReviewHubBar] Using pre-fetched data for ${widgetId}`);
+            
             data = await window.ReviewHubMain.dataCache.get(widgetId);
           } catch (e) {
             console.warn(`[ReviewHubBar] Pre-fetch lookup failed for ${widgetId}, falling back...`);

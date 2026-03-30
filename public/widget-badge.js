@@ -181,11 +181,7 @@
 
       const queryString = params.toString();
       const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${widgetId}?${queryString}`;
-
-      console.log(`[Badge Pagination] Fetching reviews: ${apiUrl}`);
       const data = await this.fetchWithRetry(apiUrl);
-      console.log(`[Badge Pagination] Received ${data.reviews?.length || 0} reviews, total: ${data.totalReviewCount || 0}`);
-
       return data;
     },
 
@@ -198,11 +194,7 @@
 
       const queryString = params.toString();
       const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${widgetId}?${queryString}`;
-
-      console.log(`[Badge Initial Load] Fetching all reviews: ${apiUrl}`);
       const data = await this.fetchWithRetry(apiUrl);
-      console.log(`[Badge Initial Load] Received ${data.reviews?.length || 0} reviews, total: ${data.totalReviewCount || 0}`);
-
       return data;
     },
 
@@ -1337,14 +1329,6 @@
       const reviewsToShow = modalState.loadedReviews;
       const hasMoreReviews = modalState.totalReviews > modalState.loadedReviews.length;
 
-      console.log(`[Badge Modal] State:`, {
-        loadedReviews: modalState.loadedReviews.length,
-        totalReviews: modalState.totalReviews,
-        currentDisplayCount,
-                filteredReviewsLength: filteredReviews.length,
-        hasMoreReviews
-      });
-
       const reviewsHtml = this.generateReviewsHtml(reviewsToShow, widgetSettings);
 
       // Generate load more button - only show if there are more reviews to load
@@ -1449,12 +1433,7 @@
               // Check if there are more reviews to load from server
               const hasMoreReviews = modalState.totalReviews > modalState.loadedReviews.length;
 
-              console.log(`[Badge Load More] Updated state:`, {
-                loadedReviews: modalState.loadedReviews.length,
-                totalReviews: modalState.totalReviews,
-                hasMoreReviews,
-                newReviewsFetched: newData.reviews.length
-              });
+          ;
 
               if (!hasMoreReviews) {
                 loadMoreBtn.textContent = 'No More Reviews';
@@ -1559,7 +1538,7 @@
         // Check for pre-fetched data from widget.js
         if (window.ReviewHubMain && window.ReviewHubMain.dataCache && window.ReviewHubMain.dataCache.has(widgetId)) {
           try {
-            console.log(`[ReviewHubBadge] Using pre-fetched data for ${widgetId}`);
+            
             data = await window.ReviewHubMain.dataCache.get(widgetId);
           } catch (e) {
             console.warn(`[ReviewHubBadge] Pre-fetch lookup failed for ${widgetId}, falling back...`);
@@ -1599,7 +1578,7 @@
     const scriptTags = document.querySelectorAll('script[data-widget-id][src*="widget-badge.js"]');
     const initializedWidgets = new Set();
 
-    console.log(`[Badge Init] Found ${scriptTags.length} script tags`);
+    
 
     scriptTags.forEach((script, index) => {
       const widgetId = script.getAttribute('data-widget-id');
@@ -1623,7 +1602,6 @@
       };
 
       Object.keys(config).forEach(key => config[key] === undefined && delete config[key]);
-      console.log(`[Badge Init] Initializing widget ${widgetId} (script ${index + 1}/${scriptTags.length})`);
       window.ReviewHubBadge.initWidget(config);
     });
   }

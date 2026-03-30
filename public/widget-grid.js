@@ -1004,12 +1004,7 @@
     renderWidget: function (container, data, config, displayCount = null) {
       const { widgetSettings, reviews, businessName, businessUrlLink, totalReviewCount } = data;
 
-      // DEBUG: Log what we received from API
-      console.log('[Grid Widget] Data received:', {
-        totalReviewCount,
-        reviewsLength: reviews?.length,
-        dataKeys: Object.keys(data)
-      });
+   
 
       // Get or create widget state
       const widgetId = config.widgetId;
@@ -1155,8 +1150,7 @@
           ? totalReviewCount
           : filteredReviews.length;
 
-        console.log('[Grid Widget] Header reviewCount:', reviewCount, 'from totalReviewCount:', totalReviewCount, 'filteredReviews.length:', filteredReviews.length);
-
+      
         let ratingHtml = '';
         let ratingVal = data.averageRating || 0;
 
@@ -1459,7 +1453,7 @@
       // Check for pre-fetched data from widget.js
       if (window.ReviewHubMain && window.ReviewHubMain.dataCache && window.ReviewHubMain.dataCache.has(widgetId)) {
         try {
-          console.log(`[ReviewHubGrid] Using pre-fetched data for ${widgetId}`);
+        
           data = await window.ReviewHubMain.dataCache.get(widgetId);
         } catch (e) {
           console.warn(`[ReviewHubGrid] Pre-fetch lookup failed for ${widgetId}, falling back...`);
@@ -1498,7 +1492,7 @@
 
           // Log the number of reviews fetched from database
           const reviewCount = data.reviews.length;
-          console.log(`📊 Reviews fetched from database: ${reviewCount} reviews for widget ${config.widgetId} (layout: ${config.layout})`);
+         
 
           this.renderWidget(container, data, config);
         } else {

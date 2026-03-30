@@ -57,6 +57,9 @@
     // Cache for fetched reviews to avoid re-fetching
     reviewCache: new Map(),
 
+    // Track cleanup handlers per widget instance to avoid listener leaks
+    interactionCleanups: new Map(),
+
     // Function to deduplicate reviews based on unique identifiers
     deduplicateReviews: function (reviews) {
       if (!reviews || reviews.length === 0) return reviews;
@@ -65,15 +68,7 @@
       const uniqueReviews = [];
       const duplicates = [];
 
-      // First, let's log the raw reviews to see what we're working with
-      console.log('[Widget V2 Deduplication] Raw reviews data:', reviews.map((r, i) => ({
-        index: i,
-        author: r.author,
-        content: r.content?.substring(0, 30) + '...',
-        postedAt: r.postedAt,
-        reviewId: r.reviewId
-      })));
-
+    
       for (const review of reviews) {
         // Create a unique key - prefer reviewId if available, otherwise fall back to author+content+date
         const uniqueKey = review.reviewId || `${review.author || ''}-${review.content || ''}-${review.postedAt || ''}`.toLowerCase().trim();
@@ -93,8 +88,20 @@
       if (duplicates.length > 0) {
         console.warn(`[Widget V2 Deduplication] Found ${duplicates.length} duplicates:`, duplicates);
       }
-      console.log(`[Widget V2 Deduplication] Original: ${reviews.length}, Unique: ${uniqueReviews.length}, Duplicates: ${duplicates.length}`);
+     
       return uniqueReviews;
+    },
+
+    cleanupInteractions: function (instanceKey) {
+      if (!instanceKey || !this.interactionCleanups.has(instanceKey)) return;
+      try {
+        const cleanup = this.interactionCleanups.get(instanceKey);
+        if (typeof cleanup === 'function') cleanup();
+      } catch (e) {
+        // Ignore cleanup errors so widget rendering can continue
+      } finally {
+        this.interactionCleanups.delete(instanceKey);
+      }
     },
 
     log: function (level, message, data) {
@@ -1047,7 +1054,7 @@
 
       // Check cache first (only if not nocache)
       if (!config.nocache && this.reviewCache.has(cacheKey)) {
-        console.log(`📊 Reviews fetched from cache: ${limit || 'default'} reviews for widget ${config.widgetId} (offset: ${offset})`);
+        
         return this.reviewCache.get(cacheKey);
       }
 
@@ -1062,19 +1069,17 @@
 
       const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${config.widgetId}?${params.toString()}`;
 
-      console.log(`🌐 Making API request to: ${apiUrl}`);
+      
 
       try {
         const data = await this.fetchWithRetry(apiUrl);
-        console.log(`📡 API response:`, data);
+       
 
         if (data && data.reviews) {
           // Cache the result
           this.reviewCache.set(cacheKey, data);
-          console.log(`📊 Reviews fetched from database: ${data.reviews.length} reviews for widget ${config.widgetId} (layout: carousel, offset: ${offset})`);
           return data;
         } else {
-          console.log(`❌ No reviews data in API response`);
           throw new Error('No reviews data received from API.');
         }
       } catch (error) {
@@ -1093,59 +1098,35 @@
       // AND there are more reviews available in the database
       const hasMoreReviewsAvailable = loadedReviewsCount < totalReviews;
 
-      console.log(`🔍 Auto-fetch check: currentIndex=${currentIndex}, visibleSlides=${visibleSlides}, loadedReviews=${loadedReviewsCount}, totalReviews=${totalReviews}, slidesLeft=${slidesLeft}, shouldFetch=${slidesLeft <= 2 && hasMoreReviewsAvailable}`);
-
-      // Additional debugging for the last review issue
-      if (loadedReviewsCount > 0) {
-        const lastReview = widgetState.loadedReviews[loadedReviewsCount - 1];
-        console.log(`🔍 Last loaded review:`, {
-          author: lastReview.author,
-          content: lastReview.content?.substring(0, 30) + '...',
-          reviewId: lastReview.reviewId,
-          postedAt: lastReview.postedAt
-        });
-      }
-
       return slidesLeft <= 2 && hasMoreReviewsAvailable;
     },
 
     // New function to fetch and append more reviews
     fetchAndAppendReviews: async function (container, config, widgetState) {
       try {
-        console.log(`🔄 Starting auto-fetch: currentOffset=${widgetState.currentOffset}, currentReviews=${widgetState.loadedReviews.length}`);
+       
 
         // Calculate how many more reviews to fetch
         const fetchCount = CONFIG.CAROUSEL_SETTINGS.PAGINATION.LOAD_MORE_INCREMENT;
         const newOffset = widgetState.currentOffset;
 
-        console.log(`📡 Fetching ${fetchCount} reviews from offset ${newOffset}`);
+      
 
         // Fetch new reviews
         const newData = await this.fetchReviewsWithPagination(config, newOffset, fetchCount);
 
-        console.log(`📦 Received data:`, newData);
-
         if (newData && newData.reviews && newData.reviews.length > 0) {
-          console.log(`✅ Got ${newData.reviews.length} new reviews`);
-
           // Deduplicate new reviews before adding them
           const deduplicatedNewReviews = this.deduplicateReviews(newData.reviews);
-          console.log(`🔄 Deduplicated new reviews: ${newData.reviews.length} -> ${deduplicatedNewReviews.length}`);
 
           // Update widget state - use deduplicated count for offset calculation
           widgetState.currentOffset = newOffset + deduplicatedNewReviews.length;
           widgetState.loadedReviews = [...widgetState.loadedReviews, ...deduplicatedNewReviews];
 
-          console.log(`📝 Updated widget state: newOffset=${widgetState.currentOffset}, totalLoaded=${widgetState.loadedReviews.length}`);
-          console.log(`📊 Carousel state before update: currentReviews=${widgetState.loadedReviews.length - deduplicatedNewReviews.length}, newReviews=${deduplicatedNewReviews.length}, totalAfter=${widgetState.loadedReviews.length}`);
-
           // Update the carousel with new reviews
           this.updateCarouselWithNewReviews(container, config, widgetState, deduplicatedNewReviews);
-
-          console.log(`📊 Auto-fetched ${newData.reviews.length} more reviews for widget ${config.widgetId}`);
           return true;
         } else {
-          console.log(`❌ No new reviews received or empty response`);
           return false;
         }
       } catch (error) {
@@ -1162,26 +1143,19 @@
       const track = carouselWrapper.querySelector('.rh-carousel-track');
       if (!track) return;
 
-      console.log(`🔄 Updating carousel with ${newReviews.length} new reviews`);
-      console.log(`📊 Current loaded reviews: ${widgetState.loadedReviews.length}`);
-
       // Filter new reviews (already deduplicated in fetchAndAppendReviews)
       const filteredNewReviews = this.filterReviews(newReviews || [], widgetState.widgetSettings);
-      console.log(`📊 Filtered new reviews: ${filteredNewReviews.length}`);
 
       // Create new slide elements for the new reviews
       const newSlides = filteredNewReviews.map((review, index) => {
         // Calculate the correct index - start from the current total slides count
         const currentSlidesCount = track.querySelectorAll('.rh-carousel-slide').length;
         const slideIndex = currentSlidesCount + index;
-        console.log(`📊 Creating slide for review ${index + 1}: slideIndex=${slideIndex}, author=${review.author}`);
         return this.createReviewSlide(review, slideIndex, widgetState.widgetSettings);
       });
 
       // Append new slides to the track
-      console.log(`📊 Adding ${newSlides.length} new slides to carousel`);
-      newSlides.forEach((slide, index) => {
-        console.log(`📊 Adding slide ${index + 1}:`, slide.querySelector('.rh-review-card')?.textContent?.substring(0, 50) + '...');
+      newSlides.forEach((slide) => {
         track.appendChild(slide);
       });
 
@@ -1271,10 +1245,10 @@
           readMoreBtn.addEventListener('click', (e) => {
             e.preventDefault();
             // Get the review data from the widget state
-            const widgetId = carouselWrapper.getAttribute('data-widget-id');
-            const widgetState = this.widgetStates.get(widgetId);
+            const widgetStateKey = carouselWrapper.getAttribute('data-widget-instance-key') || carouselWrapper.getAttribute('data-widget-id');
+            const widgetState = this.widgetStates.get(widgetStateKey);
             if (widgetState && widgetState.loadedReviews[reviewIndex]) {
-              this.showReviewModal(widgetState.loadedReviews[reviewIndex], { widgetSettings: widgetState.widgetSettings }, { widgetId });
+              this.showReviewModal(widgetState.loadedReviews[reviewIndex], { widgetSettings: widgetState.widgetSettings }, { widgetId: widgetState.widgetId });
             }
           });
         }
@@ -1329,21 +1303,10 @@
 
         if (!isValid) {
           filteredCount++;
-          console.log(`[Widget V2 Filter] Filtering out review with blank/meaningless content:`, {
-            author: review.author,
-            originalContent: rawContent,
-            cleanedContent: content,
-            contentLength: content.length,
-            reviewId: review.reviewId
-          });
         }
 
         return isValid;
       });
-
-      if (filteredCount > 0) {
-        console.log(`[Widget V2 Filter] Filtered out ${filteredCount} reviews with blank/meaningless content. Original: ${originalCount}, Filtered: ${filteredReviews.length}`);
-      }
 
       return filteredReviews;
     },
@@ -1397,23 +1360,17 @@
     renderCarouselWidget: function (container, data, config) {
       const { reviews, widgetSettings, businessName, totalReviewCount } = data;
 
-      // DEBUG: Log what we received from API
-      console.log('[Carousel Widget] Data received:', {
-        totalReviewCount,
-        reviewsLength: reviews?.length,
-        dataKeys: Object.keys(data)
-      });
-
       // Deduplicate and filter out reviews with empty content or text
       const deduplicatedReviews = this.deduplicateReviews(reviews || []);
       const filteredReviews = this.filterReviews(deduplicatedReviews, widgetSettings);
       const carouselId = `rh-carousel-${config.widgetId}-${Date.now()}`;
 
       // Get or create widget state for pagination
-      const widgetId = config.widgetId;
-      if (!this.widgetStates.has(widgetId)) {
-        console.log(`🆕 Creating new widget state for ${widgetId}`);
-        this.widgetStates.set(widgetId, {
+      const widgetStateKey = config._instanceId || `${config.widgetId}-${config.containerId || 'script'}`;
+      if (!this.widgetStates.has(widgetStateKey)) {
+       
+        this.widgetStates.set(widgetStateKey, {
+          widgetId: config.widgetId,
           loadedReviews: filteredReviews,
           currentOffset: filteredReviews.length,
           totalReviews: (typeof totalReviewCount === 'number' && totalReviewCount > 0) ? totalReviewCount : filteredReviews.length,
@@ -1422,14 +1379,12 @@
         });
       }
 
-      const widgetState = this.widgetStates.get(widgetId);
+      const widgetState = this.widgetStates.get(widgetStateKey);
       // Update widget state with latest deduplicated data
+      widgetState.widgetId = config.widgetId;
       widgetState.loadedReviews = filteredReviews;
       widgetState.totalReviews = (typeof totalReviewCount === 'number' && totalReviewCount > 0) ? totalReviewCount : filteredReviews.length;
       widgetState.widgetSettings = widgetSettings;
-
-      console.log(`📊 Widget state initialized: loadedReviews=${widgetState.loadedReviews.length}, totalReviews=${widgetState.totalReviews}, currentOffset=${widgetState.currentOffset}`);
-
       const reviewsToShow = widgetState.loadedReviews;
       const totalReviews = widgetState.totalReviews;
 
@@ -1492,7 +1447,7 @@
       }).join('');
 
       const carouselHtml = `
-        <div class="rh-carousel-wrapper" id="${carouselId}-wrapper" data-widget-id="${config.widgetId}">
+        <div class="rh-carousel-wrapper" id="${carouselId}-wrapper" data-widget-id="${config.widgetId}" data-widget-instance-key="${widgetStateKey}">
           <div class="rh-carousel-track-container">
             <div class="rh-carousel-track">
               ${reviewItemsHtml}
@@ -1505,6 +1460,8 @@
         </div>
       `;
 
+      // Clear previous interaction listeners/timers for this instance before re-render
+      this.cleanupInteractions(config._instanceId);
       container.innerHTML = carouselHtml;
       this.initCarouselLogic(carouselId, container, reviewsToShow, config, widgetSettings, widgetState);
       this.attachModalEventListeners(container, reviewsToShow, data, config);
@@ -1821,8 +1778,7 @@
 
         // Check if we need to fetch more reviews
         if (widgetState && !widgetState.isFetching) {
-          console.log(`🎯 Checking auto-fetch: currentIndex=${currentIndex}, visibleSlides=${visibleSlides}, loadedReviews=${widgetState.loadedReviews.length}, totalReviews=${widgetState.totalReviews}`);
-
+         
           const shouldFetch = window.ReviewHubV2.shouldFetchMoreReviews(
             widgetState,
             currentIndex,
@@ -1831,7 +1787,7 @@
           );
 
           if (shouldFetch) {
-            console.log(`🚀 Auto-fetch triggered! Fetching more reviews...`);
+           
             widgetState.isFetching = true;
             const success = await window.ReviewHubV2.fetchAndAppendReviews(
               containerElem,
@@ -1841,13 +1797,13 @@
             widgetState.isFetching = false;
 
             if (success) {
-              console.log(`✅ Auto-fetch successful! Updated slides array`);
+           
               // Update slides array after new reviews are added
               const updatedSlides = Array.from(track.querySelectorAll('.rh-carousel-slide'));
               slides.length = 0;
               slides.push(...updatedSlides);
             } else {
-              console.log(`❌ Auto-fetch failed`);
+              
             }
           }
         }
@@ -1973,6 +1929,20 @@
         setTimeout(startAutoPlay, (widgetSettings.autoplayDelay || 5000) * 1.5);
       };
 
+      const onMouseLeave = (e) => {
+        // Only end drag if mouse leaves the document entirely
+        if (e.target === document.documentElement) {
+          touchEnd(e);
+        }
+      };
+
+      const onResize = () => {
+        stopAutoPlay();
+        setSlideDimensions();
+        // updateCarouselPosition(false) is called within setSlideDimensions
+        startAutoPlay();
+      };
+
       track.addEventListener('mousedown', touchStart);
       track.addEventListener('touchstart', touchStart, { passive: true });
 
@@ -1981,12 +1951,7 @@
 
       document.addEventListener('mouseup', touchEnd);
       document.addEventListener('touchend', touchEnd);
-      document.addEventListener('mouseleave', (e) => {
-        // Only end drag if mouse leaves the document entirely
-        if (e.target === document.documentElement) {
-          touchEnd(e);
-        }
-      });
+      document.addEventListener('mouseleave', onMouseLeave);
 
       // Prevent context menu on long press for mobile
       track.addEventListener('contextmenu', (e) => {
@@ -2024,13 +1989,24 @@
 
       wrapper.addEventListener('mouseenter', stopAutoPlay);
       wrapper.addEventListener('mouseleave', startAutoPlay);
+      window.addEventListener('resize', onResize);
 
-      window.addEventListener('resize', () => {
-        stopAutoPlay();
-        setSlideDimensions();
-        // updateCarouselPosition(false) is called within setSlideDimensions
-        startAutoPlay();
-      });
+      // Register cleanup to prevent listener/timer leaks across re-renders
+      if (globalConfig && globalConfig._instanceId) {
+        this.interactionCleanups.set(globalConfig._instanceId, () => {
+          clearInterval(autoPlayInterval);
+          track.removeEventListener('mousedown', touchStart);
+          track.removeEventListener('touchstart', touchStart);
+          document.removeEventListener('mousemove', touchMove);
+          document.removeEventListener('touchmove', touchMove);
+          document.removeEventListener('mouseup', touchEnd);
+          document.removeEventListener('touchend', touchEnd);
+          document.removeEventListener('mouseleave', onMouseLeave);
+          wrapper.removeEventListener('mouseenter', stopAutoPlay);
+          wrapper.removeEventListener('mouseleave', startAutoPlay);
+          window.removeEventListener('resize', onResize);
+        });
+      }
 
       // Initial setup call
       setSlideDimensions();
@@ -2154,6 +2130,7 @@
       const widgetInstanceId = config.containerId ?
         `${config.widgetId}-${config.containerId}` :
         `${config.widgetId}-script-${config._scriptTag ? Array.from(document.scripts).indexOf(config._scriptTag) : Date.now()}`;
+      config._instanceId = widgetInstanceId;
 
       // Check if this widget instance has already been initialized
       this._initializedWidgets = this._initializedWidgets || new Set();
@@ -2162,8 +2139,7 @@
         return;
       }
       this._initializedWidgets.add(widgetInstanceId);
-      console.log(`[Widget V2] Initializing widget ${widgetInstanceId}`);
-
+      
       this.injectStyles();
 
       if (config.containerId) {
@@ -2219,7 +2195,7 @@
         // Check for pre-fetched data from widget.js
         if (window.ReviewHubMain && window.ReviewHubMain.dataCache && window.ReviewHubMain.dataCache.has(widgetId)) {
           try {
-            console.log(`[ReviewHubV2] Using pre-fetched data for ${widgetId}`);
+           
             data = await window.ReviewHubMain.dataCache.get(widgetId);
           } catch (e) {
             console.warn(`[ReviewHubV2] Pre-fetch lookup failed for ${widgetId}, falling back...`);
@@ -2227,7 +2203,7 @@
         }
 
         if (!data) {
-          console.log(`🚀 Initial widget load: fetching ${CONFIG.CAROUSEL_SETTINGS.PAGINATION.INITIAL_REVIEW_COUNT} reviews`);
+         
           data = await this.fetchReviewsWithPagination(config, 0, CONFIG.CAROUSEL_SETTINGS.PAGINATION.INITIAL_REVIEW_COUNT);
         }
         if (data && data.reviews) {
@@ -2252,6 +2228,7 @@
         }
       } catch (error) {
         this.showError(container, error, config, retryLoad);
+        this.cleanupInteractions(widgetInstanceId);
       }
     },
 

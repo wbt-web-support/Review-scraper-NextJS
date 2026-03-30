@@ -1004,11 +1004,7 @@
       const { widgetSettings, reviews, businessName, businessUrlLink, totalReviewCount } = data;
 
       // DEBUG: Log what we received from API
-      console.log('[Masonry Widget] Data received:', {
-        totalReviewCount,
-        reviewsLength: reviews?.length,
-        dataKeys: Object.keys(data)
-      });
+     
 
       // Get or create widget state
       const widgetId = config.widgetId;
@@ -1068,13 +1064,7 @@
       const canShowLess = currentDisplayCount > initialCount;
 
       // Debug logging for button visibility
-      console.log(`[Masonry Widget] Button visibility check:`, {
-        totalReviews,
-        currentOffset: widgetState.currentOffset,
-        currentDisplayCount,
-        hasMoreReviews,
-        shouldShowButtons: hasMoreReviews
-      });
+      
 
       const reviewCardsHtml = reviewsToShow.map((review, index) => {
         const author = this.escapeHtml(review.author || 'Anonymous');
@@ -1159,8 +1149,7 @@
           ? totalReviewCount
           : filteredReviews.length;
 
-        console.log('[Masonry Widget] Header reviewCount:', reviewCount, 'from totalReviewCount:', totalReviewCount, 'filteredReviews.length:', filteredReviews.length);
-
+        
         let ratingHtml = '';
         let ratingVal = data.averageRating || 0;
 
@@ -1452,7 +1441,7 @@
         // Check for pre-fetched data from widget.js
         if (window.ReviewHubMain && window.ReviewHubMain.dataCache && window.ReviewHubMain.dataCache.has(widgetId)) {
           try {
-            console.log(`[ReviewHubMasonry] Using pre-fetched data for ${widgetId}`);
+           
             data = await window.ReviewHubMain.dataCache.get(widgetId);
           } catch (e) {
             console.warn(`[ReviewHubMasonry] Pre-fetch lookup failed for ${widgetId}, falling back...`);
@@ -1484,8 +1473,7 @@
 
           // Log the number of reviews fetched from database
           const reviewCount = data.reviews.length;
-          console.log(`📊 Reviews fetched from database: ${reviewCount} reviews for widget ${config.widgetId} (layout: ${config.layout})`);
-
+        
           this.renderWidget(container, data, config);
         } else {
           throw new Error('No reviews data received from API.');
