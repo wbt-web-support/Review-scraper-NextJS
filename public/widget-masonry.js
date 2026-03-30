@@ -62,6 +62,13 @@
       return div.innerHTML;
     },
 
+    stripHtml: function (text) {
+      if (typeof text !== 'string') return '';
+      const div = document.createElement('div');
+      div.innerHTML = text.replace(/<br\s*\/?>/gi, ' ');
+      return (div.textContent || div.innerText || '').trim();
+    },
+
     getInitials: function (name) {
       if (!name) return '?';
       const words = name.trim().split(' ').filter(word => word.length > 0);
@@ -1073,7 +1080,7 @@
         const date = this.formatDate(review.postedAt);
         const rating = parseFloat(review.rating) || 0;
         const stars = this.generateStars(rating);
-        const content = this.escapeHtml(review.content || review.text || '');
+        const content = this.escapeHtml(this.stripHtml(review.content || review.text || ''));
         const isVerified = true;
         const isLongText = content.length > 200;
 
@@ -1305,7 +1312,7 @@
       const date = this.formatDate(review.postedAt);
       const rating = parseFloat(review.rating) || 0;
       const stars = this.generateStars(rating);
-      const content = this.escapeHtml(review.content || review.text || '');
+      const content = this.escapeHtml(this.stripHtml(review.content || review.text || ''));
       const displayContent = content.replace(/\n/g, '<br>');
       const source = this.detectReviewSource(review, widgetSettings);
       const isVerified = true;
