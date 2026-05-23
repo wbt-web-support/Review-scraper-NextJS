@@ -113,6 +113,32 @@
       return starsHtml;
     },
 
+    getDisplayAverageRating: function (data, reviews, platformSource) {
+      const reviewList = reviews || [];
+
+      if (platformSource === 'facebook') {
+        if (data && data.averageRating !== undefined && data.averageRating !== null && data.averageRating !== '') {
+          const avg = data.averageRating;
+          return typeof avg === 'string' && avg.includes('%') ? avg : `${avg}%`;
+        }
+        const recommendedReviews = reviewList.filter(r => r.recommendationStatus === 'recommended').length;
+        const percentage = reviewList.length > 0
+          ? Math.round((recommendedReviews / reviewList.length) * 100)
+          : 100;
+        return `${percentage}%`;
+      }
+
+      if (data && data.averageRating !== undefined && data.averageRating !== null && data.averageRating !== '') {
+        const parsed = parseFloat(data.averageRating);
+        if (!isNaN(parsed)) return parsed.toFixed(1);
+      }
+
+      const ratedReviews = reviewList.filter(r => r.rating !== undefined && r.rating !== null && r.rating !== '');
+      if (ratedReviews.length === 0) return '0.0';
+      const sum = ratedReviews.reduce((acc, r) => acc + (parseFloat(r.rating) || 0), 0);
+      return (sum / ratedReviews.length).toFixed(1);
+    },
+
     generateRecommendationStatus: function (review) {
       // For Facebook reviews, show recommendation status instead of stars
       const recommendationStatus = review.recommendationStatus || '';
@@ -1148,29 +1174,9 @@
         return;
       }
 
-      // Calculate average rating or recommendation percentage for Facebook
       let avgRating, reviewCount, displayText;
-      // ALWAYS use totalReviewCount from the server if available, falling back to array length only if missing
       reviewCount = (typeof totalReviewCount === 'number') ? totalReviewCount : reviewsForDisplay.length;
-
-      if (data.averageRating) {
-        // Use server-provided average rating if available
-        avgRating = data.averageRating;
-        if (platformSource === 'facebook' && typeof avgRating === 'string' && !avgRating.includes('%')) {
-          avgRating = `${avgRating}%`;
-        }
-      } else {
-        // Fallback to client-side calculation
-        if (platformSource === 'facebook') {
-          // For Facebook, calculate percentage of recommended reviews
-          const recommendedReviews = reviewsForDisplay.filter(r => r.recommendationStatus === 'recommended').length;
-          const percentage = reviewsForDisplay.length > 0 ? Math.round((recommendedReviews / reviewsForDisplay.length) * 100) : 100;
-          avgRating = `${percentage}%`;
-        } else {
-          // For Google, use traditional star rating
-          avgRating = reviewsForDisplay.length > 0 ? (reviewsForDisplay.reduce((sum, r) => sum + (r.rating || 0), 0) / reviewsForDisplay.length).toFixed(1) : '0.0';
-        }
-      }
+      avgRating = this.getDisplayAverageRating(data, reviews, platformSource);
 
       if (platformSource === 'facebook') {
         displayText = 'Recommended';
@@ -1280,19 +1286,13 @@
       const platformLogo = this.getPlatformLogo(platformSource);
       const platformName = platformSource === 'facebook' ? 'Facebook' : 'Google';
 
-      // Calculate appropriate rating display for modal summary
       let avgRating, reviewCount, summaryRatingDisplay;
       reviewCount = modalState.totalReviews || filteredReviews.length;
+      avgRating = this.getDisplayAverageRating(data, reviews, platformSource);
 
       if (platformSource === 'facebook') {
-        // For Facebook, calculate percentage of recommended reviews
-        const recommendedReviews = filteredReviews.filter(r => r.recommendationStatus === 'recommended').length;
-        const percentage = filteredReviews.length > 0 ? Math.round((recommendedReviews / filteredReviews.length) * 100) : 100;
-        avgRating = `${percentage}%`;
         summaryRatingDisplay = `<span class="reviewhub-badge-modal-summary-number">${avgRating}</span>`;
       } else {
-        // For Google, use traditional star rating
-        avgRating = filteredReviews.length > 0 ? (filteredReviews.reduce((sum, r) => sum + (r.rating || 0), 0) / filteredReviews.length).toFixed(1) : '0.0';
         const stars = this.generateStars(parseFloat(avgRating));
         summaryRatingDisplay = `
           <span class="reviewhub-badge-modal-summary-number">${avgRating}</span>

@@ -3,11 +3,26 @@ const API_ENDPOINT = '/api/scheduled/fetch-reviews';
 const TIMEOUT = 300000; // 5 minutes
 
 function getBaseUrl(providedBaseUrl?: string) {
-  if (providedBaseUrl) return providedBaseUrl;
+  if (providedBaseUrl) return providedBaseUrl.replace(/\/$/, '');
+
+  const fromEnv = process.env.API_BASE_URL?.replace(/\/$/, '');
+  if (fromEnv) return fromEnv;
+
+  // Vercel Cron runs on the deployment; call back into the same host
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+
+  if (process.env.NEXTAUTH_URL) {
+    return process.env.NEXTAUTH_URL.replace(/\/$/, '');
+  }
+
   if (typeof window !== 'undefined' && window.location) {
     return window.location.origin;
   }
-  return process.env.API_BASE_URL || 'http://localhost:3000';
+
+  const port = process.env.PORT || '3000';
+  return `http://localhost:${port}`;
 }
 
 export async function runScheduledReviewFetch({ source, baseUrl }: { source?: string, baseUrl?: string }) {
