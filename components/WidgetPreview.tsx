@@ -184,10 +184,11 @@ const WidgetPreview = ({
   }, [reviews, settings.minRating, settings.reviewFilter, settings.businessUrl?.source, MAX_PREVIEW_ITEMS]);
 
   const avgRating = useMemo(() => {
-    const ratedReviews = filteredReviews.filter(r => typeof r.rating === 'number');
+    if (!Array.isArray(reviews)) return 0;
+    const ratedReviews = reviews.filter(r => typeof r.rating === 'number');
     if (ratedReviews.length === 0) return 0;
     return ratedReviews.reduce((sum, r) => sum + (r.rating || 0), 0) / ratedReviews.length;
-  }, [filteredReviews]);
+  }, [reviews]);
 
   const colorStyle = { "--widget-theme-color": settings.themeColor || "#3B82F6" } as React.CSSProperties;
   const source = settings.businessUrl?.source || "google";

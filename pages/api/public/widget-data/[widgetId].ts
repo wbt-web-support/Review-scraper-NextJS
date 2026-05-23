@@ -168,7 +168,7 @@ export default async function handler(
         totalFilteredReviewCount = statsAndReviews.filteredCount || statsAndReviews.totalCount;
         
         // Store average rating to return in response
-        if (statsAndReviews.averageRating) {
+        if (statsAndReviews.averageRating !== undefined && statsAndReviews.averageRating !== null) {
            (res as any).averageRating = statsAndReviews.averageRating;
         }
         
@@ -227,9 +227,9 @@ export default async function handler(
             reviews = statsAndReviews.reviews;
             totalReviewCount = statsAndReviews.totalCount;
             totalFilteredReviewCount = statsAndReviews.filteredCount || statsAndReviews.totalCount;
-             if (statsAndReviews.averageRating) {
+             if (statsAndReviews.averageRating !== undefined && statsAndReviews.averageRating !== null) {
                (res as any).averageRating = statsAndReviews.averageRating;
-            }
+             }
           }
       }
     }

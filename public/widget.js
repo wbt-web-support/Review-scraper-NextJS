@@ -439,32 +439,15 @@
     },
 
     generateStars: function (rating) {
-      // Uses Font Awesome 5 (same as widget-carousel.js)
+      const r = Math.max(0, Math.min(5, parseFloat(rating) || 0));
       let starsHtml = '';
       for (let i = 1; i <= 5; i++) {
-        if (rating >= i) {
-          starsHtml += '<i class="rh-fas rh-fa-star"></i>'; // Full star
-        } else if (rating >= i - 0.7 && rating < i - 0.2) {
-          starsHtml += '<i class="rh-fas rh-fa-star-half-alt"></i>'; // Half star
-        } else if (rating >= i - 0.2) {
+        if (r >= i) {
           starsHtml += '<i class="rh-fas rh-fa-star"></i>';
+        } else if (r >= i - 0.5) {
+          starsHtml += '<i class="rh-fas rh-fa-star-half-alt"></i>';
         } else {
-          starsHtml += '<i class="rh-far rh-fa-star"></i>'; // Empty star
-        }
-      }
-      // Safety check if logic produced more than 5 stars due to rounding/half star complexities
-      const starElementsCount = (starsHtml.match(/<i/g) || []).length;
-      if (starElementsCount > 5) {
-        starsHtml = ''; // Reset
-        const roundedRating = Math.round(rating * 2) / 2; // Round to nearest 0.5
-        for (let i = 1; i <= 5; i++) {
-          if (roundedRating >= i) {
-            starsHtml += '<i class="rh-fas rh-fa-star"></i>';
-          } else if (roundedRating >= i - 0.5) {
-            starsHtml += '<i class="rh-fas rh-fa-star-half-alt"></i>';
-          } else {
-            starsHtml += '<i class="rh-far rh-fa-star"></i>';
-          }
+          starsHtml += '<i class="rh-far rh-fa-star"></i>';
         }
       }
       return starsHtml;

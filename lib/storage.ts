@@ -728,6 +728,19 @@ export const getReviewStatsAndReviews = async (
           "totalResults": [
             { $count: "total" }
           ],
+
+          // A2. Global average rating (all rated reviews, ignores minRating/content filters — matches Google profile)
+          "globalRatingStats": source === 'google'
+            ? [
+                { $match: { "reviews.rating": { $exists: true, $ne: null } } },
+                {
+                  $group: {
+                    _id: null,
+                    avgRating: { $avg: "$reviews.rating" },
+                  },
+                },
+              ]
+            : [],
           
           // B. Calculate stats for FILTERED reviews
           "filteredStats": [
@@ -770,6 +783,11 @@ export const getReviewStatsAndReviews = async (
     const stats = (result[0].filteredStats && result[0].filteredStats[0]) 
       ? result[0].filteredStats[0] 
       : { count: 0, avgRating: 0 };
+
+    const globalRatingStats =
+      result[0].globalRatingStats && result[0].globalRatingStats[0]
+        ? result[0].globalRatingStats[0]
+        : null;
     
     const reviews = result[0].filteredReviews || [];
     
@@ -800,7 +818,12 @@ export const getReviewStatsAndReviews = async (
         ? Math.round((recommendedCount / totalReviews) * 100) + "%" 
         : "100%";
     } else {
-      formattedAvgRating = stats.avgRating ? parseFloat(stats.avgRating.toFixed(1)) : 5.0;
+      const globalAvg = globalRatingStats?.avgRating;
+      const filteredAvg = stats.avgRating;
+      const ratingToUse = globalAvg ?? filteredAvg;
+      formattedAvgRating = ratingToUse
+        ? parseFloat(Number(ratingToUse).toFixed(1))
+        : 0;
     }
 
     const reviewsWithSource = reviews.map((r: any) => ({ ...r, source }));
@@ -828,7 +851,7 @@ export const getReviewStatsAndReviews = async (
     // Rough calc for fallback
     return {
       totalCount: filtered.length, // mismatched matching logic
-      averageRating: 5.0,
+      averageRating: 0,
       reviews: filtered.slice(0, limit),
       source
     };
