@@ -473,6 +473,8 @@
           border: 1px solid #E5E7EB;
           min-width: 210px;
           max-width: 210px;
+          min-height: 108px;
+          box-sizing: border-box;
           font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
           transition: all 0.2s ease;
           position: relative;
@@ -511,9 +513,19 @@
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 10px;
+          gap: 8px;
           width: 100%;
+          min-height: 48px;
           justify-content: center;
+        }
+
+        .reviewhub-badge-compact-rating-visual {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
+          height: 24px;
+          min-height: 24px;
         }
 
         .reviewhub-badge-compact-stars {
@@ -523,6 +535,8 @@
           line-height: 1;
           display: flex;
           gap: 1px;
+          align-items: center;
+          justify-content: center;
         }
 
         .reviewhub-badge-compact-text {
@@ -538,6 +552,12 @@
           font-weight: 700;
           color: #111827;
           line-height: 1;
+        }
+
+        .reviewhub-badge-compact-number-visual {
+          font-size: 1.1rem;
+          font-weight: 700;
+          line-height: 24px;
         }
 
         .reviewhub-badge-compact-label {
@@ -977,6 +997,7 @@
           .reviewhub-badge-widget {
             min-width: 210px;
             max-width: 210px;
+            min-height: 108px;
             padding: 14px 16px;
             margin: 8px;
           }
@@ -1186,43 +1207,23 @@
 
       const reviewText = reviewCount === 1 ? 'review' : 'reviews';
 
-      // Generate rating/recommendation display
-      let ratingDisplay = '';
-      if (platformSource === 'facebook') {
-        // Calculate recommendation status description
-        const recommendedCount = reviewsForDisplay.filter(r => r.recommendationStatus === 'recommended').length;
-        const notRecommendedCount = reviewsForDisplay.filter(r => r.recommendationStatus === 'not_recommended').length;
-        const recommendedPercentage = reviewsForDisplay.length > 0 ? (recommendedCount / reviewsForDisplay.length) * 100 : 100;
-
-        let statusDescription = '';
-        if (recommendedPercentage >= 80) {
-          statusDescription = 'Mostly Recommended';
-        } else if (recommendedPercentage >= 60) {
-          statusDescription = 'Generally Recommended';
-        } else if (recommendedPercentage >= 40) {
-          statusDescription = 'Mixed Reviews';
-        } else if (recommendedPercentage >= 20) {
-          statusDescription = 'Generally Not Recommended';
-        } else {
-          statusDescription = 'Mostly Not Recommended';
-        }
-
-        ratingDisplay = `
-          <div class="reviewhub-badge-compact-rating">
-            <span class="reviewhub-badge-compact-number">${avgRating}</span>
-            <span class="reviewhub-badge-compact-text">${reviewCount} ${reviewText}</span> 
-          
-          </div>
-        `;
+      let ratingVisual = '';
+      if (platformSource === 'google') {
+        ratingVisual = `<div class="reviewhub-badge-compact-stars">${this.generateStars(parseFloat(avgRating))}</div>`;
       } else {
-        const stars = this.generateStars(parseFloat(avgRating));
-        ratingDisplay = `
-          <div class="reviewhub-badge-compact-rating">
-            <div class="reviewhub-badge-compact-stars">${stars}</div>
-            <span class="reviewhub-badge-compact-text">${avgRating} ${displayText} | ${reviewCount} ${reviewText}</span>
-          </div>
-        `;
+        ratingVisual = `<span class="reviewhub-badge-compact-number reviewhub-badge-compact-number-visual">${avgRating}</span>`;
       }
+
+      const ratingSubtext = platformSource === 'google'
+        ? `${avgRating} ${displayText} | ${reviewCount} ${reviewText}`
+        : `${displayText} | ${reviewCount} ${reviewText}`;
+
+      const ratingDisplay = `
+        <div class="reviewhub-badge-compact-rating">
+          <div class="reviewhub-badge-compact-rating-visual">${ratingVisual}</div>
+          <span class="reviewhub-badge-compact-text">${ratingSubtext}</span>
+        </div>
+      `;
 
       const badgeHtml = `
         <div class="reviewhub-badge-widget reviewhub-badge-modal-btn" role="button" tabindex="0" aria-label="View ${reviewCount} reviews">
