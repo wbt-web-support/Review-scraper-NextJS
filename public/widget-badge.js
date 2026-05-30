@@ -469,11 +469,15 @@
           padding: 16px 20px;
           display: flex;
           flex-direction: column;
-          align-items: flex-start;
+          align-items: center;
+          justify-content: center;
           border: 1px solid #E5E7EB;
+          width: 210px;
           min-width: 210px;
           max-width: 210px;
+          height: 108px;
           min-height: 108px;
+          max-height: 108px;
           box-sizing: border-box;
           font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
           transition: all 0.2s ease;
@@ -545,6 +549,12 @@
           color: #111827;
           line-height: 1.2;
           text-align: center;
+          min-height: 34px;
+          max-height: 34px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
         }
 
         .reviewhub-badge-compact-number {
@@ -995,9 +1005,12 @@
         /* Mobile responsive */
         @media (max-width: 640px) {
           .reviewhub-badge-widget {
+            width: 210px;
             min-width: 210px;
             max-width: 210px;
+            height: 108px;
             min-height: 108px;
+            max-height: 108px;
             padding: 14px 16px;
             margin: 8px;
           }
@@ -1198,12 +1211,7 @@
       let avgRating, reviewCount, displayText;
       reviewCount = (typeof totalReviewCount === 'number') ? totalReviewCount : reviewsForDisplay.length;
       avgRating = this.getDisplayAverageRating(data, reviews, platformSource);
-
-      if (platformSource === 'facebook') {
-        displayText = 'Recommended';
-      } else {
-        displayText = 'Stars';
-      }
+      displayText = 'Stars';
 
       const reviewText = reviewCount === 1 ? 'review' : 'reviews';
 
@@ -1216,7 +1224,7 @@
 
       const ratingSubtext = platformSource === 'google'
         ? `${avgRating} ${displayText} | ${reviewCount} ${reviewText}`
-        : `${displayText} | ${reviewCount} ${reviewText}`;
+        : `${reviewCount} ${reviewText}`;
 
       const ratingDisplay = `
         <div class="reviewhub-badge-compact-rating">
