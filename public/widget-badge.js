@@ -1,5 +1,8 @@
 (function () {
   if (window.ReviewHubBadge && window.ReviewHubBadge.isInitialized) {
+    if (typeof window.ReviewHubBadge.scanAndInitializeWidgets === 'function') {
+      window.ReviewHubBadge.scanAndInitializeWidgets();
+    }
     return;
   }
 
@@ -32,6 +35,7 @@
     isInitialized: true,
     version: '1.0.0',
     buildId: Date.now(),
+    _initializedWidgetIds: new Set(),
 
     // State tracking for modal pagination
     modalStates: new Map(),
@@ -374,15 +378,53 @@
           font-style: normal !important;
         }
 
-        .reviewhub-badge-widget-container {
+        .reviewhub-badge-widget-container,
+        .single-content .reviewhub-badge-widget-container {
           font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
           box-sizing: border-box;
           color: #111827;
           line-height: 1.5;
-          margin: 0 auto;
+          margin: 0 auto !important;
+          margin-left: auto !important;
+          margin-right: auto !important;
+          padding: 0 !important;
+          padding-left: 0 !important;
           max-width: 100%;
+          width: auto;
+          display: block;
+          float: none;
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
+        }
+        .single-content .reviewhub-badge-widget-container .reviewhub-badge-widget,
+        .reviewhub-badge-widget-container .reviewhub-badge-widget {
+          margin-left: auto !important;
+          margin-right: auto !important;
+        }
+        .single-content .reviewhub-badge-widget-container img.reviewhub-badge-compact-logo,
+        .reviewhub-badge-widget-container img.reviewhub-badge-compact-logo {
+          width: 24px !important;
+          height: 24px !important;
+          max-width: 24px !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          float: none !important;
+          display: inline-block !important;
+          vertical-align: middle;
+        }
+        .single-content .reviewhub-badge-widget-container .reviewhub-badge-compact-stars,
+        .reviewhub-badge-widget-container .reviewhub-badge-compact-stars {
+          display: flex !important;
+          justify-content: center !important;
+          width: 100% !important;
+          padding: 0 !important;
+          margin: 0 !important;
+        }
+        .single-content .reviewhub-badge-widget-container .reviewhub-badge-compact-stars i,
+        .reviewhub-badge-widget-container .reviewhub-badge-compact-stars i {
+          font-style: normal !important;
+          margin: 0 !important;
+          padding: 0 !important;
         }
         .reviewhub-badge-widget-container *::before,
         .reviewhub-badge-widget-container *::after,
@@ -1484,6 +1526,14 @@
         ...userConfig
       };
 
+      if (!config.widgetId) {
+        return;
+      }
+
+      if (this._initializedWidgetIds.has(config.widgetId)) {
+        return;
+      }
+
       this.injectStyles();
 
       if (config.containerId) {
@@ -1496,13 +1546,23 @@
           return;
         }
       } else if (config._scriptTag) {
-        container = document.createElement('div');
-        config._scriptTag.parentNode.insertBefore(container, config._scriptTag.nextSibling);
+        const nextEl = config._scriptTag.nextElementSibling;
+        if (nextEl && nextEl.classList && nextEl.classList.contains('reviewhub-badge-widget-container')) {
+          if (nextEl.getAttribute('data-rh-rendered') === 'true') {
+            return;
+          }
+          container = nextEl;
+        } else {
+          container = document.createElement('div');
+          config._scriptTag.parentNode.insertBefore(container, config._scriptTag.nextSibling);
+        }
+        config._scriptTag.setAttribute('data-rh-badge-initialized', 'true');
       } else {
         return;
       }
 
       container.className = 'reviewhub-badge-widget-container';
+      container.setAttribute('data-rh-widget-id', config.widgetId);
       container.innerHTML = `
         <div class="reviewhub-badge-loading">
           <div class="reviewhub-badge-spinner"></div>
@@ -1526,6 +1586,7 @@
       const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${config.widgetId}${queryString ? '?' + queryString : ''}`;
 
       const retryLoad = () => {
+        this._initializedWidgetIds.delete(config.widgetId);
         container.innerHTML = '';
         this.initWidget(config);
       };
@@ -1551,12 +1612,46 @@
         if (data && data.reviews) {
           data.widgetSettings = data.widgetSettings || {};
           this.renderWidget(container, data, config);
+          container.setAttribute('data-rh-rendered', 'true');
+          this._initializedWidgetIds.add(config.widgetId);
         } else {
           throw new Error('No reviews data received from API.');
         }
       } catch (error) {
         this.showError(container, error, config, retryLoad);
       }
+    },
+
+    scanAndInitializeWidgets: function () {
+      const scriptTags = document.querySelectorAll('script[data-widget-id][src*="widget-badge.js"]');
+
+      scriptTags.forEach((script) => {
+        if (script.getAttribute('data-rh-badge-initialized') === 'true') {
+          return;
+        }
+
+        const widgetId = script.getAttribute('data-widget-id') || script.getAttribute('data-reviewhub-widget-id');
+        if (!widgetId) {
+          return;
+        }
+
+        if (window.ReviewHubBadge._initializedWidgetIds.has(widgetId)) {
+          return;
+        }
+
+        const config = {
+          widgetId: widgetId,
+          containerId: script.getAttribute('data-container-id') || null,
+          themeColor: script.getAttribute('data-theme-color') || undefined,
+          layout: script.getAttribute('data-layout') || 'badge',
+          nocache: script.getAttribute('data-nocache') === 'true',
+          t: script.getAttribute('data-t') || undefined,
+          _scriptTag: script
+        };
+
+        Object.keys(config).forEach(key => config[key] === undefined && delete config[key]);
+        window.ReviewHubBadge.initWidget(config);
+      });
     },
 
     // Public init method
@@ -1572,37 +1667,8 @@
     }
   };
 
-  // Auto-initialize widgets from script tags
   function initializeWidgetsFromScripts() {
-    const scriptTags = document.querySelectorAll('script[data-widget-id][src*="widget-badge.js"]');
-    const initializedWidgets = new Set();
-
-    
-
-    scriptTags.forEach((script, index) => {
-      const widgetId = script.getAttribute('data-widget-id');
-
-      // Prevent multiple initializations of the same widget
-      if (initializedWidgets.has(widgetId)) {
-        console.warn(`[Badge Init] Widget ${widgetId} already initialized, skipping duplicate`);
-        return;
-      }
-
-      initializedWidgets.add(widgetId);
-
-      const config = {
-        widgetId: widgetId,
-        containerId: script.getAttribute('data-container-id') || null,
-        themeColor: script.getAttribute('data-theme-color') || undefined,
-        layout: script.getAttribute('data-layout') || 'badge',
-        nocache: script.getAttribute('data-nocache') === 'true',
-        t: script.getAttribute('data-t') || undefined,
-        _scriptTag: script
-      };
-
-      Object.keys(config).forEach(key => config[key] === undefined && delete config[key]);
-      window.ReviewHubBadge.initWidget(config);
-    });
+    window.ReviewHubBadge.scanAndInitializeWidgets();
   }
 
   function processPendingInitializations() {

@@ -279,6 +279,13 @@
     initWidget: async function (config) {
       const layout = config.layout || CONFIG.DEFAULT_LAYOUT;
 
+      if (!this._initializedWidgetIds) {
+        this._initializedWidgetIds = new Set();
+      }
+      if (config.widgetId && this._initializedWidgetIds.has(config.widgetId)) {
+        return;
+      }
+
       // Immediate Skeleton Injection
       let container;
       if (config.containerId) {
@@ -307,9 +314,15 @@
           // Initialize the widget
           if (WidgetClass && typeof WidgetClass.initWidget === 'function') {
             await WidgetClass.initWidget(config);
+            if (config.widgetId) {
+              this._initializedWidgetIds.add(config.widgetId);
+            }
             return;
           } else if (WidgetClass && typeof WidgetClass.init === 'function') {
             WidgetClass.init(config);
+            if (config.widgetId) {
+              this._initializedWidgetIds.add(config.widgetId);
+            }
             return;
           } else {
             throw new Error(`Widget class for ${layout} does not have init method`);
