@@ -657,20 +657,24 @@
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
 
-        /* Navigation Dots - Modern Design with Sliding Window */
+        /* Navigation Dots - centered on full carousel width (not transform-based) */
         .rh-carousel-dots {
             position: absolute;
-            bottom: -30px; /* Increased spacing from carousel */
-            left: 50%;
-            transform: translateX(-50%);
+            bottom: -30px;
+            left: 0;
+            right: 0;
+            width: 100%;
+            max-width: 100%;
+            transform: none;
             display: flex;
-            gap: 10px; /* Increased gap for better visibility */
+            gap: 10px;
             list-style: none;
             padding: 0;
             margin: 0;
             z-index: 5;
             justify-content: center;
             align-items: center;
+            box-sizing: border-box;
         }
         .rh-carousel-dots li {
             list-style: none;
@@ -884,27 +888,39 @@
         }
 
         @media (max-width: ${CONFIG.CAROUSEL_SETTINGS.MOBILE_BREAKPOINT}px) {
-          .rh-carousel-arrow { 
-            display: flex; /* Show arrows on mobile */
-            width: 28px; /* Smaller for mobile */
-            height: 28px;
-            font-size: 0.7rem; /* Smaller icon */
+          .rh-carousel-wrapper {
+            margin-bottom: 40px;
+            padding-left: 36px;
+            padding-right: 36px;
+            box-sizing: border-box;
           }
-          .rh-carousel-arrow.rh-prev { left: -5px; } /* Closer to edge on mobile */
-          .rh-carousel-arrow.rh-next { right: -5px; }
+          .rh-carousel-arrow { 
+            display: flex;
+            width: 28px;
+            height: 28px;
+            font-size: 0.7rem;
+          }
+          .rh-carousel-arrow.rh-prev { left: 4px; }
+          .rh-carousel-arrow.rh-next { right: 4px; }
           
-          .rh-carousel-slide { padding: 0 8px; }
+          .rh-carousel-slide { padding: 0 4px; }
           .rh-review-card { 
             padding: 18px; 
-            min-height: 280px; /* Reduced for mobile */
+            min-height: 280px;
           }
           .rh-card-avatar { width: 40px; height: 40px; }
           .rh-card-author-name { font-size: 0.9rem; letter-spacing: normal; }
           .rh-card-review-meta { font-size: 0.75rem; }
           .rh-card-content { font-size: 0.85rem; -webkit-line-clamp: 3; }
           .rh-read-more { font-size: 0.8rem; }
-          .rh-carousel-dots { bottom: -25px; } /* Adjusted for mobile */
-          .rh-carousel-wrapper { margin-bottom: 40px; } /* Reduced margin for mobile */
+          .rh-carousel-dots {
+            bottom: -25px;
+            left: 0;
+            right: 0;
+            width: 100%;
+            transform: none;
+            justify-content: center;
+          }
           
           .rh-modal { padding: 24px; border-radius: 16px; }
           .rh-modal-avatar { width: 48px; height: 48px; }
