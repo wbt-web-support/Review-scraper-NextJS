@@ -898,8 +898,8 @@
         @media (max-width: ${CONFIG.CAROUSEL_SETTINGS.MOBILE_BREAKPOINT}px) {
           .rh-carousel-wrapper {
             margin-bottom: 40px;
-            padding-left: 36px;
-            padding-right: 36px;
+            padding-left: 0;
+            padding-right: 0;
             box-sizing: border-box;
           }
           .rh-carousel-arrow { 
@@ -908,10 +908,10 @@
             height: 28px;
             font-size: 0.7rem;
           }
-          .rh-carousel-arrow.rh-prev { left: 4px; }
-          .rh-carousel-arrow.rh-next { right: 4px; }
+          .rh-carousel-arrow.rh-prev { left: 8px; }
+          .rh-carousel-arrow.rh-next { right: 8px; }
           
-          .rh-carousel-slide { padding: 0 4px; }
+          .rh-carousel-slide { padding: 0 8px; }
           .rh-review-card { 
             padding: 18px; 
             min-height: 280px;
