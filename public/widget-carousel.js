@@ -658,6 +658,8 @@
         }
 
         /* Navigation Dots - centered on full carousel width (not transform-based) */
+        .reviewhub-v2-widget-container ul.rh-carousel-dots,
+        .single-content .reviewhub-v2-widget-container ul.rh-carousel-dots,
         .rh-carousel-dots {
             position: absolute;
             bottom: -30px;
@@ -668,18 +670,24 @@
             transform: none;
             display: flex;
             gap: 10px;
-            list-style: none;
-            padding: 0;
-            margin: 0;
+            list-style: none !important;
+            padding: 0 !important;
+            padding-left: 0 !important;
+            margin: 0 !important;
+            margin-left: 0 !important;
             z-index: 5;
             justify-content: center;
             align-items: center;
             box-sizing: border-box;
         }
+        .reviewhub-v2-widget-container .rh-carousel-dots li,
+        .single-content .reviewhub-v2-widget-container .rh-carousel-dots li,
         .rh-carousel-dots li {
-            list-style: none;
-            margin: 0;
-            padding: 0;
+            list-style: none !important;
+            margin: 0 !important;
+            margin-left: 0 !important;
+            padding: 0 !important;
+            padding-left: 0 !important;
         }
         .rh-carousel-dots li button {
             width: 10px; /* Slightly larger for better visibility */
@@ -913,6 +921,8 @@
           .rh-card-review-meta { font-size: 0.75rem; }
           .rh-card-content { font-size: 0.85rem; -webkit-line-clamp: 3; }
           .rh-read-more { font-size: 0.8rem; }
+          .reviewhub-v2-widget-container ul.rh-carousel-dots,
+          .single-content .reviewhub-v2-widget-container ul.rh-carousel-dots,
           .rh-carousel-dots {
             bottom: -25px;
             left: 0;
@@ -920,6 +930,10 @@
             width: 100%;
             transform: none;
             justify-content: center;
+            padding: 0 !important;
+            padding-left: 0 !important;
+            margin: 0 !important;
+            margin-left: 0 !important;
           }
           
           .rh-modal { padding: 24px; border-radius: 16px; }
