@@ -1321,7 +1321,7 @@
         this.modalStates.set(modalId, {
           loadedReviews: reviews || [],
           currentOffset: reviews ? reviews.length : 0,
-          totalReviews: totalFilteredReviewCount || totalReviewCount || (reviews ? reviews.length : 0), // Prefer filtered server count for pagination
+          totalReviews: totalReviewCount || totalFilteredReviewCount || (reviews ? reviews.length : 0), // Match the badge button count (totalReviewCount) so the displayed number stays consistent
           displayCount: Math.min(initialCount, (reviews ? reviews.length : 0)),
           isFetching: false
         });
@@ -1458,9 +1458,9 @@
               modalState.loadedReviews = [...modalState.loadedReviews, ...newData.reviews];
               modalState.displayCount = modalState.loadedReviews.length;
 
-              // Update total if provided (prefer filtered count)
-              if (newData.totalFilteredReviewCount || newData.totalReviewCount) {
-                modalState.totalReviews = newData.totalFilteredReviewCount || newData.totalReviewCount;
+              // Update total if provided (keep totalReviewCount to match the badge button count)
+              if (newData.totalReviewCount || newData.totalFilteredReviewCount) {
+                modalState.totalReviews = newData.totalReviewCount || newData.totalFilteredReviewCount;
               }
 
               // Update the reviews section without recreating the modal
