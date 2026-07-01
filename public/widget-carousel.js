@@ -406,7 +406,7 @@
         .rh-carousel-wrapper {
           position: relative;
           width: 100%;
-          padding: 0;
+          padding: 0 52px; /* Gutter so arrows sit outside the cards */
           margin-bottom: 50px; /* Increased to accommodate dots */
         }
         .rh-carousel-track-container { 
@@ -642,10 +642,10 @@
           border-color: #D1D5DB;
         }
         .rh-carousel-arrow.rh-prev {
-          left: 10px;
+          left: 6px;
         }
         .rh-carousel-arrow.rh-next {
-          right: 10px;
+          right: 6px;
         }
         .rh-carousel-arrow.rh-disabled {
           opacity: 0.4;
@@ -874,8 +874,8 @@
 
         /* Responsive adjustments */
         @media (max-width: ${CONFIG.CAROUSEL_SETTINGS.LAPTOP_BREAKPOINT}px) {
-          .rh-carousel-arrow.rh-prev { left: -15px; }
-          .rh-carousel-arrow.rh-next { right: -15px; }
+          .rh-carousel-arrow.rh-prev { left: 6px; }
+          .rh-carousel-arrow.rh-next { right: 6px; }
         }
 
         @media (max-width: ${CONFIG.CAROUSEL_SETTINGS.TABLET_BREAKPOINT}px) {
@@ -902,14 +902,9 @@
             padding-right: 0;
             box-sizing: border-box;
           }
-          .rh-carousel-arrow { 
-            display: flex;
-            width: 28px;
-            height: 28px;
-            font-size: 0.7rem;
+          .rh-carousel-arrow {
+            display: none !important; /* Hide arrows on mobile; use swipe/dots instead */
           }
-          .rh-carousel-arrow.rh-prev { left: 8px; }
-          .rh-carousel-arrow.rh-next { right: 8px; }
           
           .rh-carousel-slide { padding: 0 8px; }
           .rh-review-card { 
