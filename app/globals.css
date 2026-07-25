@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+/* Soft Sage. Tailwind v4 is CSS-first -- this @theme block IS the config.
+   There is no tailwind.config.js, and adding one would be silently ignored. */
+@theme {
+  --color-base: #f5f5f0; /* page background */
+  --color-surface: #ffffff; /* cards */
+  --color-ink: #2d2d2a; /* primary text */
+  --color-ink-muted: #6f6f66; /* secondary text */
+  --color-sage: #8a9a5b; /* accent: buttons, active states */
+  --color-sage-hover: #7a8a4d;
+  --color-sage-soft: #eef1e4; /* accent tint: hovers, selection */
+  --color-muted: #d4d4c8; /* borders, dividers */
+
+  --radius-field: 0.625rem;
+  --radius-card: 1rem;
+
+  --shadow-soft:
+    0 1px 2px rgb(45 45 42 / 0.04), 0 8px 24px -12px rgb(45 45 42 / 0.1);
+}
+
+/* `inline` because these reference vars that next/font defines at runtime. */
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+}
+
+@layer base {
+  html {
+    /* v1 is light-only. Declaring this stops the browser painting form controls
+       and scrollbars dark for users with a dark OS preference. */
+    color-scheme: light;
+  }
+
+  /* A native modal <dialog> is centred by the browser's own `margin: auto`.
+     Tailwind's reset sets `margin: 0` on every element, which silently kills that
+     and pins every dialog to the top-left. Put it back.
+
+     `:modal` only matches a dialog opened with showModal(), so a non-modal
+     <dialog> keeps whatever positioning it was given. */
+  dialog:modal {
+    margin: auto;
+  }
+
+  body {
+    background-color: var(--color-base);
+    color: var(--color-ink);
+  }
+
+  ::selection {
+    background-color: var(--color-sage-soft);
+  }
+}

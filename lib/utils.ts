@@ -78,6 +78,23 @@ export const formatNumber = (num: number) => {
   return num.toString();
 };
 
+/** "12.4 MB" / "834 KB" / "1.20 GB", or null when the size is unknown. */
+export function formatBytes(bytes?: number | null): string | null {
+  if (!bytes || bytes <= 0) return null;
+  const mb = bytes / (1024 * 1024);
+  if (mb < 1) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  if (mb < 1024) return `${mb.toFixed(1)} MB`;
+  return `${(mb / 1024).toFixed(2)} GB`;
+}
+
+/** "1:07" style clock, or null when the length is unknown. */
+export function formatDuration(seconds?: number | null): string | null {
+  if (!seconds || seconds <= 0) return null;
+  const s = Math.round(seconds);
+  const m = Math.floor(s / 60);
+  return `${m}:${(s % 60).toString().padStart(2, "0")}`;
+}
+
 export const handleZodError = (err: ZodError) => {
   const errors = err.errors.map(e => ({
     path: e.path.join('.'),

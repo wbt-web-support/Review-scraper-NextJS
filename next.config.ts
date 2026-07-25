@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // There are other package-lock.json files further up the tree, so Next infers the
+  // workspace root as ../ and warns. Pin it to this project.
+  turbopack: {
+    root: __dirname,
+  },
   images: {
     remotePatterns: [
       {
@@ -38,6 +43,24 @@ const nextConfig: NextConfig = {
           {
             key: 'Cache-Control',
             value: 'public, max-age=60',
+          },
+        ],
+      },
+      {
+        // The video widget's bundle. Served to third-party sites, same as widget.js.
+        source: '/w.js',
+        headers: [
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: '*',
+          },
+          {
+            key: 'Access-Control-Allow-Methods',
+            value: 'GET, OPTIONS',
+          },
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=300',
           },
         ],
       },
@@ -80,9 +103,8 @@ const nextConfig: NextConfig = {
   env: {
     WIDGET_DOMAIN: process.env.WIDGET_DOMAIN || process.env.VERCEL_URL || 'localhost:3000',
   },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+  // `eslint` was removed from next.config in Next 16 -- lint no longer runs as part
+  // of `next build`, so there is nothing left to opt out of. Run `npm run lint`.
   typescript: {
     ignoreBuildErrors: true
   },

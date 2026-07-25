@@ -9,7 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../components/ui/form";
 import { useRouter } from 'next/router'; 
 import Link from 'next/link';
-import { signIn } from 'next-auth/react';
+import { signIn, getSession } from 'next-auth/react';
 import { useSession } from 'next-auth/react';
 import Image from 'next/image';
 
@@ -57,8 +57,15 @@ const Login = () => {
           title: "Success",
           description: "You have successfully logged in!",
         });
-        const callbackUrl = router.query.callbackUrl as string || "/dashboard";
-        router.push(callbackUrl);
+        // Route by role: video-business clients get their own review dashboard;
+        // operators go to the app (honouring any callbackUrl they were sent from).
+        const freshSession = await getSession();
+        if (freshSession?.user?.role === "client") {
+          router.push("/my-reviews");
+        } else {
+          const callbackUrl = router.query.callbackUrl as string || "/dashboard";
+          router.push(callbackUrl);
+        }
       } else if (!result?.ok && !result?.error) {
           throw new Error("Login attempt failed. Please try again.");
       }

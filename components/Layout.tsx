@@ -42,28 +42,18 @@ const Layout = ({ children }: LayoutProps) => {
     }
   };
 
-  useEffect(() => { 
-    if (authStatus === 'loading') return; 
-    if (authStatus === 'unauthenticated') { 
-      router.push("/login"); 
-    } 
-  }, [authStatus, router]);
-
-  const getPageTitle = () => {
-    switch (router.pathname) {
-      case "/dashboard": return "Dashboard";
-      case "/widgets": return "My Widgets";
-      case "/reviews": return "Manage Reviews";
-      case "/settings": return "Settings";
-      default:
-        const pathParts = router.pathname.split('/').filter(Boolean);
-        if (pathParts.length > 0) {
-          const lastPart = pathParts[pathParts.length - 1];
-          return lastPart.charAt(0).toUpperCase() + lastPart.slice(1).replace(/-/g, ' ');
-        }
-        return "ReviewHub";
+  useEffect(() => {
+    if (authStatus === 'loading') return;
+    if (authStatus === 'unauthenticated') {
+      router.push("/login");
+      return;
     }
-  }
+    // Video-business clients don't belong in the operator app -- send them to their
+    // own review dashboard.
+    if (session?.user?.role === 'client') {
+      router.replace("/my-reviews");
+    }
+  }, [authStatus, router, session]);
 
   const userInitials = (userForDisplay?.fullName || userForDisplay?.name || userForDisplay?.username || 'U').charAt(0).toUpperCase();
 
@@ -81,11 +71,9 @@ const Layout = ({ children }: LayoutProps) => {
   const mainLayoutClasses = "flex min-h-screen bg-slate-100 text-gray-800";
   const headerClasses = "shadow-sm py-3 px-4 sticky top-0 z-40 border-b bg-white text-gray-800 border-slate-200";
   const mobileHeaderClasses = `${headerClasses} md:hidden`;
-  const desktopHeaderClasses = `hidden md:flex items-center justify-between ${headerClasses.replace('px-4', 'px-6')}`;
   const contentWrapperClasses = "flex-grow p-4 sm:p-10 bg-gray-50 text-gray-800";
   const primaryTextClass = "text-blue-600";
   const userAvatarClasses = "h-8 w-8 rounded-full flex items-center justify-center text-sm font-semibold bg-blue-500/20 text-blue-600";
-  const desktopUserAvatarClasses = "h-9 w-9 rounded-full flex items-center justify-center text-base font-semibold cursor-pointer bg-blue-500/20 text-blue-600";
   const mutedTextClass = "text-slate-500";
   const hoverTextClass = "hover:text-gray-900";
 
@@ -151,33 +139,6 @@ const Layout = ({ children }: LayoutProps) => {
               )}
             </div>
           </div>
-        </header>
-        <header className={desktopHeaderClasses}>
-          <h2 className="text-xl font-heading font-semibold text-gray-900">
-            {getPageTitle()}
-          </h2>
-          {/* <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="icon" className={`${mutedTextClass} ${hoverTextClass} relative`} aria-label="Notifications">
-              <i className="fas fa-bell text-lg"></i>
-              <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full ring-1 bg-red-500 ring-white"></span>
-            </Button>
-            {userForDisplay && (
-              <div className="flex items-center space-x-2">
-                <div className={desktopUserAvatarClasses} title={userForDisplay.name || userForDisplay.email || ""}>
-                  {userInitials}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsLogoutModalOpen(true)}
-                  className="text-sm text-gray-600 hover:text-gray-900"
-                >
-                  <i className="fas fa-sign-out-alt mr-2"></i>
-                  Logout
-                </Button>
-              </div>
-            )}
-          </div> */}
         </header>
         <div className={contentWrapperClasses}>
           {children}

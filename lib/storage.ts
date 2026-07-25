@@ -1,10 +1,11 @@
 import dbConnect from './mongodb';
 import UserModel, { IUser } from '../models/User.model';
 import { IBusinessUrl } from '../models/BusinessUrl.model';
+import type { IBusinessUrlVideo, IBusinessUrlDetails } from '../models/GoogleBusinessUrl.model';
 import { GoogleReviewBatchModel, FacebookReviewBatchModel, type IReviewBatch, IReviewItem } from '../models/Review.model';
 import GoogleBusinessUrlModel from '../models/GoogleBusinessUrl.model';
 import FacebookBusinessUrlModel from '../models/FacebookBusinessUrl.model';
-import WidgetModel, { IWidget } from '../models/Widget.model';
+import WidgetModel, { IWidget, IWidgetVideoTenant } from '../models/Widget.model';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import { Types, UpdateQuery  } from 'mongoose';
@@ -32,6 +33,10 @@ export interface IBusinessUrlDisplay {
     urlHash: string;
     source: 'google' | 'facebook';
     userId?: string;
+    /** Set once video reviews have been enabled for this business. */
+    video?: IBusinessUrlVideo;
+    /** Editable contact and branding details. */
+    details?: IBusinessUrlDetails;
 }
 // Add cache for getLatestReviews at the top of the file after imports
 const latestReviewsCache = new Map<string, { data: any[], timestamp: number }>();
@@ -209,6 +214,8 @@ export const getBusinessUrlsByUserId = async (userId: string): Promise<IBusiness
       urlHash: doc.urlHash,
       source: 'google' as const,
       userId: doc.userId?.toString(),
+      video: doc.video,
+      details: doc.details,
     }));
 
     const facebookUrls: IBusinessUrlDisplay[] = facebookUrlsRaw.map(doc => ({
@@ -218,6 +225,8 @@ export const getBusinessUrlsByUserId = async (userId: string): Promise<IBusiness
       urlHash: doc.urlHash,
       source: 'facebook' as const,
       userId: doc.userId?.toString(),
+      video: doc.video,
+      details: doc.details,
     }));
 
     const combinedUrls = [...googleUrls, ...facebookUrls];
@@ -235,6 +244,10 @@ interface CreateBusinessUrlArgs {
   name: string;
   url: string;
   source: 'google' | 'facebook';
+  /** Set when video reviews are enabled at creation time. */
+  video?: IBusinessUrlVideo;
+  /** Contact/branding details captured at creation. */
+  details?: IBusinessUrlDetails;
 }
 export const getAllBusinessUrlsForDisplay = async (): Promise<IBusinessUrlDisplay[]> => {
   await ensureDbConnected();
@@ -260,6 +273,8 @@ export const getAllBusinessUrlsForDisplay = async (): Promise<IBusinessUrlDispla
       urlHash: doc.urlHash,
       source: 'google' as const,
       userId: doc.userId?.toString(),
+      video: doc.video,
+      details: doc.details,
     }));
 
     const facebookUrls: IBusinessUrlDisplay[] = facebookUrlsRaw.map(doc => ({
@@ -269,6 +284,8 @@ export const getAllBusinessUrlsForDisplay = async (): Promise<IBusinessUrlDispla
       urlHash: doc.urlHash,
       source: 'facebook' as const,
       userId: doc.userId?.toString(),
+      video: doc.video,
+      details: doc.details,
     }));
 
     const combinedUrls = [...googleUrls, ...facebookUrls];
@@ -291,15 +308,17 @@ export const createBusinessUrl = async (data: CreateBusinessUrlArgs): Promise<IB
     url: data.url,
     urlHash: urlHash,
     userId: userIdObj,
-    source: data.source, 
-    addedAt: new Date(), 
+    source: data.source,
+    addedAt: new Date(),
+    ...(data.video ? { video: data.video } : {}),
+    ...(data.details ? { details: data.details } : {}),
   };
   let newBusinessUrlDoc;
   if (data.source === 'google') {
-    const existing = await GoogleBusinessUrlModel.findOne({ urlHash: urlHash  }); 
+    const existing = await GoogleBusinessUrlModel.findOne({ urlHash: urlHash  });
     if (existing) throw new Error(`This Google URL has already been added.`);
     newBusinessUrlDoc = await GoogleBusinessUrlModel.create(modelData);
-  } else { 
+  } else {
     const existing = await FacebookBusinessUrlModel.findOne({ urlHash: urlHash });
     if (existing) throw new Error(`This Facebook URL has already been added.`);
     newBusinessUrlDoc = await FacebookBusinessUrlModel.create(modelData);
@@ -312,7 +331,56 @@ export const createBusinessUrl = async (data: CreateBusinessUrlArgs): Promise<IB
     urlHash: result.urlHash,
     source: result.source,
     userId: result.userId?.toString(),
+    video: result.video,
   };
+};
+
+/**
+ * Links a business to a Video Review Manager tenant, after the fact.
+ *
+ * Used both when video reviews are enabled on an EXISTING business and to attach the
+ * link right after a business is created with video. The business lives in one of two
+ * collections, so try both -- the id is unique across them.
+ */
+export const setBusinessUrlVideo = async (
+  businessUrlId: string,
+  video: IBusinessUrlVideo,
+): Promise<void> => {
+  await ensureDbConnected();
+  const g = await GoogleBusinessUrlModel.updateOne({ _id: businessUrlId }, { $set: { video } }).exec();
+  if (g.matchedCount === 0) {
+    const f = await FacebookBusinessUrlModel.updateOne({ _id: businessUrlId }, { $set: { video } }).exec();
+    if (f.matchedCount === 0) throw new Error('Business not found.');
+  }
+};
+
+/**
+ * Edits a business's name and/or contact-and-branding details.
+ *
+ * Only the keys given are written -- a `$set` on `details` fields, so first/last name
+ * and the rest can be edited independently. The business lives in one of two
+ * collections; the id is unique across them, so try both.
+ */
+export const updateBusinessUrlDetails = async (
+  businessUrlId: string,
+  patch: { name?: string; details?: IBusinessUrlDetails },
+): Promise<void> => {
+  await ensureDbConnected();
+
+  const set: Record<string, unknown> = {};
+  if (typeof patch.name === 'string') set.name = patch.name;
+  if (patch.details) {
+    for (const [k, v] of Object.entries(patch.details)) {
+      if (v !== undefined) set[`details.${k}`] = v;
+    }
+  }
+  if (Object.keys(set).length === 0) return;
+
+  const g = await GoogleBusinessUrlModel.updateOne({ _id: businessUrlId }, { $set: set }).exec();
+  if (g.matchedCount === 0) {
+    const f = await FacebookBusinessUrlModel.updateOne({ _id: businessUrlId }, { $set: set }).exec();
+    if (f.matchedCount === 0) throw new Error('Business not found.');
+  }
 };
 export const updateBusinessUrlScrapedTime = async (
   id: string,
@@ -1078,6 +1146,10 @@ export const getWidgetsByUserId = async (userId: string): Promise<IWidget[]> => 
             console.error(`[Storage/getWidgetsByUserId] Error fetching review count for widget ${widget._id}:`, error);
           }
         }
+      } else if (widget.type === 'video') {
+        // No business URL by design -- a video widget's reviews live in Supabase.
+        // Leave businessUrl undefined rather than falling through to the fallback
+        // below, which would label it 'google' in every source-aware UI.
       } else {
         businessUrl = {
           _id: "",
@@ -1099,11 +1171,14 @@ export const getWidgetsByUserId = async (userId: string): Promise<IWidget[]> => 
 };
 export interface CreateWidgetArgs {
   userId: string;
-  businessUrlId: string;
-  businessUrlSource: 'GoogleBusinessUrl' | 'FacebookBusinessUrl';
-  urlHash: string;
+  /** Omitted for type 'video', which is backed by a Supabase tenant instead. */
+  businessUrlId?: string;
+  businessUrlSource?: 'GoogleBusinessUrl' | 'FacebookBusinessUrl';
+  urlHash?: string;
+  /** Required for type 'video', ignored otherwise. */
+  video?: IWidgetVideoTenant;
   name: string;
-  type?: "grid" | "carousel" | "list" | "masonry" | "badge" | "bar";
+  type?: "grid" | "carousel" | "list" | "masonry" | "badge" | "bar" | "video";
   minRating?: number;
   themeColor?: string;
   showRatings?: boolean;
@@ -1123,11 +1198,20 @@ export const createWidget = async (widgetData: CreateWidgetArgs): Promise<IWidge
   console.log("[Storage/createWidget] Received data:", widgetData);
   const newWidgetDocumentData = {
     userId: new Types.ObjectId(widgetData.userId),
-    businessUrlId: new Types.ObjectId(widgetData.businessUrlId),
-    businessUrlSource: widgetData.businessUrlSource,
-    urlHash: widgetData.urlHash,
+    // Spread, not a plain property: `new Types.ObjectId(undefined)` does not yield
+    // undefined, it MINTS A FRESH RANDOM ID. On a video widget (which has no business
+    // URL) that would quietly write a businessUrlId pointing at nothing, and the bad
+    // reference would only surface later as an empty populate.
+    ...(widgetData.businessUrlId
+      ? {
+          businessUrlId: new Types.ObjectId(widgetData.businessUrlId),
+          businessUrlSource: widgetData.businessUrlSource,
+          urlHash: widgetData.urlHash,
+        }
+      : {}),
+    ...(widgetData.video ? { video: widgetData.video } : {}),
     name: widgetData.name,
-    type: widgetData.type || 'grid', 
+    type: widgetData.type || 'grid',
     minRating: widgetData.minRating ?? 0,
     themeColor: widgetData.themeColor || '#3B82F6',
     showRatings: widgetData.showRatings ?? true,
@@ -1144,7 +1228,7 @@ export const createWidget = async (widgetData: CreateWidgetArgs): Promise<IWidge
 };
 interface UpdateWidgetArgs {
   name?: string;
-  type?: "grid" | "carousel" | "list" | "masonry" | "badge" | "bar";
+  type?: "grid" | "carousel" | "list" | "masonry" | "badge" | "bar" | "video";
   maxReviews?: number;
   minRating?: number;
   businessUrlId?: string;
@@ -1483,7 +1567,9 @@ export const getPaginatedWidgetsByUserId = async (params: PaginatedWidgetsParams
   console.log(`[Storage/getPaginatedWidgetsByUserId] Fetching widgets for userId: ${params.userId}`, params);
 
   // Build query
-  const query: any = { userId: new Types.ObjectId(params.userId) };
+  // Video-review widgets are managed under Businesses (/reviews), not on My Widgets,
+  // so they are excluded here.
+  const query: any = { userId: new Types.ObjectId(params.userId), type: { $ne: 'video' } };
 
   // Add source filter if specified
   if (params.source && params.source !== 'all') {
@@ -1590,7 +1676,17 @@ export const getPaginatedWidgetsByUserId = async (params: PaginatedWidgetsParams
             console.error(`[Storage/getPaginatedWidgetsByUserId] Error fetching review count for widget ${widget._id}:`, error);
           }
         }
+      } else if (widget.type === 'video') {
+        // No business URL by design -- a video widget's reviews live in Supabase.
+        // Leave businessUrl undefined rather than falling through to the fallback
+        // below, which would label it 'google' AND float it into the Google tab,
+        // since that branch never applies the source filter.
+        if (params.source && params.source !== 'all' && params.source !== 'video') {
+          return null;
+        }
       } else {
+        // A 'video' filter must not match anything that isn't a video widget.
+        if (params.source === 'video') return null;
         businessUrl = {
           _id: "",
           name: widget.name, // Use widget name as fallback

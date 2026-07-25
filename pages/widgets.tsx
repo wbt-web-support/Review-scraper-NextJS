@@ -18,6 +18,9 @@ import {
   TabsList,
   TabsTrigger,
 } from "../components/ui/tabs";
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
+} from "../components/ui/dropdown-menu";
 import { IBusinessUrlDisplay as IBusinessUrlForDropdown } from "@/lib/storage";
 import { 
   Plus, 
@@ -33,7 +36,8 @@ import {
   Trash2,
   Chrome,
   Facebook,
-  MoreVertical
+  MoreVertical,
+  Video
 } from "lucide-react";
 
 interface _IBusinessUrlForWidget {
@@ -43,6 +47,8 @@ interface _IBusinessUrlForWidget {
   url?: string;
 }
 
+// Video review widgets are managed under Businesses (/reviews), not here, so this
+// page filters only the scraped-review sources.
 type WidgetTab = "all" | "google" | "facebook";
 type ViewMode = "grid" | "list";
 
@@ -225,384 +231,228 @@ const Widgets = () => {
     );
   }
 
+  const widgetName = (w: IWidget) => w.businessUrl?.name || w.name;
+  const syncedDate = (w: IWidget) =>
+    w.createdAt ? new Date(w.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "N/A";
+
+  const SourceBadge = ({ widget }: { widget: IWidget }) => {
+    if (widget.type === "video") {
+      return (
+        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600">
+          <span className="h-1.5 w-1.5 rounded-full bg-purple-500" /> Video
+        </span>
+      );
+    }
+    if (!widget.businessUrl?.source) return null;
+    const g = widget.businessUrl.source === "google";
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600">
+        <span className={`h-1.5 w-1.5 rounded-full ${g ? "bg-red-500" : "bg-blue-500"}`} />
+        {g ? "Google" : "Facebook"}
+      </span>
+    );
+  };
+
+  const StatusBadge = ({ widget }: { widget: IWidget }) => (
+    <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${widget.isActive ? "text-green-700" : "text-gray-500"}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${widget.isActive ? "bg-green-500" : "bg-gray-400"}`} />
+      {widget.isActive ? "Active" : "Inactive"}
+    </span>
+  );
+
+  const WidgetActionsMenu = ({ widget }: { widget: IWidget }) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="flex h-7 w-7 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700" title="Actions">
+          <MoreVertical className="h-4 w-4" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-40">
+        <DropdownMenuItem onClick={() => handleEditWidget(widget._id)} className="cursor-pointer">
+          <Edit3 className="mr-2 h-4 w-4" /> Edit
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => handleGetEmbedCode(widget)} className="cursor-pointer">
+          <Code className="mr-2 h-4 w-4" /> Get code
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => handleDeleteClick(widget)} className="cursor-pointer text-red-600 focus:text-red-700">
+          <Trash2 className="mr-2 h-4 w-4" /> Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
+  // Card (grid view) -- one per widget, matching the reference design.
+  const renderWidgetCard = (widget: IWidget) => (
+    <div key={widget._id} className="flex flex-col rounded-xl border border-gray-200 bg-white p-4 transition-shadow hover:shadow-md">
+      <div className="flex items-start justify-between gap-2">
+        <h3 className="truncate font-semibold text-gray-900" title={widgetName(widget)}>{widgetName(widget)}</h3>
+        <WidgetActionsMenu widget={widget} />
+      </div>
+
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+        <StatusBadge widget={widget} />
+        <SourceBadge widget={widget} />
+      </div>
+
+      <div className="mt-3 flex items-center justify-between rounded-lg bg-gray-50 px-3.5 py-3">
+        <div>
+          <div className="text-2xl font-bold leading-none text-gray-900">{widget.totalReviewCount || 0}</div>
+          <div className="mt-1 text-xs text-gray-500">Reviews</div>
+        </div>
+        <div className="text-right">
+          <div className="text-sm text-gray-700">{syncedDate(widget)}</div>
+          <div className="mt-0.5 text-xs text-gray-400">Last synced</div>
+        </div>
+      </div>
+
+      <div className="mt-3 flex gap-2">
+        <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditWidget(widget._id)}>
+          <Edit3 className="mr-1.5 h-3.5 w-3.5" /> Edit
+        </Button>
+        <Button variant="outline" size="sm" className="flex-1" onClick={() => handleGetEmbedCode(widget)}>
+          <Code className="mr-1.5 h-3.5 w-3.5" /> Code
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="px-2.5 text-gray-500 hover:text-red-600 hover:border-red-200"
+          onClick={() => handleDeleteClick(widget)}
+          disabled={deleteMutation.isPending && deleteMutation.variables === widget._id}
+          title="Delete"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    </div>
+  );
+
+  // Row (list view) -- the same card content laid out as a compact bar.
   const renderWidgetInList = (widget: IWidget) => (
-    <div key={widget._id} className="bg-white rounded-2xl border border-gray-100 hover:border-gray-200 transition-all duration-300 hover:shadow-md group cursor-pointer">
-      <div className="p-6 flex items-center justify-between">
-        <div className="flex items-center gap-4 flex-1">
-          {/* Widget Icon & Type */}
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center border border-blue-100">
-            <div className="w-6 h-6 text-blue-600">
-              {widget.type === 'grid' && <Grid3X3 className="w-6 h-6" />}
-              {widget.type === 'list' && <List className="w-6 h-6" />}
-              {widget.type === 'carousel' && <TrendingUp className="w-6 h-6" />}
-              {widget.type === 'masonry' && <Filter className="w-6 h-6" />}
-              {widget.type === 'badge' && <Sparkles className="w-6 h-6" />}
-            </div>
-          </div>
-
-          {/* Widget Details */}
-          <div className="flex-1">
-            <div className="flex items-center gap-3 mb-1">
-              <h3 className="font-semibold text-gray-900 text-lg">{widget.name}</h3>
-              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-blue-50 text-blue-700 text-xs font-medium">
-                {widget.type}
-              </span>
-              <span className={`px-2 py-1 rounded-md text-xs font-medium ${
-                widget.isActive 
-                  ? 'bg-green-50 text-green-700' 
-                  : 'bg-gray-50 text-gray-600'
-              }`}>
-                {widget.isActive ? 'Active' : 'Inactive'}
-              </span>
-            </div>
-            <div className="flex items-center gap-4 text-sm text-gray-500">
-              {widget.businessUrl?.source && (
-                <span className="flex items-center gap-1">
-                  {widget.businessUrl.source === 'google' ? 
-                    <Chrome className="w-4 h-4 text-red-500" /> : 
-                    <Facebook className="w-4 h-4 text-blue-500" />
-                  }
-                  {widget.businessUrl.source.charAt(0).toUpperCase() + widget.businessUrl.source.slice(1)}
-                </span>
-              )}
-              <span className="flex items-center gap-1">
-                <TrendingUp className="w-4 h-4" />
-                {widget.totalReviewCount || 0} Reviews
-              </span>
-              <span>
-                Created {widget.createdAt ? new Date(widget.createdAt).toLocaleDateString('en-US', { 
-                  year: 'numeric', 
-                  month: 'short', 
-                  day: 'numeric' 
-                }) : 'N/A'}
-              </span>
-            </div>
-          </div>
+    <div key={widget._id} className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white px-4 py-3 transition-colors hover:bg-gray-50/70">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <h3 className="truncate font-semibold text-gray-900">{widgetName(widget)}</h3>
         </div>
-
-        {/* Actions */}
-        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-gray-500 hover:text-blue-600 hover:bg-blue-50"
-            onClick={() => handleEditWidget(widget._id)}
-            title="Edit widget"
-          >
-            <Edit3 className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-gray-500 hover:text-green-600 hover:bg-green-50"
-            onClick={() => handleGetEmbedCode(widget)}
-            title="Get embed code"
-          >
-            <Code className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-gray-500 hover:text-red-600 hover:bg-red-50"
-            onClick={() => handleDeleteClick(widget)}
-            disabled={deleteMutation.isPending && deleteMutation.variables === widget._id}
-            title="Delete widget"
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
+        <div className="mt-1 flex items-center gap-x-3">
+          <StatusBadge widget={widget} />
+          <SourceBadge widget={widget} />
         </div>
+      </div>
+      <div className="hidden items-center gap-1.5 text-sm text-gray-600 sm:flex">
+        <TrendingUp className="h-4 w-4 text-gray-400" /> {widget.totalReviewCount || 0} reviews
+      </div>
+      <div className="hidden text-xs text-gray-400 md:block">Last synced {syncedDate(widget)}</div>
+      <div className="flex items-center gap-2">
+        <Button variant="outline" size="sm" onClick={() => handleEditWidget(widget._id)}>
+          <Edit3 className="mr-1.5 h-3.5 w-3.5" /> Edit
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => handleGetEmbedCode(widget)}>
+          <Code className="mr-1.5 h-3.5 w-3.5" /> Code
+        </Button>
+        <WidgetActionsMenu widget={widget} />
       </div>
     </div>
   );
 
   return (
     <Layout>
-      <div className="flex flex-row-reverse justify-between">
-      {/* Hero Section */}
-     
-      <div className="mb-6">
-        <div className="p-0 ">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-            {/* <div className="flex-1">
-              
-              <div className="flex items-center gap-6 mt-6 text-sm text-gray-500">
-                <span className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                  {allWidgets.filter((w: IWidget) => w.isActive).length} Active Widgets
-                </span>
-                <span className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                  {allWidgets.reduce((acc: number, w: IWidget) => acc + (w.totalReviewCount || 0), 0)} Total Reviews
-                </span>
-                {pagination && (
-                  <span className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                    Page {pagination.page} of {pagination.totalPages} ({pagination.total} total)
-                  </span>
-                )}
-              </div>
-            </div> */}
-            <div className="flex flex-col sm:flex-row gap-3">
-          <Button
-                onClick={() => handleCreateWidget()}
-                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 px-6 py-3 rounded-xl"
-                size="lg"
-          >
-                <Plus className="mr-2 w-5 h-5" />
-            Create Widget
-          </Button>
-            </div>
+      <div className="mx-auto max-w-7xl px-6 py-8">
+        {/* Header */}
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-gray-900">My Widgets</h1>
+            <p className="mt-1 text-sm text-gray-500">Create and embed review widgets on your website.</p>
           </div>
+          <Button onClick={() => handleCreateWidget()} className="bg-gray-900 hover:bg-gray-800 text-white shadow-sm">
+            <Plus className="mr-2 h-4 w-4" /> Create Widget
+          </Button>
         </div>
-      </div>
 
-      {/* Controls Section */}
-      <div className=" mb-8">
-        <div className="flex flex-col lg:flex-row lg:items-center gap-4 lg:gap-6">
-        {/* Search Bar */}
-        <div className="flex flex-col lg:flex-row gap-4 mr-4">
-          
-      
-          <div className="flex-1 max-w-md">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+        {/* Controls */}
+        <div className="mt-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="relative w-full max-w-sm">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-                className="pl-11 pr-12 py-3 border border-gray-200 rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                placeholder="Search widgets by name..."
+              className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-9 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder="Search widgets by name…"
               value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
             {isSearchPending && (
               <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-blue-600" />
               </div>
             )}
           </div>
-        </div>
-        {/* View Mode Toggle */}
-        <div className="flex items-center bg-gray-50 rounded-xl p-1 border w-fit border-gray-200">
-            <Button
-              variant={viewMode === "grid" ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setViewMode("grid")}
-              className={`rounded-lg px-3 py-2 ${
-                viewMode === "grid" 
-                  ? "bg-white shadow-sm text-gray-900" 
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              <Grid3X3 className="w-4 h-4" />
-            </Button>
-            <Button
-              variant={viewMode === "list" ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setViewMode("list")}
-              className={`rounded-lg px-3 py-2 ${
-                viewMode === "list" 
-                  ? "bg-white shadow-sm text-gray-900" 
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              <List className="w-4 h-4" />
-            </Button>
+
+          <div className="flex items-center gap-3">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as WidgetTab)}>
+              <TabsList className="rounded-lg bg-gray-100 p-1">
+                <TabsTrigger value="all" className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm">All</TabsTrigger>
+                <TabsTrigger value="google" className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                  <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-red-500 align-middle" /> Google
+                </TabsTrigger>
+                <TabsTrigger value="facebook" className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                  <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-blue-500 align-middle" /> Facebook
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+
+            <div className="flex items-center rounded-lg border border-gray-200 bg-white p-0.5">
+              <button onClick={() => setViewMode("grid")} title="Card view" className={`rounded-md p-1.5 ${viewMode === "grid" ? "bg-gray-100 text-gray-900" : "text-gray-400 hover:text-gray-700"}`}>
+                <Grid3X3 className="h-4 w-4" />
+              </button>
+              <button onClick={() => setViewMode("list")} title="List view" className={`rounded-md p-1.5 ${viewMode === "list" ? "bg-gray-100 text-gray-900" : "text-gray-400 hover:text-gray-700"}`}>
+                <List className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         </div>
-          
-        </div>
-      </div>
-      </div>
-      {/* Content Section */}
-      <div className="">
-        {/* Filter Tabs */}
-          <Tabs
-            value={activeTab}
-            onValueChange={(value) => setActiveTab(value as WidgetTab)}
-            className="w-full"
-          >
-          <TabsList className="bg-gray-50 p-1 rounded-xl border border-gray-200 mb-6">
-            <TabsTrigger 
-              value="all" 
-              className="rounded-lg px-4 py-2 text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm"
-            >
-              All Widgets
-            </TabsTrigger>
-            <TabsTrigger 
-              value="google"
-              className="rounded-lg px-4 py-2 text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm"
-            >
-              <Chrome className="w-4 h-4 mr-2 text-red-500" />
-              Google
-            </TabsTrigger>
-            <TabsTrigger 
-              value="facebook"
-              className="rounded-lg px-4 py-2 text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm"
-            >
-              <Facebook className="w-4 h-4 mr-2 text-blue-500" />
-              Facebook
-            </TabsTrigger>
-            </TabsList>
 
-            <TabsContent value={activeTab} className="mt-0">
-              {isWidgetsLoading ? (
-                <WidgetSkeleton viewMode={viewMode} count={limit} />
-              ) : groupedWidgets.length > 0 ? (
-              viewMode === "grid" ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {/* Create Widget Card */}
-                  <div className="bg-gradient-to-br from-gray-50 to-white rounded-2xl border-2 border-dashed border-gray-200 hover:border-blue-300 transition-all duration-300 group cursor-pointer"
-                       onClick={() => handleCreateWidget()}>
-                    <div className="flex flex-col items-center justify-center p-4">
-                      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 border border-blue-100">
-                        <Plus className="w-8 h-8 text-blue-600" />
-                      </div>
-                      <h3 className="font-semibold text-gray-900 text-lg mb-2">Create New Widget</h3>
-                      <p className="text-gray-500 text-xs text-center leading-relaxed">
-                        Connect to Google or Facebook and start displaying your reviews beautifully
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Widget Cards */}
-                  {groupedWidgets.map(([businessName, widgets]) => (
-                    <div key={businessName} className="bg-white rounded-2xl border hover:border-gray-200 transition-all duration-300 hover:shadow-lg group overflow-hidden cursor-pointer">
-                      <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
-                        <h3 className="font-semibold text-gray-900 truncate text-lg" title={businessName}>
-                          {businessName}
-                        </h3>
-                      </div>
-                      <Tabs defaultValue={widgets[0].type} className="w-full">
-                      
-                        {widgets.map(widget => (
-                          <TabsContent key={widget._id} value={widget.type} className="p-0">
-                            <div className="p-4">
-                              <div className="flex items-center justify-between mb-3">
-                                <div className="flex items-center gap-2">
-                                  <span className={`px-2 py-1 rounded-md text-xs font-medium ${
-                                    widget.isActive 
-                                      ? 'bg-green-50 text-green-700' 
-                                      : 'bg-gray-50 text-gray-600'
-                                  }`}>
-                                    {widget.isActive ? 'Active' : 'Inactive'}
-                                  </span>
-                                  {widget.businessUrl?.source && (
-                                    <span className="flex items-center gap-1 text-xs text-gray-500">
-                                      {widget.businessUrl.source === 'google' ? 
-                                        <Chrome className="w-3 h-3 text-red-500" /> : 
-                                        <Facebook className="w-3 h-3 text-blue-500" />
-                                      }
-                                      {widget.businessUrl.source}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                              
-                              <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
-                                <span className="flex items-center gap-1">
-                                  <TrendingUp className="w-4 h-4" />
-                                  {widget.totalReviewCount || 0} Reviews
-                                </span>
-                                <span>
-                                  {widget.createdAt ? new Date(widget.createdAt).toLocaleDateString('en-US', { 
-                                    month: 'short', 
-                                    day: 'numeric' 
-                                  }) : 'N/A'}
-                                </span>
-                              </div>
-
-                              <div className="flex gap-2 transition-opacity duration-200">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="flex-1 text-gray-600 hover:text-blue-600 hover:border-blue-200"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleEditWidget(widget._id);
-                                  }}
-                                >
-                                  <Edit3 className="w-3 h-3 mr-1" />
-                                  Edit
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="flex-1 text-gray-600 hover:text-green-600 hover:border-green-200"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleGetEmbedCode(widget);
-                                  }}
-                                >
-                                  <Code className="w-3 h-3 mr-1" />
-                                  Code
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="text-gray-600 hover:text-red-600 hover:border-red-200"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteClick(widget);
-                                  }}
-                                  disabled={deleteMutation.isPending && deleteMutation.variables === widget._id}
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                </Button>
-                              </div>
-                            </div>
-                          </TabsContent>
-                        ))}
-                      </Tabs>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                /* List View */
-                <div className="space-y-3">
-                  {/* Create Widget Card in List View */}
-                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border-2 border-dashed border-blue-200 hover:border-blue-300 transition-all duration-300 group cursor-pointer"
-                       onClick={() => handleCreateWidget()}>
-                    <div className="p-6 flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                        <Plus className="w-6 h-6 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-gray-900 text-lg mb-1">Create New Widget</h3>
-                        <p className="text-gray-600 text-sm">Connect to Google or Facebook and start displaying your reviews</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Widget List Items */}
-                  {groupedWidgets.flatMap(([businessName, widgets]) => 
-                    widgets.map(widget => renderWidgetInList(widget))
-                  )}
-                </div>
-              )
-            ) : (
-              <div className="text-center py-16">
-                <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center mb-6 border border-gray-200">
-                  <Sparkles className="w-10 h-10 text-gray-400" />
-                </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-3">
-                    No Widgets Found
-                  </h3>
-                <p className="text-gray-500 mb-8 max-w-md mx-auto leading-relaxed">
-                    {activeTab === "all"
-                    ? "You haven't created any widgets yet. Create your first widget to start showcasing your reviews beautifully."
-                    : `You haven't created any ${activeTab} widgets yet. Try switching to a different filter or create a new widget.`}
-                  </p>
-                  <Button
+        {/* Content */}
+        <div className="mt-6">
+          {isWidgetsLoading ? (
+            <WidgetSkeleton viewMode={viewMode} count={limit} />
+          ) : allWidgets.length > 0 ? (
+            viewMode === "grid" ? (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {allWidgets.map(renderWidgetCard)}
+                {/* Create new widget */}
+                <button
+                  type="button"
                   onClick={() => handleCreateWidget()}
-                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 px-6 py-3 rounded-xl"
-                  size="lg"
-                  >
-                  <Plus className="mr-2 w-5 h-5" />
-                    Create First Widget
-                  </Button>
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
+                  className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-200 p-6 text-center transition-colors hover:border-blue-300 hover:bg-blue-50/30"
+                >
+                  <span className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+                    <Plus className="h-5 w-5" />
+                  </span>
+                  <span className="font-medium text-gray-900">Create new widget</span>
+                  <span className="max-w-[16rem] text-xs text-gray-500">Connect Google or Facebook and start displaying reviews</span>
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {allWidgets.map(renderWidgetInList)}
+              </div>
+            )
+          ) : (
+            <div className="rounded-2xl border border-gray-200 bg-white py-16 text-center">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-50 text-gray-400">
+                <Sparkles className="h-7 w-7" />
+              </div>
+              <h3 className="mt-4 text-lg font-semibold text-gray-900">No widgets found</h3>
+              <p className="mx-auto mt-1 max-w-md text-sm text-gray-500">
+                {activeTab === "all"
+                  ? "You haven't created any widgets yet. Create your first widget to start showcasing your reviews."
+                  : `You haven't created any ${activeTab} widgets yet. Try a different filter or create a new one.`}
+              </p>
+              <Button onClick={() => handleCreateWidget()} className="mt-6 bg-gray-900 text-white hover:bg-gray-800">
+                <Plus className="mr-2 h-4 w-4" /> Create Widget
+              </Button>
+            </div>
+          )}
 
           {/* Pagination */}
           {pagination && (
@@ -619,6 +469,7 @@ const Widgets = () => {
             </div>
           )}
         </div>
+      </div>
 
       {/* Unified Modal */}
       {isCreateModalOpen && (

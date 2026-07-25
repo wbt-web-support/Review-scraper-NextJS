@@ -27,7 +27,14 @@ export default async function handler(
     for (const widget of widgets) {
       try {
         console.log(`Processing widget ${widget._id}: ${widget.name}`);
-        
+
+        // Video widgets have no business URL to hash -- their reviews come from a
+        // Supabase tenant, so there is nothing here to backfill.
+        if (!widget.businessUrlId) {
+          console.log(`⏭️  Skipped widget ${widget._id}: no business URL (type ${widget.type})`);
+          continue;
+        }
+
         // Get the business URL to fetch urlHash
         const businessUrl = await storage.getBusinessUrlById(widget.businessUrlId.toString());
         

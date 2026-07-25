@@ -41,8 +41,14 @@ import {
   Monitor,
   Smartphone,
   Tablet,
-  RectangleEllipsis
+  RectangleEllipsis,
+  Video,
+  RefreshCw,
+  ExternalLink
 } from "lucide-react";
+import { slugify } from "@vrm/lib/tenants/slug";
+import { normalizeRootDomain, reviewHostFor } from "@vrm/lib/domains/domain";
+import { suggestPassword } from "@vrm/lib/tenants/password";
 
 interface CreateWidgetModalProps {
   isOpen: boolean;
@@ -55,10 +61,19 @@ interface CreateWidgetModalProps {
   initialTab?: 'create' | 'preview' | 'embed';
 }
 
+export type WidgetLayout =
+  | "grid"
+  | "carousel"
+  | "list"
+  | "masonry"
+  | "badge"
+  | "bar"
+  | "video";
+
 export interface FormValues {
   name: string;
   businessUrlId: string;
-  layout: "grid" | "carousel" | "list" | "masonry" | "badge" | "bar";
+  layout: WidgetLayout;
   minRating: number;
   showRatings: boolean;
   showDates: boolean;
@@ -66,6 +81,33 @@ export interface FormValues {
   themeColor: string;
   initialReviewCount: number;
 }
+
+/**
+ * What a Video Reviews widget needs instead of a business URL.
+ *
+ * These are the Video Review Manager's tenant fields, mirroring CreateTenantSchema
+ * in vrm/lib/tenants/actions.ts. Creating one of these widgets provisions a real
+ * tenant: their collection page, subdomain, embed key, and their own login.
+ */
+export interface VideoFormValues {
+  name: string;
+  contactEmail: string;
+  contactPhone: string;
+  brandColor: string;
+  rootDomain: string;
+  logoUrl: string;
+  adminPassword: string;
+}
+
+const emptyVideoForm = (): VideoFormValues => ({
+  name: "",
+  contactEmail: "",
+  contactPhone: "",
+  brandColor: "#8A9A5B",
+  rootDomain: "",
+  logoUrl: "",
+  adminPassword: suggestPassword(),
+});
 
 // Version query used in widget bundle URLs so browsers/CDNs can cache between deployments.
 // Bump NEXT_PUBLIC_WIDGET_VERSION (or this default) when you need to invalidate caches.
@@ -83,8 +125,9 @@ const CreateWidgetModal = ({
   initialTab = 'create'
 }: CreateWidgetModalProps) => {
   const [activeTab, setActiveTab] = useState<"create" | "preview" | "embed">("create");
-  const [selectedLayout, setSelectedLayout] = useState<"grid" | "carousel" | "list" | "masonry" | "badge" | "bar">("grid");
+  const [selectedLayout, setSelectedLayout] = useState<WidgetLayout>("grid");
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [videoForm, setVideoForm] = useState<VideoFormValues>(emptyVideoForm);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState<FormValues>({
@@ -115,6 +158,14 @@ const CreateWidgetModal = ({
           layout: widget.type || "grid",
         });
         setSelectedLayout(widget.type || "grid");
+        // A tenant is provisioned once and then managed in the video app, so editing
+        // only ever exposes the widget's own name and colour. Seed the rest from the
+        // widget so nothing renders blank.
+        setVideoForm({
+          ...emptyVideoForm(),
+          name: widget.name,
+          brandColor: widget.themeColor || "#8A9A5B",
+        });
       } else {
         setFormData({
           name: "",
@@ -128,6 +179,7 @@ const CreateWidgetModal = ({
           layout: "grid",
         });
         setSelectedLayout("grid");
+        setVideoForm(emptyVideoForm());
       }
       setActiveTab(initialTab);
     }
@@ -190,7 +242,63 @@ const CreateWidgetModal = ({
     },
   });
 
+  const isVideo = selectedLayout === 'video';
+
+  /** Live preview of the tenant URLs, the same way the video app's dialog does it. */
+  const videoSlug = slugify(videoForm.name);
+  const videoRoot = normalizeRootDomain(videoForm.rootDomain);
+  const videoReviewHost = videoRoot ? reviewHostFor(videoRoot) : null;
+
   const handleSubmit = () => {
+    // A video widget provisions a tenant instead of pointing at a scraped business
+    // URL, so none of the checks below apply to it.
+    if (isVideo) {
+      if (mode === 'edit') {
+        // Only the widget's own fields are editable once the tenant exists.
+        updateMutation.mutate({
+          name: videoForm.name.trim(),
+          themeColor: videoForm.brandColor,
+        });
+        return;
+      }
+
+      if (!videoForm.name.trim()) {
+        toast({
+          title: "Validation Error",
+          description: "Business name is required.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (!videoForm.contactEmail.trim()) {
+        toast({
+          title: "Validation Error",
+          description: "A business email is required -- it is their login.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (videoForm.adminPassword.length < 8) {
+        toast({
+          title: "Validation Error",
+          description: "The temporary password must be at least 8 characters.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      createMutation.mutate({
+        name: videoForm.name.trim(),
+        contactEmail: videoForm.contactEmail.trim(),
+        contactPhone: videoForm.contactPhone.trim(),
+        brandColor: videoForm.brandColor,
+        rootDomain: videoForm.rootDomain.trim(),
+        logoUrl: videoForm.logoUrl.trim(),
+        adminPassword: videoForm.adminPassword,
+      });
+      return;
+    }
+
     console.log('Form submission started', { formData, businessUrls });
 
     if (!formData.name.trim()) {
@@ -246,6 +354,17 @@ const CreateWidgetModal = ({
   const widgetId = mode === 'edit' && widget ? widget._id : "YOUR_WIDGET_ID";
 
   const generateEmbedCode = (layout: string) => {
+    // A video widget is served by the Video Review Manager's own bundle, keyed by the
+    // tenant's embed key rather than by a Mongo widget id. See public/w.js -- the
+    // attribute is data-tenant, and it renders everything inside a shadow root.
+    if (layout === 'video') {
+      const embedKey = widget?.video?.embedKey;
+      if (!embedKey) {
+        return `<!-- Create the widget first to get its embed key. -->`;
+      }
+      return `<script src="${domain}/w.js" data-tenant="${embedKey}" async></script>`;
+    }
+
     // Use different attribute for carousel to avoid conflicts with other widgets
     const widgetIdAttribute = layout === 'carousel' ? 'data-reviewhub-widget-id' : 'data-widget-id';
 
@@ -306,7 +425,235 @@ const CreateWidgetModal = ({
     { value: "masonry", label: "Masonry", icon: Columns, description: "Pinterest-style layout" },
     { value: "badge", label: "Badge", icon: Star, description: "Compact rating badge" },
     { value: "bar", label: "Bar", icon: RectangleEllipsis, description: "Horizontal rating bar" },
+    // Video reviews are set up under Businesses (/reviews), not as a widget here.
   ];
+
+  /**
+   * The Video Reviews form.
+   *
+   * These are the Video Review Manager's tenant fields, and creating the widget
+   * provisions the real thing: their collection page, their subdomain, their embed
+   * key, and their login. That is why it asks for an email and a password when no
+   * other widget type does -- you are setting up a client account, not configuring
+   * a view over reviews we already hold.
+   */
+  const VideoTenantForm = () => {
+    // Once the tenant exists, its email, domain and login are managed in the video
+    // app -- changing them here would mean re-provisioning. Only the widget's own
+    // name and colour stay editable.
+    if (mode === 'edit') {
+      return (
+        <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <Video className="w-5 h-5 text-blue-600" />
+            Video Reviews
+          </h3>
+
+          <div className="flex gap-4">
+            <div className="w-1/2">
+              <Label htmlFor="video-name" className="text-sm font-medium text-gray-700">
+                Widget Name *
+              </Label>
+              <Input
+                id="video-name"
+                type="text"
+                value={videoForm.name}
+                onChange={(e) => setVideoForm(prev => ({ ...prev, name: e.target.value }))}
+                className="mt-1"
+              />
+            </div>
+            <div className="w-1/2">
+              <Label htmlFor="video-color-edit" className="text-sm font-medium text-gray-700">
+                Brand Colour
+              </Label>
+              <div className="mt-1 flex items-center gap-2">
+                <input
+                  id="video-color-edit"
+                  type="color"
+                  value={videoForm.brandColor}
+                  onChange={(e) => setVideoForm(prev => ({ ...prev, brandColor: e.target.value }))}
+                  className="h-9 w-12 shrink-0 cursor-pointer rounded-md border border-gray-200 bg-white p-1"
+                />
+                <span className="font-mono text-xs text-gray-500">
+                  {videoForm.brandColor.toUpperCase()}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {widget?.video && (
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm">
+              <p className="text-gray-700">
+                Collection page{" "}
+                <span className="font-mono text-gray-900">/c/{widget.video.slug}</span>
+              </p>
+              <a
+                href={`/video/admin/tenants/${widget.video.tenantId}`}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-2 inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-700"
+              >
+                Manage reviews, domain and video limits
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <Video className="w-5 h-5 text-blue-600" />
+            Business Details
+          </h3>
+          <p className="text-sm text-gray-600 mt-1">
+            Creates the collection page, embed key, subdomain, and the owner&apos;s login.
+          </p>
+        </div>
+
+        <div>
+          <Label htmlFor="video-name" className="text-sm font-medium text-gray-700">
+            Business Name *
+          </Label>
+          <Input
+            id="video-name"
+            type="text"
+            value={videoForm.name}
+            onChange={(e) => setVideoForm(prev => ({ ...prev, name: e.target.value }))}
+            placeholder="Acme Renewables"
+            className="mt-1"
+          />
+        </div>
+
+        <div className="flex gap-4">
+          <div className="w-2/3">
+            <Label htmlFor="video-email" className="text-sm font-medium text-gray-700">
+              Business Email * <span className="font-normal text-gray-500">(this is their login)</span>
+            </Label>
+            <Input
+              id="video-email"
+              type="email"
+              autoComplete="off"
+              value={videoForm.contactEmail}
+              onChange={(e) => setVideoForm(prev => ({ ...prev, contactEmail: e.target.value }))}
+              placeholder="owner@acme.co.uk"
+              className="mt-1"
+            />
+          </div>
+          <div className="w-1/3">
+            <Label htmlFor="video-phone" className="text-sm font-medium text-gray-700">
+              Phone
+            </Label>
+            <Input
+              id="video-phone"
+              type="tel"
+              autoComplete="off"
+              value={videoForm.contactPhone}
+              onChange={(e) => setVideoForm(prev => ({ ...prev, contactPhone: e.target.value }))}
+              placeholder="07700 900123"
+              className="mt-1"
+            />
+          </div>
+        </div>
+
+        <div className="flex gap-4">
+          <div className="w-2/3">
+            <Label htmlFor="video-password" className="text-sm font-medium text-gray-700">
+              Temporary Password *
+            </Label>
+            <div className="mt-1 flex gap-2">
+              {/* type=text on purpose: you're going to read this out to the client,
+                  so hiding it behind dots helps nobody. */}
+              <Input
+                id="video-password"
+                type="text"
+                autoComplete="off"
+                value={videoForm.adminPassword}
+                onChange={(e) => setVideoForm(prev => ({ ...prev, adminPassword: e.target.value }))}
+                className="font-mono"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setVideoForm(prev => ({ ...prev, adminPassword: suggestPassword() }))}
+                title="Generate a new password"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          <div className="w-1/3">
+            <Label htmlFor="video-color" className="text-sm font-medium text-gray-700">
+              Brand Colour
+            </Label>
+            <div className="mt-1 flex items-center gap-2">
+              <input
+                id="video-color"
+                type="color"
+                value={videoForm.brandColor}
+                onChange={(e) => setVideoForm(prev => ({ ...prev, brandColor: e.target.value }))}
+                className="h-9 w-12 shrink-0 cursor-pointer rounded-md border border-gray-200 bg-white p-1"
+              />
+              <span className="font-mono text-xs text-gray-500">
+                {videoForm.brandColor.toUpperCase()}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-4">
+          <div className="w-1/2">
+            <Label htmlFor="video-domain" className="text-sm font-medium text-gray-700">
+              Their Website <span className="font-normal text-gray-500">(optional)</span>
+            </Label>
+            <Input
+              id="video-domain"
+              type="text"
+              autoComplete="off"
+              spellCheck={false}
+              value={videoForm.rootDomain}
+              onChange={(e) => setVideoForm(prev => ({ ...prev, rootDomain: e.target.value }))}
+              placeholder="njdesignpark.com"
+              className="mt-1"
+            />
+          </div>
+          <div className="w-1/2">
+            <Label htmlFor="video-logo" className="text-sm font-medium text-gray-700">
+              Logo URL <span className="font-normal text-gray-500">(optional)</span>
+            </Label>
+            <Input
+              id="video-logo"
+              type="url"
+              value={videoForm.logoUrl}
+              onChange={(e) => setVideoForm(prev => ({ ...prev, logoUrl: e.target.value }))}
+              placeholder="https://…/logo.png"
+              className="mt-1"
+            />
+          </div>
+        </div>
+
+        {videoReviewHost && (
+          <p className="rounded-lg border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-xs text-gray-600">
+            Their reviews will live at{" "}
+            <span className="font-mono text-gray-900">{videoReviewHost}</span> once they
+            add the DNS record. Nothing serves on that domain until it&apos;s verified.
+          </p>
+        )}
+
+        {/* Preview only. The server generates the real slug and de-duplicates it, so
+            this can differ (e.g. "acme-2") if the name is taken. */}
+        <p className="text-xs text-gray-500">
+          Collection page{" "}
+          <span className="font-mono text-gray-700">/c/{videoSlug || "…"}</span> · subdomain{" "}
+          <span className="font-mono text-gray-700">{videoSlug || "…"}</span> · embed key
+          generated on save
+        </p>
+      </div>
+    );
+  };
 
   const LayoutSelector = () => (
     <div className="bg-white border border-gray-200 rounded-xl p-4 mb-6">
@@ -461,6 +808,16 @@ const CreateWidgetModal = ({
             {/* Content */}
             <div className="mt-6 overflow-y-auto">
               <TabsContent value="create" className="space-y-6 px-0">
+                {/* A Video Reviews widget is a whole client account, not a view over
+                    reviews we already scraped, so it asks for entirely different
+                    things: who they are, how they log in, and what it should look
+                    like. Same fields as the video app's own New Tenant dialog. */}
+                {isVideo && <LayoutSelector />}
+
+                {isVideo ? (
+                  <VideoTenantForm />
+                ) : (
+                <>
                 {/* Basic Information */}
                 <div className="bg-white border border-gray-200 rounded-xl p-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -699,6 +1056,8 @@ const CreateWidgetModal = ({
                     </div>
                   </div>
                 </div>
+                </>
+                )}
 
                 {/* Action Button */}
                 <div className="flex justify-end pt-4 border-t border-gray-100">
@@ -707,7 +1066,7 @@ const CreateWidgetModal = ({
                       console.log('Create Widget button clicked');
                       handleSubmit();
                     }}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || (isVideo && mode === 'create' && !videoSlug)}
                     className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 px-8 py-3"
                     size="lg"
                   >

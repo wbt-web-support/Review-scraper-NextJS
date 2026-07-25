@@ -22,6 +22,7 @@ const Sidebar = ({ isMobile, isOpen, onClose, onLogout, user, currentPath, _reso
     { label: "Dashboard", icon: "tachometer-alt", href: "/dashboard" },
     { label: "My Widgets", icon: "th-large", href: "/widgets" },
     { label: "Reviews", icon: "star", href: "/reviews" },
+    { label: "Video Reviews", icon: "video", href: "/video-reviews" },
     { label: "Help & Support", icon: "question-circle", href: "/help" },
   ];
   if (isMobile && !isOpen) {
@@ -51,9 +52,9 @@ const Sidebar = ({ isMobile, isOpen, onClose, onLogout, user, currentPath, _reso
     <aside className={`fixed inset-y-0 left-0 z-50 w-64 transform ${isMobile ? 'translate-x-0' : 'translate-x-0'} ${sidebarBg} ${sidebarText} border-r ${sidebarBorder} transition-transform duration-200 ease-in-out md:translate-x-0`}>
       <div className="flex h-full flex-col">
         <div className="flex h-16 items-center justify-between px-4">
-          <div className="flex items-center space-x-2">
-            <span className={`${logoIconColor} text-2xl`}>
-              <i className="fas fa-comment-dots"></i>
+          <div className="flex items-center space-x-2.5">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-900 text-sm font-bold text-white">
+              R
             </span>
             <span className={`${logoTextColor} text-xl font-bold`}>ReviewHub</span>
           </div>
@@ -82,7 +83,7 @@ const Sidebar = ({ isMobile, isOpen, onClose, onLogout, user, currentPath, _reso
           })}
         </nav>
         {user && (
-          <div className="border-t border-slate-200 p-4">
+          <div className="border-t border-slate-200 p-4 space-y-3">
             <div className="flex items-center space-x-3">
               <div className={`${userAvatarBg} ${userAvatarText} h-8 w-8 rounded-full flex items-center justify-center text-sm font-semibold`}>
                 {(user.fullName || user.name || user.username || 'U').charAt(0).toUpperCase()}
@@ -95,14 +96,14 @@ const Sidebar = ({ isMobile, isOpen, onClose, onLogout, user, currentPath, _reso
                   {user.email}
                 </p>
               </div>
-              <button
-                onClick={onLogout}
-                className="rounded-md p-2 text-slate-500 hover:bg-slate-200 hover:text-slate-700"
-                title="Logout"
-              >
-                <i className="fas fa-sign-out-alt"></i>
-              </button>
             </div>
+            <button
+              onClick={onLogout}
+              className="flex w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
+            >
+              <i className="fas fa-sign-out-alt"></i>
+              Logout
+            </button>
           </div>
         )}
       </div>

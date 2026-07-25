@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Widget demo — a client's website</title>
+    <style>
+      /* Deliberately hostile global CSS, of the kind a real client's site will
+         have. If the widget is styled correctly (shadow DOM), none of this
+         reaches it. If it isn't, this page will make that obvious. */
+      * { box-sizing: content-box; }
+      div { border: 0; }
+      article { background: hotpink !important; }
+      body {
+        font-family: "Comic Sans MS", cursive;
+        margin: 0;
+        padding: 48px 24px;
+        background: #fafaf8;
+        color: #333;
+      }
+      .page { max-width: 1000px; margin: 0 auto; }
+      h1 { font-size: 32px; }
+      .note {
+        background: #fff8e1;
+        border: 1px solid #ffe082;
+        padding: 12px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        margin-bottom: 32px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <h1>Acme Electrical &amp; Renewables</h1>
+      <p class="note">
+        This page has intentionally awful global CSS (Comic Sans,
+        <code>box-sizing: content-box</code>, <code>article { background: hotpink }</code>).
+        The widget below must be completely unaffected — that's what the shadow DOM is for.
+      </p>
+
+      <h2>What our customers say</h2>
+
+      <!-- Replace EMBED_KEY with a real key from /admin -->
+      <script src="/w.js" data-tenant="EMBED_KEY" async></script>
+    </div>
+  </body>
+</html>

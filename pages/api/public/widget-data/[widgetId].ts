@@ -68,6 +68,16 @@ export default async function handler(
       return res.status(404).json({ message: 'Widget not found or is not active.' });
     }
 
+    // A video widget's reviews live in Supabase, not Mongo. Everything below this
+    // point resolves a business URL and reads scraped reviews, which would either
+    // throw or return an empty widget. Point the caller at the right feed instead.
+    if (widgetDoc.type === 'video') {
+      return res.status(400).json({
+        message:
+          'This is a video widget. Use /w.js with data-tenant="<embed key>", which reads /api/widget/<embed key>.',
+      });
+    }
+
     console.log(`[Widget API] Widget found: ${widgetDoc.name}, businessUrlId: ${widgetDoc.businessUrlId}`);
     console.log(`[Widget API] Widget properties:`, {
       themeColor: widgetDoc.themeColor,

@@ -6,6 +6,10 @@ interface ExtendedUserProperties {
   id: string;
   username?: string | null;
   fullName?: string | null;
+  /** "operator" = agency staff (Mongo users); "client" = a video business owner. */
+  role?: "operator" | "client";
+  /** For clients only: the VideoBusiness they own, scoping them to their own reviews. */
+  videoBusinessId?: string | null;
 }
 
 declare module "next-auth" {

@@ -5,18 +5,19 @@ import { Button } from "../components/ui/button";
 const Help = () => {
   return (
     <Layout>
-      <div className="mb-8">
-        <h1 className="text-2xl font-heading font-bold mb-1">
+      <div className="mx-auto max-w-6xl px-6 py-8 space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-gray-900">
           Help & Support
         </h1>
-        <p className="text-gray-600 dark:text-gray-400">
+        <p className="mt-1 text-sm text-gray-500">
           Get help with using ReviewHub and find answers to common questions
         </p>
       </div>
 
       <div className="">
         <div className="">
-          <Card className="mb-6">
+          <Card className="mb-6 rounded-2xl border-gray-200 shadow-none">
             <CardHeader>
               <CardTitle>Frequently Asked Questions</CardTitle>
               <CardDescription>
@@ -112,8 +113,7 @@ const Help = () => {
           </Card>
 
         </div>
-
-   
+      </div>
       </div>
     </Layout>
   );

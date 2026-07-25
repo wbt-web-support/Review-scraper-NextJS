@@ -166,11 +166,12 @@ const Dashboard = () => {
 
   return (
     <Layout>
+      <div className="mx-auto max-w-6xl px-6 py-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-heading font-bold text-gray-800 mb-1">
+        <h1 className="text-2xl font-bold tracking-tight text-gray-900 mb-1">
           Welcome back, {session.user?.name || 'User'}!
         </h1>
-        <p className="text-gray-600">
+        <p className="text-sm text-gray-500">
           Here&apos;s an overview of your review widgets and performance
         </p>
       </div>
@@ -231,7 +232,7 @@ const Dashboard = () => {
 
         <ReviewTable reviews={latestReviews} isLoading={isReviewsLoading} />
       </div>
-
+      </div>
     </Layout>
   );
 };

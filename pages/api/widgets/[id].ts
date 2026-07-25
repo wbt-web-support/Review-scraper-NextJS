@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
 import dbConnect from '@/lib/mongodb';
 import * as storage from '@/lib/storage';
+import { purgeTenant } from '@vrm/lib/tenants/purge';
 
 interface ErrorResponse {
   message: string;
@@ -60,6 +61,20 @@ export default async function handler(
     }
 
     if (req.method === 'DELETE') {
+      // A video widget owns a whole Supabase tenant: the client's login, their
+      // reviews, and their recorded videos on Bunny. Tear that down FIRST -- if the
+      // Mongo row went first and this failed, the widget would be gone from the list
+      // and the tenant would be left running with nothing pointing at it.
+      const widget = await storage.getWidgetById(id);
+      if (widget?.type === 'video' && widget.video?.tenantId) {
+        const purged = await purgeTenant(widget.video.tenantId);
+        if (!purged.ok) {
+          return res.status(500).json({
+            message: `Could not delete the video tenant: ${purged.error}`,
+          });
+        }
+      }
+
       // Delete widget from database
       const result = await storage.deleteWidget(id);
       if (result.deletedCount === 0) {
