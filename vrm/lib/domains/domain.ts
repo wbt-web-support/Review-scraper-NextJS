@@ -2,7 +2,7 @@
  * Custom domains.
  *
  * A tenant owns njdesignpark.com and wants their reviews at
- * review.njdesignpark.com. We fix the "review" label; they supply the root domain
+ * reviews.njdesignpark.com. We fix the "reviews" label; they supply the root domain
  * and point DNS at us.
  *
  * Isomorphic (no server-only import): the settings form previews the hostname as
@@ -10,7 +10,7 @@
  */
 
 /** The label we prepend. Fixed by us, not configurable per tenant. */
-export const REVIEW_SUBDOMAIN = "review";
+export const REVIEW_SUBDOMAIN = "reviews";
 
 /**
  * Where tenants point their CNAME.
@@ -48,12 +48,12 @@ export function isValidDomain(value: string): boolean {
   return /^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/.test(value);
 }
 
-/** "njdesignpark.com" -> "review.njdesignpark.com" */
+/** "njdesignpark.com" -> "reviews.njdesignpark.com" */
 export function reviewHostFor(rootDomain: string): string {
   return `${REVIEW_SUBDOMAIN}.${rootDomain}`;
 }
 
-/** "review.njdesignpark.com" -> "njdesignpark.com" */
+/** "reviews.njdesignpark.com" -> "njdesignpark.com" */
 export function rootDomainFor(reviewHost: string): string {
   return reviewHost.replace(new RegExp(`^${REVIEW_SUBDOMAIN}\\.`), "");
 }
