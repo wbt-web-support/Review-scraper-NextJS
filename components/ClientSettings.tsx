@@ -107,7 +107,7 @@ export function ClientSettings({ base, businessId, bundle }: { base: string; bus
           Login email: <span className="font-medium text-gray-700">{bundle.tenant.contact_email || "—"}</span> — this can&apos;t be changed here.
         </div>
         <div className="flex justify-end">
-          <Button onClick={() => brandingSave.mutate()} disabled={brandingSave.isPending}>{brandingSave.isPending ? "Saving…" : "Save branding"}</Button>
+          <Button onClick={() => brandingSave.mutate()} disabled={brandingSave.isPending} style={{ backgroundColor: brandColor }}>{brandingSave.isPending ? "Saving…" : "Save branding"}</Button>
         </div>
       </Section>
 
@@ -118,7 +118,7 @@ export function ClientSettings({ base, businessId, bundle }: { base: string; bus
         <Field label="Thank-you text"><Input value={thanks} onChange={(e) => setThanks(e.target.value)} /></Field>
         <Field label="Prompt questions (one per line)"><Textarea rows={5} value={questions} onChange={(e) => setQuestions(e.target.value)} /></Field>
         <div className="flex justify-end">
-          <Button onClick={() => collectionSave.mutate()} disabled={collectionSave.isPending}>{collectionSave.isPending ? "Saving…" : "Save collection page"}</Button>
+          <Button onClick={() => collectionSave.mutate()} disabled={collectionSave.isPending} style={{ backgroundColor: brandColor }}>{collectionSave.isPending ? "Saving…" : "Save collection page"}</Button>
         </div>
       </Section>
 
@@ -128,7 +128,7 @@ export function ClientSettings({ base, businessId, bundle }: { base: string; bus
           <Input type="number" min={bundle.limits.min} max={bundle.limits.max} value={maxSeconds} onChange={(e) => setMaxSeconds(e.target.value)} className="w-40" />
         </Field>
         <div className="flex justify-end">
-          <Button onClick={() => lengthSave.mutate()} disabled={lengthSave.isPending}>{lengthSave.isPending ? "Saving…" : "Save length"}</Button>
+          <Button onClick={() => lengthSave.mutate()} disabled={lengthSave.isPending} style={{ backgroundColor: brandColor }}>{lengthSave.isPending ? "Saving…" : "Save length"}</Button>
         </div>
       </Section>
 
@@ -138,7 +138,7 @@ export function ClientSettings({ base, businessId, bundle }: { base: string; bus
           <Input type="text" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New password" className="max-w-sm font-mono" />
         </Field>
         <div className="flex justify-end">
-          <Button onClick={() => passwordSave.mutate()} disabled={passwordSave.isPending || newPassword.trim().length < 8}>
+          <Button onClick={() => passwordSave.mutate()} disabled={passwordSave.isPending || newPassword.trim().length < 8} style={{ backgroundColor: brandColor }}>
             {passwordSave.isPending ? "Updating…" : "Update password"}
           </Button>
         </div>

@@ -176,8 +176,9 @@ export default function MyReviews() {
             <button
               key={v}
               onClick={() => setView(v)}
+              style={view === v ? { backgroundColor: brand } : undefined}
               className={`rounded-md px-4 py-1.5 text-sm font-medium capitalize transition-colors ${
-                view === v ? "bg-gray-900 text-white" : "text-gray-600 hover:bg-gray-50"
+                view === v ? "text-white" : "text-gray-600 hover:bg-gray-50"
               }`}
             >
               {v}
@@ -209,8 +210,9 @@ export default function MyReviews() {
               <button
                 key={f.key}
                 onClick={() => setFilter(f.key)}
+                style={active ? { backgroundColor: brand, borderColor: brand } : undefined}
                 className={`inline-flex items-center gap-2 rounded-lg border px-3.5 py-2 text-sm font-medium transition-colors ${
-                  active ? "border-gray-900 bg-gray-900 text-white" : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                  active ? "text-white" : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
                 }`}
               >
                 <f.icon className="h-4 w-4" />
