@@ -241,13 +241,13 @@
   /* A slightly darker hairline border instead of a drop shadow -- the card sits flat
      on the background rather than floating over it. */
   border: 1px solid rgb(31 36 32 / 0.14);
-  padding: 40px 32px;
+  padding: 20px 16px;
   overflow: hidden;
 }
 
 @media (min-width: 640px) {
   .collect-card {
-    padding: 44px;
+    padding: 24px 20px;
   }
 }
 
@@ -287,19 +287,19 @@
   animation: collect-rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) forwards 0.05s;
 }
 
-/* Logo lifted out of the card and centered above it. */
-.collect-brand-outer {
+/* Logo inside the card, top-left. */
+.collect-brand-top {
   display: flex;
-  justify-content: center;
-  margin-bottom: 18px;
+  justify-content: flex-start;
+  margin-bottom: 22px;
 }
-.collect-brand-outer .collect-brand {
+.collect-brand-top .collect-brand {
   margin-bottom: 0;
-  justify-content: center;
+  justify-content: flex-start;
 }
-.collect-brand-outer .collect-logo {
-  height: 40px;
-  max-width: 190px;
+.collect-brand-top .collect-logo {
+  height: 38px;
+  max-width: 180px;
 }
 
 .collect-monogram {
