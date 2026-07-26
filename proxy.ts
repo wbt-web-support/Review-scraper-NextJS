@@ -94,6 +94,13 @@ function isSharedPath(pathname: string): boolean {
     pathname.startsWith("/c/") ||
     pathname.startsWith("/api/") ||
     pathname.startsWith("/_next/") ||
+    // The client's own login + review dashboard, served ON their custom domain so
+    // they sign in and manage reviews at reviews.theirdomain.com without ever seeing
+    // our app's URL. Auth is per-host (host-only cookies, JWT signed with the shared
+    // secret), so a session created here stays on this domain.
+    pathname === "/login" ||
+    pathname === "/register" ||
+    pathname === "/my-reviews" ||
     pathname === "/w.js" ||
     // The video app's own screens, and the review scraper that shares this app.
     // A tenant's custom domain has no business rendering either, but rewriting

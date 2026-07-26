@@ -13,25 +13,38 @@ import { signIn, getSession } from 'next-auth/react';
 import { useSession } from 'next-auth/react';
 import Image from 'next/image';
 
+import type { GetServerSideProps } from "next";
+import { getTenantBrandingByHost } from "../lib/tenantByHost";
+
 const loginSchema = z.object({
-  email: z.string().trim().toLowerCase().email("Please enter a valid email address."), 
+  email: z.string().trim().toLowerCase().email("Please enter a valid email address."),
   password: z.string().min(1, "Password is required"),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
-const Login = () => {
+interface Brand {
+  name: string;
+  logoUrl: string | null;
+  brandColor: string;
+}
+
+const Login = ({ brand }: { brand: Brand | null }) => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
-  const { status: authStatus } = useSession();
+  const { data: session, status: authStatus } = useSession();
 
   useEffect(() => {
     if (authStatus === 'authenticated') {
+      if (session?.user?.role === 'client') {
+        router.push('/my-reviews');
+        return;
+      }
       const callbackUrl = router.query.callbackUrl as string || "/dashboard";
       router.push(callbackUrl);
     }
-  }, [authStatus, router]);
+  }, [authStatus, session, router]);
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -98,27 +111,49 @@ const Login = () => {
       <div className="w-full max-w-md space-y-8">
         {/* Header Section */}
         <div className="text-center">
-          {/* Logo */}
-          <div className="flex justify-center mb-6">
-            <div className="p-3">
-              <Image
-                src="/logo.png"
-                alt="We Build Trades Logo"
-                width={230}
-                height={60}
-                className="object-contain"
-                priority
-              />
-            </div>
-          </div>
-          
-          {/* Brand Title */}
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Review Hub
-          </h1>
-          <p className="text-gray-600 text-sm">
-          Easily collect Google & Facebook reviews with one click.
-          </p>
+          {brand ? (
+            <>
+              <div className="flex justify-center mb-6">
+                {brand.logoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={brand.logoUrl} alt={brand.name} className="h-14 max-w-[220px] object-contain" />
+                ) : (
+                  <span
+                    className="flex h-14 w-14 items-center justify-center rounded-2xl text-xl font-bold text-white"
+                    style={{ backgroundColor: brand.brandColor }}
+                  >
+                    {brand.name.slice(0, 2).toUpperCase()}
+                  </span>
+                )}
+              </div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">{brand.name}</h1>
+              <p className="text-gray-600 text-sm">Sign in to manage your video reviews.</p>
+            </>
+          ) : (
+            <>
+              {/* Logo */}
+              <div className="flex justify-center mb-6">
+                <div className="p-3">
+                  <Image
+                    src="/logo.png"
+                    alt="We Build Trades Logo"
+                    width={230}
+                    height={60}
+                    className="object-contain"
+                    priority
+                  />
+                </div>
+              </div>
+
+              {/* Brand Title */}
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                Review Hub
+              </h1>
+              <p className="text-gray-600 text-sm">
+              Easily collect Google & Facebook reviews with one click.
+              </p>
+            </>
+          )}
         </div>
 
         {/* Login Form Card */}
@@ -215,38 +250,56 @@ const Login = () => {
                 </Link>
               </div>
               
-              {/* Divider */}
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-200" />
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-white text-gray-500">New to Review Hub?</span>
-                </div>
-              </div>
-              
-              {/* Sign Up Link */}
-              <div className="text-center">
-                <Link 
-                  href="/register" 
-                  className="text-sm font-medium text-gray-900 hover:text-gray-700 transition-colors duration-200"
-                >
-                  Create an account
-                </Link>
-              </div>
+              {/* Sign-up is for agency operators only -- hide it on a client's domain. */}
+              {!brand && (
+                <>
+                  {/* Divider */}
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-gray-200" />
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                      <span className="px-2 bg-white text-gray-500">New to Review Hub?</span>
+                    </div>
+                  </div>
+
+                  {/* Sign Up Link */}
+                  <div className="text-center">
+                    <Link
+                      href="/register"
+                      className="text-sm font-medium text-gray-900 hover:text-gray-700 transition-colors duration-200"
+                    >
+                      Create an account
+                    </Link>
+                  </div>
+                </>
+              )}
             </div>
           </CardFooter>
         </Card>
         
-        {/* Footer */}
-        <div className="text-center">
-          <p className="text-xs text-gray-500">
-            © 2024 We Build Trades. All rights reserved.
-          </p>
-        </div>
+        {/* Footer -- our name only on our own domain, never on a client's. */}
+        {!brand && (
+          <div className="text-center">
+            <p className="text-xs text-gray-500">
+              © 2024 We Build Trades. All rights reserved.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
+};
+
+/**
+ * When /login is served on a client's own custom domain, brand it with their logo and
+ * name instead of ReviewHub. On our own hosts no custom_domain matches, so `brand` is
+ * null and the default look shows.
+ */
+export const getServerSideProps: GetServerSideProps = async (ctx) => {
+  const host = (ctx.req.headers["x-forwarded-host"] as string) || ctx.req.headers.host || "";
+  const brand = await getTenantBrandingByHost(host).catch(() => null);
+  return { props: { brand } };
 };
 
 export default Login;
