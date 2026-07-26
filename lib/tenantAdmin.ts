@@ -90,7 +90,7 @@ export type TenantBundle = {
     review_open_mode: "dialog" | "page";
     max_video_seconds: number;
   };
-  collection: { prompt_questions: string[]; welcome_text: string; thank_you_text: string };
+  collection: { prompt_questions: string[]; welcome_text: string; description: string; thank_you_text: string };
   widget: { layout: "grid" | "carousel" | "single"; autoplay: boolean };
   dns: { records: DnsRecord[]; serving: boolean };
   counts: ReviewCounts;
@@ -117,7 +117,7 @@ export async function getTenantBundle(tenantId: string): Promise<TenantBundle | 
   const [{ data: collection }, { data: widget }, { data: reviewRows }] = await Promise.all([
     admin
       .from("collection_settings")
-      .select("prompt_questions, welcome_text, thank_you_text")
+      .select("prompt_questions, welcome_text, description, thank_you_text")
       .eq("tenant_id", tenantId)
       .maybeSingle(),
     admin
@@ -154,6 +154,7 @@ export async function getTenantBundle(tenantId: string): Promise<TenantBundle | 
         ? rawQuestions.filter((q): q is string => typeof q === "string")
         : [],
       welcome_text: collection?.welcome_text ?? "",
+      description: collection?.description ?? "",
       thank_you_text: collection?.thank_you_text ?? "",
     },
     widget: {
@@ -324,13 +325,14 @@ export async function deleteTenantReview(tenantId: string, reviewId: string): Pr
 
 export async function updateCollection(
   tenantId: string,
-  input: { welcomeText: string; thankYouText: string; promptQuestions: string[] },
+  input: { welcomeText: string; description: string; thankYouText: string; promptQuestions: string[] },
 ): Promise<void> {
   const questions = input.promptQuestions.map((q) => q.trim()).filter(Boolean).slice(0, 10);
   const { error } = await createAdminClient()
     .from("collection_settings")
     .update({
       welcome_text: input.welcomeText,
+      description: input.description,
       thank_you_text: input.thankYouText,
       prompt_questions: questions,
     })

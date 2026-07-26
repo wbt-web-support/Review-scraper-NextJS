@@ -16,6 +16,7 @@ import { MIN_VIDEO_SECONDS, MAX_VIDEO_SECONDS } from "@vrm/lib/video/limits";
 const schemas = {
   collection: z.object({
     welcomeText: z.string().trim().min(1).max(300),
+    description: z.string().trim().max(500).optional(),
     thankYouText: z.string().trim().min(1).max(300),
     promptQuestions: z.array(z.string()).max(20),
   }),
@@ -63,6 +64,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       case "collection":
         await tenant.updateCollection(tenantId, {
           welcomeText: data.welcomeText as string,
+          description: (data.description as string) ?? "",
           thankYouText: data.thankYouText as string,
           promptQuestions: data.promptQuestions as string[],
         });

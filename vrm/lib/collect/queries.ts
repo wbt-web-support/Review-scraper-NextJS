@@ -27,6 +27,8 @@ export type CollectionPage = {
   };
   promptQuestions: string[];
   welcomeText: string;
+  /** Optional subtitle shown under the welcome title. */
+  description: string;
   thankYouText: string;
   /** The recorder stops here. Public, because the reviewer's browser enforces it. */
   maxVideoSeconds: number;
@@ -52,7 +54,7 @@ export async function getCollectionPage(slug: string): Promise<CollectionPage | 
 
   const { data: settings } = await admin
     .from("collection_settings")
-    .select("prompt_questions, welcome_text, thank_you_text")
+    .select("prompt_questions, welcome_text, description, thank_you_text")
     .eq("tenant_id", tenant.id)
     .maybeSingle();
 
@@ -74,6 +76,7 @@ export async function getCollectionPage(slug: string): Promise<CollectionPage | 
     },
     promptQuestions,
     welcomeText: settings?.welcome_text ?? "We would love to hear from you.",
+    description: settings?.description ?? "",
     thankYouText: settings?.thank_you_text ?? "Thank you for your review!",
     maxVideoSeconds: tenant.max_video_seconds ?? DEFAULT_MAX_VIDEO_SECONDS,
   };

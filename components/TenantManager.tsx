@@ -41,7 +41,7 @@ export interface Bundle {
     custom_domain: string | null; custom_domain_verified: boolean;
     review_open_mode: "dialog" | "page"; max_video_seconds: number;
   };
-  collection: { prompt_questions: string[]; welcome_text: string; thank_you_text: string };
+  collection: { prompt_questions: string[]; welcome_text: string; description: string; thank_you_text: string };
   widget: { layout: "grid" | "carousel" | "single"; autoplay: boolean };
   dns: { records: { type: string; name: string; value: string }[]; serving: boolean };
   counts: Record<ReviewStatus | "all", number>;
@@ -425,12 +425,13 @@ function CollectTab({ base, businessId, bundle }: { base: string; businessId: st
   const { toast } = useToast();
   const invalidate = useInvalidate(businessId);
   const [welcome, setWelcome] = useState(bundle.collection.welcome_text);
+  const [description, setDescription] = useState(bundle.collection.description);
   const [thanks, setThanks] = useState(bundle.collection.thank_you_text);
   const [questions, setQuestions] = useState(bundle.collection.prompt_questions.join("\n"));
 
   const save = useMutation<unknown, Error, void>({
     mutationFn: () => apiRequest("PUT", `${base}/settings`, {
-      section: "collection", welcomeText: welcome, thankYouText: thanks,
+      section: "collection", welcomeText: welcome, description, thankYouText: thanks,
       promptQuestions: questions.split("\n").map((q) => q.trim()).filter(Boolean),
     }),
     onSuccess: () => { invalidate(); toast({ title: "Saved" }); },
@@ -440,6 +441,9 @@ function CollectTab({ base, businessId, bundle }: { base: string; businessId: st
   return (
     <Panel title="Collection page" hint="The words the client's customer sees when leaving a review.">
       <Field label="Welcome text"><Input value={welcome} onChange={(e) => setWelcome(e.target.value)} /></Field>
+      <Field label="Description (optional)">
+        <Textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="A short line under the title, e.g. Share your experience in a quick video." />
+      </Field>
       <Field label="Thank-you text"><Input value={thanks} onChange={(e) => setThanks(e.target.value)} /></Field>
       <Field label="Prompt questions (one per line)">
         <Textarea rows={4} value={questions} onChange={(e) => setQuestions(e.target.value)} />

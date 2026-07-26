@@ -107,7 +107,7 @@ function uploadVideo(
 }
 
 export function CollectForm({ page }: { page: CollectionPage }) {
-  const { tenant, promptQuestions, welcomeText, thankYouText, maxVideoSeconds } = page;
+  const { tenant, promptQuestions, welcomeText, description, thankYouText, maxVideoSeconds } = page;
   const brand = tenant.brandColor;
 
   const [step, setStep] = useState<Step>("intro");
@@ -205,6 +205,7 @@ export function CollectForm({ page }: { page: CollectionPage }) {
       {step === "intro" && (
         <div>
           <h1 className="collect-title">{welcomeText}</h1>
+          {description && <p className="collect-description">{description}</p>}
 
           {promptQuestions.length > 0 && (
             <div className="collect-prompts">
@@ -235,17 +236,6 @@ export function CollectForm({ page }: { page: CollectionPage }) {
                 </span>
                 Record a video
               </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setMode("text");
-                setStep("text");
-              }}
-              className="collect-btn-secondary"
-            >
-              Write a review instead
             </button>
           </div>
         </div>

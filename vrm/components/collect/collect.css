@@ -287,6 +287,21 @@
   animation: collect-rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) forwards 0.05s;
 }
 
+/* Logo lifted out of the card and centered above it. */
+.collect-brand-outer {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+.collect-brand-outer .collect-brand {
+  margin-bottom: 0;
+  justify-content: center;
+}
+.collect-brand-outer .collect-logo {
+  height: 40px;
+  max-width: 190px;
+}
+
 .collect-monogram {
   width: 34px;
   height: 34px;
@@ -317,7 +332,7 @@
 .collect-title {
   font-family: var(--font-serif), Georgia, serif;
   font-weight: 500;
-  font-size: 30px;
+  font-size: 25px;
   line-height: 1.14;
   letter-spacing: -0.01em;
   color: #1c211d;
@@ -329,8 +344,19 @@
 
 @media (min-width: 640px) {
   .collect-title {
-    font-size: 34px;
+    font-size: 29px;
   }
+}
+
+/* Optional subtitle under the welcome title. */
+.collect-description {
+  margin: -18px 0 26px;
+  font-size: 15px;
+  line-height: 1.55;
+  color: #5b615a;
+  text-wrap: pretty;
+  opacity: 0;
+  animation: collect-rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) forwards 0.16s;
 }
 
 .collect-prompts {

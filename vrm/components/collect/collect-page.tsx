@@ -85,9 +85,10 @@ export function CollectPage({
       style={embedded ? { ...style, padding: "28px 20px", minHeight: "auto" } : style}
     >
       <div className="collect-card-wrap">
+        {/* Logo sits above the card, centered -- a small hero, not tucked in a corner. */}
+        <div className="collect-brand-outer">{header}</div>
         <div className="collect-card">
           <div className="collect-card-inner">
-            {header}
             <CollectForm page={page} />
           </div>
         </div>
