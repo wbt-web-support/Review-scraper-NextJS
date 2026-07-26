@@ -4,6 +4,7 @@ import dbConnect from "@/lib/mongodb";
 import { resolveOwnedTenant } from "@/lib/tenantAccess";
 import * as tenant from "@/lib/tenantAdmin";
 import * as storage from "@/lib/storage";
+import { getVideoBusinessById, updateVideoBusiness } from "@/lib/videoBusinessStore";
 import { MIN_VIDEO_SECONDS, MAX_VIDEO_SECONDS } from "@vrm/lib/video/limits";
 
 /**
@@ -27,6 +28,14 @@ const schemas = {
     contactEmail: z.union([z.string().email(), z.literal("")]).optional(),
     contactPhone: z.string().trim().max(40).optional(),
   }),
+  // What a CLIENT may change about their own branding -- everything except the email,
+  // which is their login identity. The email is preserved server-side.
+  clientBranding: z.object({
+    name: z.string().trim().min(1).max(120),
+    brandColor: z.string().regex(/^#[0-9a-fA-F]{6}$/, "Use a hex colour like #8A9A5B."),
+    logoUrl: z.union([z.string().url(), z.literal("")]).optional(),
+    contactPhone: z.string().trim().max(40).optional(),
+  }),
   videoLimit: z.object({
     maxVideoSeconds: z.coerce.number().int().min(MIN_VIDEO_SECONDS, `Minimum is ${MIN_VIDEO_SECONDS} seconds.`).max(MAX_VIDEO_SECONDS, `Maximum is ${MAX_VIDEO_SECONDS} seconds.`),
   }),
@@ -38,6 +47,23 @@ const schemas = {
 } as const;
 
 type Section = keyof typeof schemas;
+
+/**
+ * Keep the Mongo record in step with tenant branding. A video business owns a
+ * VideoBusiness row; a scraped business owns a BusinessUrl. Update whichever exists.
+ */
+async function mirrorBrandingToMongo(
+  businessId: string,
+  fields: { name: string; brandColor: string; logoUrl: string; email: string; phone: string },
+): Promise<void> {
+  const details = { brandColor: fields.brandColor, logoUrl: fields.logoUrl, email: fields.email, phone: fields.phone };
+  const videoBiz = await getVideoBusinessById(businessId);
+  if (videoBiz) {
+    await updateVideoBusiness(businessId, { name: fields.name, details });
+  } else {
+    await storage.updateBusinessUrlDetails(businessId, { name: fields.name, details });
+  }
+}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "PUT") {
@@ -73,10 +99,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       case "branding": {
         const b = data as { name: string; brandColor: string; logoUrl?: string; contactEmail?: string; contactPhone?: string };
         await tenant.updateBranding(tenantId, b);
-        // Keep the scraper-side record in step with the tenant.
-        await storage.updateBusinessUrlDetails(businessId, {
-          name: b.name,
-          details: { brandColor: b.brandColor, logoUrl: b.logoUrl ?? "", email: b.contactEmail ?? "", phone: b.contactPhone ?? "" },
+        await mirrorBrandingToMongo(businessId, {
+          name: b.name, brandColor: b.brandColor, logoUrl: b.logoUrl ?? "", email: b.contactEmail ?? "", phone: b.contactPhone ?? "",
+        });
+        return res.status(200).json({ message: "Saved." });
+      }
+
+      case "clientBranding": {
+        // The client edits everything but their email (their login identity), which we
+        // preserve from the existing record.
+        const c = data as { name: string; brandColor: string; logoUrl?: string; contactPhone?: string };
+        const existing = await getVideoBusinessById(businessId);
+        const email = existing?.details?.email ?? "";
+        await tenant.updateBranding(tenantId, {
+          name: c.name, brandColor: c.brandColor, logoUrl: c.logoUrl, contactEmail: email, contactPhone: c.contactPhone,
+        });
+        await mirrorBrandingToMongo(businessId, {
+          name: c.name, brandColor: c.brandColor, logoUrl: c.logoUrl ?? "", email, phone: c.contactPhone ?? "",
         });
         return res.status(200).json({ message: "Saved." });
       }

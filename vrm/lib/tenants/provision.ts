@@ -114,15 +114,17 @@ export async function provisionTenant(
     // Defaults, so the collection page and widget work the moment the tenant exists.
     const { error: csErr } = await db.from("collection_settings").insert({
       tenant_id: tenant.id,
+      // Starting copy on the client's behalf -- the first thing their customer reads.
+      // These are DEFAULTS only; every client can rewrite them in their settings.
       prompt_questions: [
         "What problem were you trying to solve?",
-        "What did we do for you?",
-        "What was the result?",
+        "Why did you choose us?",
+        "How was your experience with our team?",
+        "What was the outcome?",
+        "Would you recommend us?",
       ],
-      // Capitalised: this is copy we are writing on the client's behalf, and it is
-      // the first line their customer reads. Generating new text, not rewriting the
-      // stored name -- and the client can edit it in settings either way.
-      welcome_text: `Tell us how ${titleCaseName(tenant.name)} did.`,
+      welcome_text: `Tell us about your experience with ${titleCaseName(tenant.name)}`,
+      description: "30-60 seconds is perfect.",
       thank_you_text: "Thank you. Your review means a lot to us.",
     });
     if (csErr) throw new Error(csErr.message);

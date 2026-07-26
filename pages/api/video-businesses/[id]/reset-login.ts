@@ -34,7 +34,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const business = await getVideoBusinessById(id);
     if (!business) return res.status(404).json({ message: "Business not found." });
-    if (business.userId !== userId) return res.status(403).json({ message: "Forbidden: this is not your business." });
+    // The operator who owns it, OR the client themselves (scoped to their own business),
+    // may change the login password.
+    const isOwner = business.userId === userId;
+    const isSelf = session.user.role === "client" && session.user.videoBusinessId === id;
+    if (!isOwner && !isSelf) return res.status(403).json({ message: "Forbidden: this is not your business." });
 
     // Optional custom password. If given it must be usable; if absent we generate one.
     const custom = typeof req.body?.password === "string" ? req.body.password.trim() : "";

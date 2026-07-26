@@ -15,6 +15,7 @@ import {
 import { titleCaseName } from "@vrm/lib/tenants/display-name";
 import { bunnyPlayUrl } from "@vrm/lib/bunny/urls";
 import { ReviewVideo } from "../components/ReviewVideo";
+import { ClientSettings } from "../components/ClientSettings";
 import { formatBytes, formatDuration } from "../lib/utils";
 
 type ReviewStatus = "pending" | "approved" | "rejected";
@@ -38,9 +39,14 @@ interface TenantReview {
 }
 
 interface Bundle {
-  tenant: { id: string; name: string; logo_url: string | null; brand_color: string };
+  tenant: {
+    id: string; name: string; logo_url: string | null; brand_color: string;
+    contact_email: string | null; contact_phone: string | null; max_video_seconds: number;
+  };
+  collection: { welcome_text: string; description: string; thank_you_text: string; prompt_questions: string[] };
   counts: Record<ReviewStatus | "all", number>;
   bunnyLibraryId: string | null;
+  limits: { min: number; max: number };
 }
 
 type Filter = "all" | ReviewStatus;
@@ -60,6 +66,7 @@ export default function MyReviews() {
 
   const [filter, setFilter] = useState<Filter>("all");
   const [deleteTarget, setDeleteTarget] = useState<TenantReview | null>(null);
+  const [view, setView] = useState<"reviews" | "settings">("reviews");
 
   const role = session?.user?.role;
   const businessId = session?.user?.videoBusinessId ?? "";
@@ -163,6 +170,29 @@ export default function MyReviews() {
       </header>
 
       <main className="mx-auto max-w-5xl px-6 py-8">
+        {/* View switch: reviews vs settings */}
+        <div className="mb-6 flex w-fit gap-1 rounded-lg border border-gray-200 bg-white p-1">
+          {(["reviews", "settings"] as const).map((v) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              className={`rounded-md px-4 py-1.5 text-sm font-medium capitalize transition-colors ${
+                view === v ? "bg-gray-900 text-white" : "text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
+
+        {view === "settings" ? (
+          bundle ? (
+            <ClientSettings base={base} businessId={businessId} bundle={bundle} />
+          ) : (
+            <div className="h-40 animate-pulse rounded-2xl bg-gray-100" />
+          )
+        ) : (
+        <>
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-2xl font-bold tracking-tight">Your reviews</h1>
           <Button variant="outline" size="sm" onClick={exportCsv} disabled={reviews.length === 0}>
@@ -217,6 +247,8 @@ export default function MyReviews() {
               />
             ))}
           </div>
+        )}
+        </>
         )}
       </main>
 
