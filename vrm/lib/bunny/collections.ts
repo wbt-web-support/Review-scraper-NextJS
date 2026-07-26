@@ -27,6 +27,26 @@ export function collectionName(name: string, slug: string): string {
 }
 
 /**
+ * Forget a tenant's stored collection GUID.
+ *
+ * Used when Bunny rejects it with "Collection does not exist" -- which happens when
+ * the id belongs to a different library (the library was switched) or the folder was
+ * deleted. Clearing it lets ensureTenantCollection mint a fresh one in the CURRENT
+ * library on the next upload. Best-effort; never throws.
+ */
+export async function forgetTenantCollection(tenantId: string): Promise<void> {
+  if (!isBunnyConfigured()) return;
+  try {
+    await createAdminClient()
+      .from("tenants")
+      .update({ bunny_collection_id: null })
+      .eq("id", tenantId);
+  } catch (err) {
+    console.error(`Could not clear stale Bunny collection for tenant ${tenantId}:`, err);
+  }
+}
+
+/**
  * The tenant's collection GUID, creating it on first use.
  *
  * Returns null when there is nothing to file into: Bunny isn't configured (the

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import Head from "next/head";
 import { useRouter } from "next/router";
 import { useSession, signOut } from "next-auth/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -135,6 +136,9 @@ export default function MyReviews() {
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
+      {/* No Referer on this page's requests, so Bunny's hotlink protection doesn't 403
+          the video files (it blocks a referer not on the Allowed-domains list). */}
+      <Head><meta name="referrer" content="no-referrer" /></Head>
       {/* Header */}
       <header className="sticky top-0 z-30 border-b border-gray-200 bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-3.5">
@@ -274,7 +278,7 @@ function ReviewCard({
       <div className="relative aspect-video">
         <ReviewVideo
           videoGuid={review.video_guid}
-          videoUrl={review.video_url}
+          fileUrl={review.download_url}
           thumbnailUrl={review.thumbnail_url}
           libraryId={libraryId}
           reviewerName={review.reviewer_name}

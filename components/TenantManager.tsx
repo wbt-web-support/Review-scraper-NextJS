@@ -184,7 +184,7 @@ function ReviewsTab({ base, businessId, bundle }: { base: string; businessId: st
                   <div className="relative aspect-video">
                     <ReviewVideo
                       videoGuid={r.video_guid}
-                      videoUrl={r.video_url}
+                      fileUrl={r.download_url}
                       thumbnailUrl={r.thumbnail_url}
                       libraryId={bundle.bunnyLibraryId}
                       reviewerName={r.reviewer_name}

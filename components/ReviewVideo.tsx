@@ -1,67 +1,58 @@
 import { useState } from "react";
 import { Maximize2, X } from "lucide-react";
-import { bunnyEmbedUrl } from "@vrm/lib/bunny/urls";
-
-/** A Supabase-stored file plays directly; anything else is a Bunny HLS video. */
-function isDirectVideo(videoUrl: string | null): boolean {
-  return Boolean(videoUrl && videoUrl.includes("/storage/v1/object/public/"));
-}
 
 export interface ReviewVideoSource {
   videoGuid: string | null;
-  videoUrl: string | null;
+  /**
+   * The direct, playable video file (the server's `download_url`): a Supabase object,
+   * or a Bunny `play_720p.mp4`. Null while a Bunny video is still encoding -- the server
+   * only fills it once the file actually exists, so we never point <video> at a 404.
+   */
+  fileUrl: string | null;
   thumbnailUrl?: string | null;
-  libraryId: string | null;
+  /** Present but unused now; kept so callers don't need to change. */
+  libraryId?: string | null;
   reviewerName?: string;
-  /** Fires once the browser knows a direct file's length (Bunny reports its own). */
+  /** Fires once the browser knows the file's length. */
   onDuration?: (seconds: number) => void;
 }
 
 /**
- * Plays a review video inside its card.
+ * Plays a review video inside its card, from the direct file.
  *
- * Bunny videos play in the mediadelivery iframe -- which exists the moment the GUID
- * does, so a still-transcoding video shows the Bunny player (and its own progress),
- * not a dead "No video". A Supabase-stored file plays in a native <video>. Either way
- * an expand button opens the same video large in a fullscreen overlay.
+ * A plain <video> (not the Bunny iframe): it shows a preview frame, plays inline, and
+ * has no referrer/allowed-domain check -- the embed player's check is what left cards
+ * black on localhost. No file yet (still encoding, or a load hiccup) shows "Processing".
  */
-export function ReviewVideo({ videoGuid, videoUrl, thumbnailUrl, libraryId, reviewerName, onDuration }: ReviewVideoSource) {
+export function ReviewVideo({ videoGuid, fileUrl, thumbnailUrl, reviewerName, onDuration }: ReviewVideoSource) {
   const [open, setOpen] = useState(false);
+  const [failed, setFailed] = useState(false);
 
-  const direct = isDirectVideo(videoUrl);
-  const embedUrl = videoGuid && !direct && libraryId ? bunnyEmbedUrl(libraryId, videoGuid) : null;
-  const hasPlayer = Boolean(embedUrl) || Boolean(direct && videoUrl);
-  const title = reviewerName ? `Review by ${reviewerName}` : "Video review";
+  const canPlay = Boolean(fileUrl) && !failed;
+  // No poster image? Nudge the browser to render the first frame as the preview.
+  const src = fileUrl ? (thumbnailUrl ? fileUrl : `${fileUrl}#t=0.1`) : "";
 
-  const Player = ({ big }: { big?: boolean }) =>
-    embedUrl ? (
-      <iframe
-        src={embedUrl}
-        title={title}
-        loading="lazy"
-        allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen"
-        allowFullScreen
-        className="h-full w-full"
-      />
-    ) : direct && videoUrl ? (
-      <video
-        src={videoUrl}
-        poster={thumbnailUrl ?? undefined}
-        controls
-        autoPlay={big}
-        playsInline
-        onLoadedMetadata={(e) => {
-          const d = e.currentTarget.duration;
-          if (Number.isFinite(d) && d > 0) onDuration?.(d);
-        }}
-        className="h-full w-full object-contain"
-      />
-    ) : null;
+  const Player = ({ big }: { big?: boolean }) => (
+    <video
+      src={src}
+      poster={thumbnailUrl ?? undefined}
+      controls
+      autoPlay={big}
+      playsInline
+      preload="metadata"
+      onError={() => setFailed(true)}
+      onLoadedMetadata={(e) => {
+        const d = e.currentTarget.duration;
+        if (Number.isFinite(d) && d > 0) onDuration?.(d);
+      }}
+      className="h-full w-full bg-black object-contain"
+    />
+  );
 
   return (
     <>
       <div className="group relative h-full w-full overflow-hidden bg-gray-900">
-        {hasPlayer ? (
+        {canPlay ? (
           <Player />
         ) : videoGuid ? (
           <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-gray-400">
@@ -72,7 +63,7 @@ export function ReviewVideo({ videoGuid, videoUrl, thumbnailUrl, libraryId, revi
           <div className="flex h-full w-full items-center justify-center text-gray-500">No video</div>
         )}
 
-        {hasPlayer && (
+        {canPlay && (
           <button
             onClick={() => setOpen(true)}
             title="Fullscreen"
@@ -84,11 +75,8 @@ export function ReviewVideo({ videoGuid, videoUrl, thumbnailUrl, libraryId, revi
       </div>
 
       {/* Fullscreen overlay */}
-      {open && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4"
-          onClick={() => setOpen(false)}
-        >
+      {open && canPlay && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4" onClick={() => setOpen(false)}>
           <button
             onClick={() => setOpen(false)}
             title="Close"

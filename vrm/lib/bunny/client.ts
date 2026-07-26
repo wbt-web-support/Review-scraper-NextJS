@@ -232,22 +232,25 @@ export async function getBunnyVideoLength(videoGuid: string): Promise<number | n
  */
 export async function getBunnyVideoMeta(
   videoGuid: string,
-): Promise<{ length: number | null; storageSize: number | null }> {
+): Promise<{ length: number | null; storageSize: number | null; ready: boolean }> {
   const config = getBunnyConfig();
-  if (!config) return { length: null, storageSize: null };
+  if (!config) return { length: null, storageSize: null, ready: false };
 
   const res = await fetch(`${API_BASE}/${config.libraryId}/videos/${videoGuid}`, {
     headers: { AccessKey: config.apiKey },
   });
   if (!res.ok) {
     console.error(`Bunny getVideo failed: ${res.status} ${await res.text()}`);
-    return { length: null, storageSize: null };
+    return { length: null, storageSize: null, ready: false };
   }
 
-  const json = (await res.json()) as { length?: number; storageSize?: number };
+  // Bunny status: 4 = Finished (all renditions, incl. the MP4 fallback, exist). Until
+  // then play_720p.mp4 404s, so the player must wait. 5/6 are errors.
+  const json = (await res.json()) as { length?: number; storageSize?: number; status?: number };
   return {
     length: typeof json.length === "number" && json.length > 0 ? json.length : null,
     storageSize: typeof json.storageSize === "number" && json.storageSize > 0 ? json.storageSize : null,
+    ready: json.status === 4,
   };
 }
 

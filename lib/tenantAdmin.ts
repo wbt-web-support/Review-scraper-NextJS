@@ -198,16 +198,24 @@ async function headContentLength(url: string): Promise<number | null> {
   }
 }
 
-/** Where a review's video lives + how big/long it is, for the details on the card. */
+/**
+ * A review's playable/downloadable file + where it lives + how big/long it is.
+ *
+ * `download_url` (also the player's source) is only set when the file exists: a Supabase
+ * object always does; a Bunny `play_720p.mp4` only once encoding has FINISHED. Until
+ * then it's null so the card shows "Processing…" instead of a broken <video>.
+ * Size/length still show during encoding (Bunny reports them early).
+ */
 async function mediaFactsFor(row: {
   video_guid: string | null;
   video_url: string | null;
-}): Promise<Pick<TenantReview, "size_bytes" | "duration_seconds" | "storage_label" | "storage_url">> {
+}): Promise<Pick<TenantReview, "download_url" | "size_bytes" | "duration_seconds" | "storage_label" | "storage_url">> {
   const direct = isDirectVideo(row.video_url);
   const cfg = getBunnyConfig();
 
   if (direct && row.video_url) {
     return {
+      download_url: row.video_url,
       size_bytes: await headContentLength(row.video_url),
       duration_seconds: null, // read in the browser for direct files
       storage_label: "Supabase Storage",
@@ -217,13 +225,14 @@ async function mediaFactsFor(row: {
   if (row.video_guid && cfg) {
     const meta = await getBunnyVideoMeta(row.video_guid);
     return {
+      download_url: meta.ready ? `https://${cfg.cdnHostname}/${row.video_guid}/play_720p.mp4` : null,
       size_bytes: meta.storageSize,
       duration_seconds: meta.length,
       storage_label: `Bunny Stream · Library ${cfg.libraryId}`,
       storage_url: bunnyPlayUrl(cfg.libraryId, row.video_guid),
     };
   }
-  return { size_bytes: null, duration_seconds: null, storage_label: null, storage_url: null };
+  return { download_url: null, size_bytes: null, duration_seconds: null, storage_label: null, storage_url: null };
 }
 
 /**
@@ -268,14 +277,10 @@ export async function listTenantReviews(
   if (error) throw error;
 
   return Promise.all(
-    (data ?? []).map(async (row) => {
-      const r = row as { video_guid: string | null; video_url: string | null };
-      return {
-        ...(row as TenantReview),
-        download_url: downloadUrlFor(r),
-        ...(await mediaFactsFor(r)),
-      };
-    }),
+    (data ?? []).map(async (row) => ({
+      ...(row as TenantReview),
+      ...(await mediaFactsFor(row as { video_guid: string | null; video_url: string | null })),
+    })),
   );
 }
 

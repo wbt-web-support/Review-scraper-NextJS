@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Head from "next/head";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -59,6 +60,8 @@ export default function VideoBusinessProfile() {
 
   return (
     <Layout>
+      {/* No Referer, so Bunny's hotlink protection doesn't 403 the video files. */}
+      <Head><meta name="referrer" content="no-referrer" /></Head>
       <div className="mx-auto max-w-6xl px-6 py-8 space-y-6">
         <nav className="flex items-center gap-1.5 text-sm text-gray-500">
           <Link href="/video-reviews" className="hover:text-gray-900">Video Reviews</Link>

@@ -9,7 +9,7 @@ import {
   deleteBunnyVideo,
   type TusUploadParams,
 } from "@vrm/lib/bunny/client";
-import { ensureTenantCollection } from "@vrm/lib/bunny/collections";
+import { ensureTenantCollection, forgetTenantCollection } from "@vrm/lib/bunny/collections";
 
 /**
  * Where review videos live.
@@ -78,7 +78,21 @@ export async function prepareVideoUpload(
     // only if Bunny could not be asked, in which case the video lands in the root
     // and the backfill script files it later -- see ensureTenantCollection.
     const collectionId = await ensureTenantCollection(tenantId);
-    const videoGuid = await createBunnyVideo(title, collectionId);
+    let videoGuid: string;
+    try {
+      videoGuid = await createBunnyVideo(title, collectionId);
+    } catch (err) {
+      // A stale collection id (its library was switched, or the folder was deleted)
+      // makes Bunny reject the create with "Collection does not exist". Don't lose the
+      // testimonial over filing: forget the bad id and put this video in the library
+      // root. The next upload mints a fresh folder in the current library.
+      if (collectionId && /collection does not exist/i.test(String(err))) {
+        await forgetTenantCollection(tenantId);
+        videoGuid = await createBunnyVideo(title, null);
+      } else {
+        throw err;
+      }
+    }
 
     return {
       videoGuid,
