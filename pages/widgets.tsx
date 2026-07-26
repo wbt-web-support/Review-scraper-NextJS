@@ -261,7 +261,7 @@ const Widgets = () => {
   );
 
   const WidgetActionsMenu = ({ widget }: { widget: IWidget }) => (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <button className="flex h-7 w-7 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700" title="Actions">
           <MoreVertical className="h-4 w-4" />

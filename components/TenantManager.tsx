@@ -486,6 +486,24 @@ function BrandingTab({ base, businessId, bundle }: { base: string; businessId: s
   );
 }
 
+/** A copyable DNS cell: shows the value with a copy icon, ticks green when copied. */
+function CopyCell({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => { navigator.clipboard?.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 1200); }}
+      title="Copy"
+      className="group inline-flex max-w-full items-center gap-1.5 text-left font-mono text-gray-800 hover:text-blue-600"
+    >
+      <span className="break-all">{value}</span>
+      {copied
+        ? <Check className="h-3.5 w-3.5 shrink-0 text-green-600" />
+        : <Copy className="h-3.5 w-3.5 shrink-0 text-gray-400 group-hover:text-blue-600" />}
+    </button>
+  );
+}
+
 /* ---------------------------------------------------------------- Custom domain */
 function DomainTab({ base, businessId, bundle }: { base: string; businessId: string; bundle: Bundle }) {
   const { toast } = useToast();
@@ -558,17 +576,15 @@ function DomainTab({ base, businessId, bundle }: { base: string; businessId: str
                   <tbody>
                     {bundle.dns.records.map((r) => (
                       <tr key={`${r.type}-${r.value}`} className="border-t border-gray-100">
-                        <td className="px-3.5 py-2.5 font-mono text-gray-800">{r.type}</td>
-                        <td className="px-3.5 py-2.5 font-mono text-gray-800">{r.name}</td>
-                        <td className="px-3.5 py-2.5">
-                          <button type="button" onClick={() => navigator.clipboard?.writeText(r.value)} title="Copy" className="break-all text-left font-mono text-gray-800 hover:text-blue-600">{r.value}</button>
-                        </td>
+                        <td className="px-3.5 py-2.5"><CopyCell value={r.type} /></td>
+                        <td className="px-3.5 py-2.5"><CopyCell value={r.name} /></td>
+                        <td className="px-3.5 py-2.5"><CopyCell value={r.value} /></td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              <p className="mt-3 text-xs text-gray-500">Click a value to copy it. DNS changes usually apply within minutes, but can take up to an hour.</p>
+              <p className="mt-3 text-xs text-gray-500">Click any value to copy it. DNS changes usually apply within minutes, but can take up to an hour.</p>
             </>
           )}
         </div>

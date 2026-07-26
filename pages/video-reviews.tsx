@@ -154,7 +154,7 @@ const VideoReviews = () => {
                     </td>
                     <td className="px-5 py-3">
                       <div className="flex justify-end">
-                        <DropdownMenu>
+                        <DropdownMenu modal={false}>
                           <DropdownMenuTrigger asChild>
                             <button className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900" title="Actions">
                               <MoreVertical className="h-4 w-4" />
