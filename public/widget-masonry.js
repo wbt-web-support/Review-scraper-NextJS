@@ -4,20 +4,67 @@
   }
 
   const CONFIG = {
+    // Where the API and the sibling widget scripts live. Resolved in this order so a
+    // caching or minify plugin that copies this file onto the host site can't hijack it:
+    //   1. an explicit data-api-domain attribute or window.REVIEWHUB_API_DOMAIN
+    //   2. this script's own origin, but only when it is still served from the root of
+    //      our domain. A copy at /wp-content/cache/min/1/widget-masonry.js points every
+    //      request back at the client's own server, which answers 404 for all of them.
+    //   3. localhost during development
+    //   4. the production default
     API_DOMAIN: (function () {
-      const scripts = document.querySelectorAll('script[src*="widget-masonry.js"]');
-      if (scripts.length > 0) {
-        const scriptSrc = scripts[scripts.length - 1].src;
-        const url = new URL(scriptSrc);
-        return url.origin;
+      const FILENAME = 'widget-masonry.js';
+      const DEFAULT_DOMAIN = 'https://reviews.webuildtrades.com';
+      const clean = function (value) {
+        return String(value || '').trim().replace(/\/+$/, '');
+      };
+      const isLocalHost = function (hostname) {
+        return hostname === 'localhost' || hostname === '127.0.0.1';
+      };
+
+      const scripts = document.querySelectorAll('script[src*="' + FILENAME + '"]');
+      const scriptTag = scripts.length > 0 ? scripts[scripts.length - 1] : null;
+
+      const override = clean(
+        (scriptTag && scriptTag.getAttribute('data-api-domain')) || window.REVIEWHUB_API_DOMAIN
+      );
+      if (override) {
+        return override;
       }
-      if (window.REVIEWHUB_API_DOMAIN) {
-        return window.REVIEWHUB_API_DOMAIN;
+
+      if (scriptTag && scriptTag.src) {
+        try {
+          const url = new URL(scriptTag.src);
+          // A rewritten path means the file was copied somewhere it can't serve the API.
+          const isRewritten = url.pathname !== '/' + FILENAME;
+          // Served by the page's own host: fine for our own domains, wrong for a client site.
+          const isSameOrigin = url.origin === window.location.origin;
+          const isOurHost =
+            /(^|\.)webuildtrades\.com$/.test(url.hostname) ||
+            /\.vercel\.app$/.test(url.hostname) ||
+            isLocalHost(url.hostname);
+
+          if (!isRewritten && (!isSameOrigin || isOurHost)) {
+            return clean(url.origin);
+          }
+
+          if (window.console && console.warn) {
+            console.warn(
+              '[ReviewHub] Ignoring ' + url.href + ' as the API origin: it looks like a cached or ' +
+              'self-hosted copy, and that host does not serve /api/public/widget-data. Falling back to ' +
+              DEFAULT_DOMAIN + '. Exclude ' + FILENAME + ' from your minify/cache plugin, or set ' +
+              'window.REVIEWHUB_API_DOMAIN.'
+            );
+          }
+        } catch (e) {
+          // Unparseable src, fall through to the defaults below.
+        }
       }
-      if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-        return window.location.protocol + '//' + window.location.host;
+
+      if (isLocalHost(window.location.hostname)) {
+        return clean(window.location.origin);
       }
-      return 'https://reviews.webuildtrades.com/'; // Default API domain
+      return DEFAULT_DOMAIN;
     })(),
     RETRY_ATTEMPTS: 3,
     RETRY_DELAY: 3000,

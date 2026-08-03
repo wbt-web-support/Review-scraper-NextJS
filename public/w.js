@@ -53,8 +53,26 @@
   }
 
   // Derive the API origin from where this script was served, so the same file
-  // works in dev, staging, and production with no configuration.
-  var origin = new URL(script.src, window.location.href).origin;
+  // works in dev, staging, production, and on a tenant's custom domain with no
+  // configuration.
+  //
+  // The one case that breaks: a WordPress minify/cache plugin that copies this file
+  // onto the host site as /wp-content/cache/min/1/w.js. The origin then points at a
+  // server that answers 404 for /api/widget/<key>, and the widget just fails. The
+  // rewritten path is the tell -- we are always served from the root -- so fall back
+  // to the default host rather than hammering theirs.
+  var DEFAULT_ORIGIN = "https://reviews.webuildtrades.com";
+  var scriptUrl = new URL(script.src, window.location.href);
+  var origin = scriptUrl.origin;
+  if (scriptUrl.pathname !== "/w.js") {
+    var override = (script.getAttribute("data-api-domain") || "").trim().replace(/\/+$/, "");
+    origin = override || DEFAULT_ORIGIN;
+    console.warn(
+      "[reviews] Ignoring " + scriptUrl.href + " as the API origin: it looks like a cached " +
+      "copy, and that host does not serve /api/widget. Using " + origin + ". Exclude w.js " +
+      "from your minify/cache plugin."
+    );
+  }
 
   var layoutOverride = script.getAttribute("data-layout");
 
