@@ -113,7 +113,9 @@ const Login = ({ brand }: { brand: Brand | null }) => {
         <div className="text-center">
           {brand ? (
             <>
-              <div className="flex justify-center mb-6">
+              {/* Logo only. Their name is already in the logo, and on their own
+                  domain they know whose login this is. */}
+              <div className="flex justify-center">
                 {brand.logoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={brand.logoUrl} alt={brand.name} className="h-14 max-w-[220px] object-contain" />
@@ -126,8 +128,6 @@ const Login = ({ brand }: { brand: Brand | null }) => {
                   </span>
                 )}
               </div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">{brand.name}</h1>
-              <p className="text-gray-600 text-sm">Sign in to manage your video reviews.</p>
             </>
           ) : (
             <>
