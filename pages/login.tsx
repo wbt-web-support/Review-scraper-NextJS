@@ -113,9 +113,8 @@ const Login = ({ brand }: { brand: Brand | null }) => {
         <div className="text-center">
           {brand ? (
             <>
-              {/* Logo only. Their name is already in the logo, and on their own
-                  domain they know whose login this is. */}
-              <div className="flex justify-center">
+              {/* Their logo carries the name, so the line below it stays generic. */}
+              <div className="flex justify-center mb-4">
                 {brand.logoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={brand.logoUrl} alt={brand.name} className="h-14 max-w-[220px] object-contain" />
@@ -128,6 +127,7 @@ const Login = ({ brand }: { brand: Brand | null }) => {
                   </span>
                 )}
               </div>
+              <p className="text-gray-600 text-sm">Sign in to manage your reviews.</p>
             </>
           ) : (
             <>
@@ -236,14 +236,13 @@ const Login = ({ brand }: { brand: Brand | null }) => {
           </CardFooter>
         </Card>
         
-        {/* Footer -- our name only on our own domain, never on a client's. */}
-        {!brand && (
-          <div className="text-center">
-            <p className="text-xs text-gray-500">
-              Powered by We Build Trades 2026
-            </p>
-          </div>
-        )}
+        {/* Footer. Shown on a client's own domain too: the platform is ours and the
+            credit stays, even when the rest of the page is their branding. */}
+        <div className="text-center">
+          <p className="text-xs text-gray-500">
+            Powered by We Build Trades 2026
+          </p>
+        </div>
       </div>
     </div>
   );
