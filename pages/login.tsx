@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useToast } from "../hooks/use-toast";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../components/ui/card";
+import { Card, CardContent, CardFooter } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { useForm } from "react-hook-form";
@@ -132,7 +132,7 @@ const Login = ({ brand }: { brand: Brand | null }) => {
           ) : (
             <>
               {/* Logo */}
-              <div className="flex justify-center mb-6">
+              <div className="flex justify-center">
                 <div className="p-3">
                   <Image
                     src="/logo.png"
@@ -144,30 +144,13 @@ const Login = ({ brand }: { brand: Brand | null }) => {
                   />
                 </div>
               </div>
-
-              {/* Brand Title */}
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Review Hub
-              </h1>
-              <p className="text-gray-600 text-sm">
-              Easily collect Google & Facebook reviews with one click.
-              </p>
             </>
           )}
         </div>
 
         {/* Login Form Card */}
         <Card className="bg-white shadow-lg border-0 rounded-xl">
-          <CardHeader className="text-center pb-6">
-            <CardTitle className="text-xl font-semibold text-gray-900">
-              Welcome back
-            </CardTitle>
-            <CardDescription className="text-gray-600">
-              Sign in to your account to continue
-            </CardDescription>
-          </CardHeader>
-          
-          <CardContent className="px-6">
+          <CardContent className="px-6 pt-8">
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
                 <FormField
@@ -239,41 +222,16 @@ const Login = ({ brand }: { brand: Brand | null }) => {
           </CardContent>
           
           <CardFooter className="px-6 pb-6">
-            <div className="w-full space-y-4">
+            <div className="w-full">
               {/* Forgot Password */}
               <div className="text-center">
-                <Link 
-                  href="#" 
+                <Link
+                  href="#"
                   className="text-sm text-gray-600 hover:text-gray-900 transition-colors duration-200"
                 >
                   Forgot your password?
                 </Link>
               </div>
-              
-              {/* Sign-up is for agency operators only -- hide it on a client's domain. */}
-              {!brand && (
-                <>
-                  {/* Divider */}
-                  <div className="relative">
-                    <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-gray-200" />
-                    </div>
-                    <div className="relative flex justify-center text-sm">
-                      <span className="px-2 bg-white text-gray-500">New to Review Hub?</span>
-                    </div>
-                  </div>
-
-                  {/* Sign Up Link */}
-                  <div className="text-center">
-                    <Link
-                      href="/register"
-                      className="text-sm font-medium text-gray-900 hover:text-gray-700 transition-colors duration-200"
-                    >
-                      Create an account
-                    </Link>
-                  </div>
-                </>
-              )}
             </div>
           </CardFooter>
         </Card>
@@ -282,7 +240,7 @@ const Login = ({ brand }: { brand: Brand | null }) => {
         {!brand && (
           <div className="text-center">
             <p className="text-xs text-gray-500">
-              © 2024 We Build Trades. All rights reserved.
+              Powered by We Build Trades 2026
             </p>
           </div>
         )}
