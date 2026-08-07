@@ -563,8 +563,8 @@
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
-          margin: 0px;
-          margin-right: 6px;
+          margin: 0px !important;
+          margin-right: 6px !important;
           letter-spacing: normal;
         }
         .rh-verified-badge {
@@ -630,7 +630,8 @@
           font-size: 0.9rem; 
           line-height: 1.6;
           color: #374151;
-          margin-bottom: 12px;
+          margin-top: 0 !important;
+          margin-bottom: 12px !important;
           display: -webkit-box;
           -webkit-line-clamp: 4;
           -webkit-box-orient: vertical;
@@ -885,8 +886,8 @@
             font-weight: 600;
             font-size: 1.2rem !important;
             color: #111827;
-            margin: 0px;
-            margin-right: 8px;
+            margin: 0px !important;
+            margin-right: 8px !important;
             letter-spacing: normal;
         }
         .rh-modal-verified-badge {
@@ -896,11 +897,11 @@
         .rh-modal-review-meta {
           font-size: 0.9rem;
           color: #6B7280;
-          margin-bottom: 10px;
+          margin-bottom: 10px !important;
           display: flex;
           align-items: center;
           gap: 4px;
-          margin-top: 0px;
+          margin-top: 0px !important;
         }
         .rh-modal-rating {
              color: #f5ca0b; 

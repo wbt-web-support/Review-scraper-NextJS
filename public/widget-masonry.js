@@ -503,8 +503,8 @@
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
-          margin: 0;
-          margin-right: 8px;
+          margin: 0 !important;
+          margin-right: 8px !important;
           letter-spacing: normal;
         }
 
@@ -732,8 +732,8 @@
           font-weight: 600;
           font-size: 1.2rem !important;
           color: #111827;
-          margin: 0;
-          margin-right: 8px;
+          margin: 0 !important;
+          margin-right: 8px !important;
         }
 
         .reviewhub-masonry-modal-verified-badge {
@@ -744,11 +744,11 @@
         .reviewhub-masonry-modal-review-meta {
           font-size: 0.9rem;
           color: #6B7280;
-          margin-bottom: 10px;
+          margin-bottom: 10px !important;
           display: flex;
           align-items: center;
           gap: 4px;
-          margin-top: 0;
+          margin-top: 0 !important;
         }
 
         .reviewhub-masonry-modal-rating {

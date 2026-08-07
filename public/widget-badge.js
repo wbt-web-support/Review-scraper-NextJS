@@ -874,11 +874,12 @@
           padding: 20px !important;
         }
 
-        .reviewhub-badge-modal-title {
+        .reviewhub-badge-modal-panel .reviewhub-badge-modal-title {
             font-size: 1.4rem !important;
             line-height: 1.2 !important;
             font-weight: 700;
-            margin-bottom: 24px;
+            margin-top: 0 !important;
+            margin-bottom: 24px !important;
             color: #1F2937;
         }
 
@@ -902,11 +903,11 @@
           height: 28px;
         }
 
-        .reviewhub-badge-modal-summary-title {
+        .reviewhub-badge-modal-panel .reviewhub-badge-modal-summary-title {
           font-weight: 600;
           font-size: 1.1rem !important;
           color: #1F2937;
-          margin: 0;
+          margin: 0 !important;
         }
 
         .reviewhub-badge-modal-summary-rating {
@@ -1135,7 +1136,7 @@
             padding: 24px 20px;
           }
 
-          .reviewhub-badge-modal-title {
+          .reviewhub-badge-modal-panel .reviewhub-badge-modal-title {
             font-size: 1.2rem;
           }
 
