@@ -1,10 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod/v4";
 import {
-  apiKeyFromRequest,
-  tenantForApiKey,
-  listApiReviews,
-} from "@vrm/lib/api/reviews";
+  requireTenant,
+  unauthorized,
+  badRequest,
+  serverError,
+  firstZodError,
+  NO_STORE,
+} from "@vrm/lib/api/auth";
+import { listApiReviews } from "@vrm/lib/api/reviews";
 
 /**
  * GET /api/v1/reviews
@@ -36,22 +40,12 @@ const QuerySchema = z.object({
 });
 
 export async function GET(request: NextRequest) {
-  const tenant = await tenantForApiKey(apiKeyFromRequest(request));
-  if (!tenant) {
-    return NextResponse.json(
-      { error: "Invalid or missing API key. Send it as: Authorization: Bearer vrm_..." },
-      { status: 401 },
-    );
-  }
+  const tenant = await requireTenant(request);
+  if (!tenant) return unauthorized();
 
   const params = Object.fromEntries(new URL(request.url).searchParams);
   const parsed = QuerySchema.safeParse(params);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: z.prettifyError(parsed.error).split("\n")[0].replace(/^✖\s*/, "") },
-      { status: 400 },
-    );
-  }
+  if (!parsed.success) return badRequest(firstZodError(parsed.error));
 
   const { status, type, limit, offset } = parsed.data;
 
@@ -71,12 +65,10 @@ export async function GET(request: NextRequest) {
         offset,
         reviews,
       },
-      // The client's own data, and it changes the moment they moderate a review.
-      // Nothing about it should sit in a shared cache.
-      { headers: { "Cache-Control": "no-store" } },
+      { headers: NO_STORE },
     );
   } catch (err) {
     console.error("GET /api/v1/reviews failed:", err);
-    return NextResponse.json({ error: "Could not load reviews." }, { status: 500 });
+    return serverError("Could not load reviews.");
   }
 }

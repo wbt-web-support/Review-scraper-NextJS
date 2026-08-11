@@ -13,36 +13,9 @@ import { isDirectVideo } from "@vrm/lib/video/provider";
  *
  * This runs on service_role and RLS is therefore NOT the safety net -- the
  * .eq('tenant_id') below is. The tenant is resolved from the api_key and from
- * nothing else: no caller-supplied tenant id is read anywhere in this module, so
- * there is no parameter to tamper with.
+ * nothing else (see api/auth.ts): no caller-supplied tenant id is read anywhere in
+ * this module, so there is no parameter to tamper with.
  */
-
-export type ApiTenant = { id: string; name: string; slug: string };
-
-/**
- * Resolves the bearer token to a tenant. Returns null for any bad key, without
- * distinguishing "no such key" from "malformed" -- an attacker learns nothing
- * either way.
- */
-export async function tenantForApiKey(key: string | null): Promise<ApiTenant | null> {
-  if (!key || !key.startsWith("vrm_")) return null;
-
-  const admin = createAdminClient();
-  const { data } = await admin
-    .from("tenants")
-    .select("id, name, slug")
-    .eq("api_key", key)
-    .maybeSingle();
-
-  return data ?? null;
-}
-
-/** `Authorization: Bearer vrm_...`, or the `?key=` fallback some no-code tools force. */
-export function apiKeyFromRequest(request: Request): string | null {
-  const header = request.headers.get("authorization");
-  if (header?.toLowerCase().startsWith("bearer ")) return header.slice(7).trim();
-  return new URL(request.url).searchParams.get("key");
-}
 
 export type ApiVideo = {
   /** "bunny" or "supabase". Which host is actually serving the bytes. */
@@ -116,6 +89,38 @@ function toVideo(row: {
   };
 }
 
+/** One list, so a field can never appear on the list route and go missing on the single one. */
+const REVIEW_COLUMNS =
+  "id, reviewer_name, reviewer_email, rating, type, status, text_review, video_guid, video_url, thumbnail_url, created_at";
+
+type ReviewRow = {
+  id: string;
+  reviewer_name: string;
+  reviewer_email: string | null;
+  rating: number;
+  type: "video" | "text";
+  status: "pending" | "approved" | "rejected";
+  text_review: string | null;
+  video_guid: string | null;
+  video_url: string | null;
+  thumbnail_url: string | null;
+  created_at: string;
+};
+
+function toApiReview(row: ReviewRow): ApiReview {
+  return {
+    id: row.id,
+    reviewer_name: row.reviewer_name,
+    reviewer_email: row.reviewer_email,
+    rating: row.rating,
+    type: row.type,
+    status: row.status,
+    text_review: row.text_review,
+    video: toVideo(row),
+    created_at: row.created_at,
+  };
+}
+
 export type ListParams = {
   status?: "pending" | "approved" | "rejected";
   type?: "video" | "text";
@@ -131,10 +136,7 @@ export async function listApiReviews(
 
   let query = admin
     .from("reviews")
-    .select(
-      "id, reviewer_name, reviewer_email, rating, type, status, text_review, video_guid, video_url, thumbnail_url, created_at",
-      { count: "exact" },
-    )
+    .select(REVIEW_COLUMNS, { count: "exact" })
     // The only thing standing between one client and another's testimonials.
     .eq("tenant_id", tenantId)
     .order("created_at", { ascending: false })
@@ -146,17 +148,28 @@ export async function listApiReviews(
   const { data, error, count } = await query;
   if (error) throw new Error(error.message);
 
-  const reviews: ApiReview[] = (data ?? []).map((row) => ({
-    id: row.id,
-    reviewer_name: row.reviewer_name,
-    reviewer_email: row.reviewer_email,
-    rating: row.rating,
-    type: row.type,
-    status: row.status,
-    text_review: row.text_review,
-    video: toVideo(row),
-    created_at: row.created_at,
-  }));
-
+  const reviews = ((data ?? []) as ReviewRow[]).map(toApiReview);
   return { reviews, total: count ?? reviews.length };
+}
+
+/**
+ * One review, scoped to the tenant.
+ *
+ * Null covers both "no such id" and "belongs to someone else", and the caller
+ * turns either into the same 404. Distinguishing them would confirm to a guessing
+ * caller that an id exists on another tenant.
+ */
+export async function getApiReview(
+  tenantId: string,
+  reviewId: string,
+): Promise<ApiReview | null> {
+  const { data, error } = await createAdminClient()
+    .from("reviews")
+    .select(REVIEW_COLUMNS)
+    .eq("id", reviewId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  return data ? toApiReview(data as ReviewRow) : null;
 }
