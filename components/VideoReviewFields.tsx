@@ -60,7 +60,7 @@ export function VideoReviewFields({ form }: { form: UseFormReturn<any> }) {
               <FormItem>
                 <FormLabel>Business email (this is their login)</FormLabel>
                 <FormControl>
-                  <Input type="email" placeholder="owner@acme.co.uk" autoComplete="off" {...field} />
+                  <Input type="email" placeholder="owner@example.com" autoComplete="off" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -142,7 +142,7 @@ export function VideoReviewFields({ form }: { form: UseFormReturn<any> }) {
               <FormItem>
                 <FormLabel>Their website (optional)</FormLabel>
                 <FormControl>
-                  <Input placeholder="njdesignpark.com" autoComplete="off" spellCheck={false} {...field} />
+                  <Input placeholder="example.com" autoComplete="off" spellCheck={false} {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
