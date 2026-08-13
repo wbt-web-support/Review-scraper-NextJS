@@ -179,6 +179,8 @@ curl -H "Authorization: Bearer $KEY" "$BASE/settings"
     "contact_phone": "07700 900123"
   },
   "collection": {
+    "intro_title": "Share a video review",
+    "intro_body": "Our business thrives on the quality of the work we do...\n\nThank you!",
     "welcome_text": "We would love to hear from you.",
     "description": "Share your experience in a quick video.",
     "thank_you_text": "Thank you for your review!",
@@ -204,7 +206,7 @@ Writable fields:
 | Section | Fields |
 |---|---|
 | `branding` | `name` (1 to 120 chars), `brand_color` (hex like `#8A9A5B`), `logo_url`, `contact_email`, `contact_phone` |
-| `collection` | `welcome_text`, `description`, `thank_you_text` (up to 300 chars each), `prompt_questions` (up to 10 strings) |
+| `collection` | `intro_title`, `intro_body`, `welcome_text`, `description`, `thank_you_text`, `prompt_questions` (up to 10 strings) |
 | `widget` | `layout` (`grid`, `carousel`, `single`), `autoplay` (boolean) |
 
 Send `null` or `""` to clear `logo_url`, `contact_email`, or `contact_phone`.
@@ -231,8 +233,13 @@ curl -X PUT -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" 
 curl -X DELETE -H "Authorization: Bearer $KEY" "$BASE/collection"
 ```
 
+The page is two steps. `intro_*` is the first screen, the ask. The rest is the
+second screen, the brief, shown above the prompt questions.
+
 | Field | Rules |
 |---|---|
+| `intro_title` | 1 to 120 chars. Required on PUT. Step one's heading. |
+| `intro_body` | Up to 1500 chars. Step one's copy. **A blank line starts a new paragraph.** |
 | `welcome_text` | 1 to 300 chars. Required on PUT. |
 | `thank_you_text` | 1 to 300 chars. Required on PUT. |
 | `description` | Up to 300 chars. The line under the heading. |

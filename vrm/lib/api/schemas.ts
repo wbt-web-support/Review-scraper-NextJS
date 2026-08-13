@@ -29,6 +29,9 @@ const optionalUrl = z.union([z.url(), z.literal(""), z.null()]);
 const optionalEmail = z.union([z.email(), z.literal(""), z.null()]);
 const optionalPhone = z.union([z.string().trim().max(40), z.null()]);
 
+const introTitle = z.string().trim().min(1).max(120);
+// Several paragraphs, one per blank line, so it needs more room than the one-liners.
+const introBody = z.string().trim().max(1500);
 const welcomeText = z.string().trim().min(1).max(300);
 const description = z.string().trim().max(300);
 const thankYouText = z.string().trim().min(1).max(300);
@@ -62,6 +65,8 @@ export const BrandingPutSchema = z.object({
 });
 
 export const CollectionPatchSchema = z.object({
+  intro_title: introTitle.optional(),
+  intro_body: introBody.optional(),
   welcome_text: welcomeText.optional(),
   description: description.optional(),
   thank_you_text: thankYouText.optional(),
@@ -69,8 +74,10 @@ export const CollectionPatchSchema = z.object({
 });
 
 export const CollectionPutSchema = z.object({
+  intro_title: introTitle,
   welcome_text: welcomeText,
   thank_you_text: thankYouText,
+  intro_body: introBody.optional(),
   description: description.optional(),
   prompt_questions: promptQuestions.optional(),
 });

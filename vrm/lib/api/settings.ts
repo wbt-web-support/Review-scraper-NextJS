@@ -31,6 +31,10 @@ export type ApiSettings = {
     contact_phone: string | null;
   };
   collection: {
+    /** First step: the ask. */
+    intro_title: string;
+    intro_body: string;
+    /** Second step: the brief, above the prompt questions. */
     welcome_text: string;
     description: string;
     thank_you_text: string;
@@ -59,6 +63,12 @@ export type ApiSettingsPatch = {
  * a brand new tenant gets, not on whatever an empty string renders as.
  */
 export const COLLECTION_DEFAULTS: ApiSettings["collection"] = {
+  intro_title: "We value your feedback",
+  intro_body:
+    "Client recommendations are at the heart of what we do.\n\n" +
+    "We would be incredibly grateful if you could take 60 seconds to record a quick, " +
+    "unscripted video review of our work together.\n\n" +
+    "Thank you!",
   welcome_text: "We would love to hear from you.",
   description: "",
   thank_you_text: "Thank you for your review!",
@@ -86,7 +96,7 @@ export async function getApiSettings(tenantId: string): Promise<ApiSettings> {
         .maybeSingle(),
       admin
         .from("collection_settings")
-        .select("welcome_text, description, thank_you_text, prompt_questions")
+        .select("welcome_text, description, thank_you_text, prompt_questions, intro_title, intro_body")
         .eq("tenant_id", tenantId)
         .maybeSingle(),
       admin
@@ -110,6 +120,8 @@ export async function getApiSettings(tenantId: string): Promise<ApiSettings> {
       contact_phone: tenant.contact_phone,
     },
     collection: {
+      intro_title: collection?.intro_title ?? COLLECTION_DEFAULTS.intro_title,
+      intro_body: collection?.intro_body ?? "",
       welcome_text: collection?.welcome_text ?? "",
       description: collection?.description ?? "",
       thank_you_text: collection?.thank_you_text ?? "",
@@ -160,6 +172,8 @@ export async function applyApiSettings(
       description: next.description,
       thankYouText: next.thank_you_text,
       promptQuestions: next.prompt_questions,
+      introTitle: next.intro_title,
+      introBody: next.intro_body,
     });
   }
 

@@ -41,7 +41,7 @@ export interface Bundle {
     custom_domain: string | null; custom_domain_verified: boolean;
     review_open_mode: "dialog" | "page"; max_video_seconds: number;
   };
-  collection: { prompt_questions: string[]; welcome_text: string; description: string; thank_you_text: string };
+  collection: { prompt_questions: string[]; welcome_text: string; description: string; thank_you_text: string; intro_title: string; intro_body: string };
   widget: { layout: "grid" | "carousel" | "single"; autoplay: boolean };
   dns: { records: { type: string; name: string; value: string }[]; serving: boolean };
   counts: Record<ReviewStatus | "all", number>;
@@ -428,11 +428,14 @@ function CollectTab({ base, businessId, bundle }: { base: string; businessId: st
   const [description, setDescription] = useState(bundle.collection.description);
   const [thanks, setThanks] = useState(bundle.collection.thank_you_text);
   const [questions, setQuestions] = useState(bundle.collection.prompt_questions.join("\n"));
+  const [introTitle, setIntroTitle] = useState(bundle.collection.intro_title);
+  const [introBody, setIntroBody] = useState(bundle.collection.intro_body);
 
   const save = useMutation<unknown, Error, void>({
     mutationFn: () => apiRequest("PUT", `${base}/settings`, {
       section: "collection", welcomeText: welcome, description, thankYouText: thanks,
       promptQuestions: questions.split("\n").map((q) => q.trim()).filter(Boolean),
+      introTitle, introBody,
     }),
     onSuccess: () => { invalidate(); toast({ title: "Saved" }); },
     onError: (e) => toast({ title: "Error", description: e.message, variant: "destructive" }),
@@ -440,6 +443,13 @@ function CollectTab({ base, businessId, bundle }: { base: string; businessId: st
 
   return (
     <Panel title="Collection page" hint="The words the client's customer sees when leaving a review.">
+      <SubHeading>First step: the ask</SubHeading>
+      <Field label="Heading"><Input value={introTitle} onChange={(e) => setIntroTitle(e.target.value)} /></Field>
+      <Field label="Body text (blank line between paragraphs)">
+        <Textarea rows={6} value={introBody} onChange={(e) => setIntroBody(e.target.value)} placeholder={"Client recommendations are at the heart of what we do.\n\nWe would be incredibly grateful if you could take 60 seconds to record a quick, unscripted video review of our work together.\n\nThank you!"} />
+      </Field>
+
+      <SubHeading>Second step: the brief</SubHeading>
       <Field label="Welcome text"><Input value={welcome} onChange={(e) => setWelcome(e.target.value)} /></Field>
       <Field label="Description (optional)">
         <Textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="A short line under the title, e.g. Share your experience in a quick video." />
@@ -700,6 +710,22 @@ function Panel({ title, hint, children }: { title: string; hint?: string; childr
       <h3 className="text-base font-semibold text-gray-900">{title}</h3>
       {hint && <p className="mt-1 text-sm text-gray-500">{hint}</p>}
       <div className="mt-4 space-y-4">{children}</div>
+    </div>
+  );
+}
+/**
+ * Divides a panel into the steps the customer actually walks through.
+ *
+ * The collection page is two screens now, and without a marker the settings form
+ * is eight unlabelled boxes where "Heading" and "Welcome text" both look like the
+ * title of the same page.
+ */
+function SubHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="border-t border-gray-100 pt-4 first:border-t-0 first:pt-0">
+      <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+        {children}
+      </span>
     </div>
   );
 }

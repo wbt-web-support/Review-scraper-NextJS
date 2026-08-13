@@ -20,6 +20,10 @@ const schemas = {
     description: z.string().trim().max(500).optional(),
     thankYouText: z.string().trim().min(1).max(300),
     promptQuestions: z.array(z.string()).max(20),
+    // The collection page's first step. Longer cap than the one-liners above
+    // because it is several paragraphs, one per blank line.
+    introTitle: z.string().trim().min(1).max(120).optional(),
+    introBody: z.string().trim().max(1500).optional(),
   }),
   branding: z.object({
     name: z.string().trim().min(1).max(120),
@@ -93,6 +97,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           description: (data.description as string) ?? "",
           thankYouText: data.thankYouText as string,
           promptQuestions: data.promptQuestions as string[],
+          introTitle: (data.introTitle as string) || "We value your feedback",
+          introBody: (data.introBody as string) ?? "",
         });
         return res.status(200).json({ message: "Saved." });
 

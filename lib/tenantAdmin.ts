@@ -90,7 +90,7 @@ export type TenantBundle = {
     review_open_mode: "dialog" | "page";
     max_video_seconds: number;
   };
-  collection: { prompt_questions: string[]; welcome_text: string; description: string; thank_you_text: string };
+  collection: { prompt_questions: string[]; welcome_text: string; description: string; thank_you_text: string; intro_title: string; intro_body: string };
   widget: { layout: "grid" | "carousel" | "single"; autoplay: boolean };
   dns: { records: DnsRecord[]; serving: boolean };
   counts: ReviewCounts;
@@ -117,7 +117,7 @@ export async function getTenantBundle(tenantId: string): Promise<TenantBundle | 
   const [{ data: collection }, { data: widget }, { data: reviewRows }] = await Promise.all([
     admin
       .from("collection_settings")
-      .select("prompt_questions, welcome_text, description, thank_you_text")
+      .select("prompt_questions, welcome_text, description, thank_you_text, intro_title, intro_body")
       .eq("tenant_id", tenantId)
       .maybeSingle(),
     admin
@@ -156,6 +156,8 @@ export async function getTenantBundle(tenantId: string): Promise<TenantBundle | 
       welcome_text: collection?.welcome_text ?? "",
       description: collection?.description ?? "",
       thank_you_text: collection?.thank_you_text ?? "",
+      intro_title: collection?.intro_title ?? "We value your feedback",
+      intro_body: collection?.intro_body ?? "",
     },
     widget: {
       layout: (widget?.layout as TenantBundle["widget"]["layout"]) ?? "grid",
@@ -325,7 +327,7 @@ export async function deleteTenantReview(tenantId: string, reviewId: string): Pr
 
 export async function updateCollection(
   tenantId: string,
-  input: { welcomeText: string; description: string; thankYouText: string; promptQuestions: string[] },
+  input: { welcomeText: string; description: string; thankYouText: string; promptQuestions: string[]; introTitle: string; introBody: string },
 ): Promise<void> {
   const questions = input.promptQuestions.map((q) => q.trim()).filter(Boolean).slice(0, 10);
   const { error } = await createAdminClient()
@@ -335,6 +337,8 @@ export async function updateCollection(
       description: input.description,
       thank_you_text: input.thankYouText,
       prompt_questions: questions,
+      intro_title: input.introTitle,
+      intro_body: input.introBody,
     })
     .eq("tenant_id", tenantId);
   if (error) throw new Error(error.message);

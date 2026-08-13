@@ -7,7 +7,15 @@ import { formatVideoLength } from "@vrm/lib/video/limits";
 import { StarRating } from "./star-rating";
 import { Recorder } from "./recorder";
 
-type Step = "intro" | "video" | "text" | "details" | "done";
+/**
+ * "welcome" is the ask, "intro" is the brief.
+ *
+ * They were one screen, which made the first thing a customer saw a list of five
+ * questions and a record button. That reads as work. Splitting it means the
+ * opening screen only has to earn a yes -- why it matters, that it is quick, that
+ * honest is fine -- and the questions arrive once they have already said yes.
+ */
+type Step = "welcome" | "intro" | "video" | "text" | "details" | "done";
 type Mode = "video" | "text";
 
 type BunnyUpload = {
@@ -107,10 +115,26 @@ function uploadVideo(
 }
 
 export function CollectForm({ page }: { page: CollectionPage }) {
-  const { tenant, promptQuestions, welcomeText, description, thankYouText, maxVideoSeconds } = page;
+  const {
+    tenant,
+    promptQuestions,
+    introTitle,
+    introBody,
+    welcomeText,
+    description,
+    thankYouText,
+    maxVideoSeconds,
+  } = page;
   const brand = tenant.brandColor;
 
-  const [step, setStep] = useState<Step>("intro");
+  // A blank line starts a new paragraph. Single newlines inside a paragraph are
+  // ignored, so text pasted from an email with hard wraps still reads as prose.
+  const introParagraphs = introBody
+    .split(/\n\s*\n/)
+    .map((p) => p.trim().replace(/\s*\n\s*/g, " "))
+    .filter(Boolean);
+
+  const [step, setStep] = useState<Step>("welcome");
   const [mode, setMode] = useState<Mode>("video");
 
   const [video, setVideo] = useState<File | null>(null);
@@ -201,9 +225,40 @@ export function CollectForm({ page }: { page: CollectionPage }) {
 
   return (
     <div>
+      {/* ----------------------------------------------------------- welcome */}
+      {step === "welcome" && (
+        <div>
+          <h1 className="collect-title">{introTitle}</h1>
+
+          {/* The business's own words, edited on the Collection page tab. Split on
+              blank lines so a non-technical user gets paragraphs out of a plain
+              textarea with no markup to get wrong. */}
+          {introParagraphs.length > 0 && (
+            <div className="collect-welcome-body">
+              {introParagraphs.map((paragraph, i) => (
+                <p key={i}>{paragraph}</p>
+              ))}
+            </div>
+          )}
+
+          <div className="collect-actions">
+            <button
+              type="button"
+              onClick={() => setStep("intro")}
+              className="collect-btn-primary"
+            >
+              <span className="collect-btn-label">Share a testimonial</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ------------------------------------------------------------- intro */}
       {step === "intro" && (
         <div>
+          <div className="collect-back-row">
+            <BackLink onClick={() => setStep("welcome")} />
+          </div>
           <h1 className="collect-title">{welcomeText}</h1>
           {description && <p className="collect-description">{description}</p>}
 

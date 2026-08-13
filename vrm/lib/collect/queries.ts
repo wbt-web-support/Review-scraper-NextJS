@@ -26,6 +26,9 @@ export type CollectionPage = {
     brandColor: string;
   };
   promptQuestions: string[];
+  /** First step: the ask. Heading, then body copy with one paragraph per blank line. */
+  introTitle: string;
+  introBody: string;
   welcomeText: string;
   /** Optional subtitle shown under the welcome title. */
   description: string;
@@ -54,7 +57,7 @@ export async function getCollectionPage(slug: string): Promise<CollectionPage | 
 
   const { data: settings } = await admin
     .from("collection_settings")
-    .select("prompt_questions, welcome_text, description, thank_you_text")
+    .select("prompt_questions, welcome_text, description, thank_you_text, intro_title, intro_body")
     .eq("tenant_id", tenant.id)
     .maybeSingle();
 
@@ -75,6 +78,8 @@ export async function getCollectionPage(slug: string): Promise<CollectionPage | 
       brandColor: tenant.brand_color,
     },
     promptQuestions,
+    introTitle: settings?.intro_title ?? "We value your feedback",
+    introBody: settings?.intro_body ?? "",
     welcomeText: settings?.welcome_text ?? "We would love to hear from you.",
     description: settings?.description ?? "",
     thankYouText: settings?.thank_you_text ?? "Thank you for your review!",
