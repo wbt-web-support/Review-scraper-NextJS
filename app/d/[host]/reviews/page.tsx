@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getWidgetPayloadByCustomDomain } from "@vrm/lib/widget/queries";
+import { healDomainOnRequest } from "@vrm/lib/domains/verify";
 import { ReviewWall } from "@vrm/components/reviews/review-wall";
 
 /**
@@ -37,7 +38,12 @@ export default async function CustomDomainReviewsPage({
 }) {
   const { host } = await params;
 
-  const data = await getWidgetPayloadByCustomDomain(host);
+  // Same self-healing check as the collection page: a claimed domain whose DNS has
+  // only just gone live verifies itself here rather than 404ing. See /d/[host].
+  let data = await getWidgetPayloadByCustomDomain(host);
+  if (!data && (await healDomainOnRequest(host))) {
+    data = await getWidgetPayloadByCustomDomain(host);
+  }
   if (!data) notFound();
 
   return <ReviewWall data={data} />;

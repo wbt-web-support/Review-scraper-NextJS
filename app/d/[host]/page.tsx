@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getWidgetPayloadByCustomDomain } from "@vrm/lib/widget/queries";
+import { healDomainOnRequest } from "@vrm/lib/domains/verify";
 import { getCollectionPage } from "@vrm/lib/collect/queries";
 import { CollectPage } from "@vrm/components/collect/collect-page";
 
@@ -51,7 +52,15 @@ export default async function CustomDomainPage({
 
   // Resolve the tenant from the verified domain, then load their collection page by
   // slug. The domain check is what authorizes this; the slug is just the lookup.
-  const tenant = await getWidgetPayloadByCustomDomain(host);
+  let tenant = await getWidgetPayloadByCustomDomain(host);
+
+  // A miss on a domain somebody has claimed is worth one more question: has its DNS
+  // gone live since we last looked? A client points their DNS at us and sends the
+  // link straight out, and that first customer must not land on a 404 just because
+  // the sweep hasn't run yet. healDomainOnRequest verifies it or it doesn't.
+  if (!tenant && (await healDomainOnRequest(host))) {
+    tenant = await getWidgetPayloadByCustomDomain(host);
+  }
   if (!tenant) notFound();
 
   const page = await getCollectionPage(tenant.tenant.slug);

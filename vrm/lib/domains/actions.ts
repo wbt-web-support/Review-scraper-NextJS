@@ -1,6 +1,5 @@
 "use server";
 
-import { promises as dns } from "node:dns";
 import { revalidatePath } from "next/cache";
 import { z } from "zod/v4";
 import { createClient } from "@vrm/lib/supabase/server";
@@ -8,16 +7,11 @@ import { createAdminClient } from "@vrm/lib/supabase/admin";
 import { resolveWritableTenantId } from "@vrm/lib/auth/tenant-scope";
 import {
   addDomainToVercel,
-  getVercelDomainStatus,
   removeDomainFromVercel,
   isVercelConfigured,
 } from "@vrm/lib/vercel/client";
-import {
-  normalizeRootDomain,
-  reviewHostFor,
-  cnameTarget,
-  isValidDomain,
-} from "./domain";
+import { syncDomainVerification } from "./verify";
+import { normalizeRootDomain, reviewHostFor, isValidDomain } from "./domain";
 
 export type DomainState = { error: string } | { success: string } | undefined;
 
@@ -112,20 +106,34 @@ export async function saveCustomDomain(
     return { error: attached.error };
   }
 
+  // The DNS is often already in place -- an agency setting a client up will have
+  // added the record before touching this form. Check right now rather than making
+  // them wait for the sweep to notice.
+  const synced = await syncDomainVerification(tenantId, host, { verified: false });
+
   revalidateSettings(tenantId);
+
+  if (synced.verifiedNow) return { success: `${host} is live.` };
+
   return {
     success: isVercelConfigured()
-      ? "Saved and registered with the host. Add the DNS record below, then verify."
-      : "Saved. Add the DNS record below, then verify.",
+      ? "Saved and registered with the host. Add the DNS record below and it goes live on its own, usually within minutes."
+      : "Saved. Add the DNS record below and it goes live on its own, usually within minutes.",
   };
 }
 
 /**
- * Verify the tenant actually controls the domain, by resolving its DNS.
+ * Re-check a domain now, instead of waiting for the sweep.
  *
- * This is the entire security model for custom domains. Without it, anyone could
- * type "review.bbc.co.uk" and we would happily serve their content on the BBC's
- * domain. We only serve a custom host once its DNS demonstrably points at us.
+ * Verification is automatic: syncDomainVerification runs on save, on every settings
+ * page load, on the hourly sweep, and on the first request to the domain itself. So
+ * this button is no longer how a domain goes live -- it is the impatient path, for
+ * the client who has just added the record and wants an answer this second.
+ *
+ * The security model is unchanged and lives in syncDomainVerification: we only serve
+ * a custom host once the host confirms its DNS resolves to this project. Without
+ * that, anyone could type "review.bbc.co.uk" and we would serve their content on the
+ * BBC's domain.
  */
 export async function verifyCustomDomain(forTenantId?: string): Promise<DomainState> {
   const tenantId = await resolveWritableTenantId(forTenantId);
@@ -133,7 +141,7 @@ export async function verifyCustomDomain(forTenantId?: string): Promise<DomainSt
   const supabase = await createClient();
   const { data: tenant } = await supabase
     .from("tenants")
-    .select("custom_domain")
+    .select("custom_domain, custom_domain_verified")
     .eq("id", tenantId)
     .maybeSingle();
 
@@ -142,62 +150,18 @@ export async function verifyCustomDomain(forTenantId?: string): Promise<DomainSt
     return { error: "Add a domain first." };
   }
 
-  const target = cnameTarget();
-  let pointsAtUs = false;
+  const result = await syncDomainVerification(tenantId, host, {
+    verified: Boolean(tenant?.custom_domain_verified),
+    attach: "always",
+  });
 
-  try {
-    const cnames = await dns.resolveCname(host);
-    pointsAtUs = cnames.some(
-      (value) => value.replace(/\.$/, "").toLowerCase() === target.toLowerCase(),
-    );
-  } catch {
-    // No CNAME record. Some DNS providers flatten CNAMEs to A records, so compare
-    // resolved addresses against the target's instead.
-    try {
-      const [hostIps, targetIps] = await Promise.all([
-        dns.resolve4(host),
-        dns.resolve4(target),
-      ]);
-      pointsAtUs = hostIps.some((ip) => targetIps.includes(ip));
-    } catch {
-      pointsAtUs = false;
-    }
-  }
-
-  if (!pointsAtUs) {
+  if (!result.serving) {
     return {
-      error: `${host} isn't pointing at us yet. Add the CNAME below and try again — DNS can take up to an hour.`,
+      error: result.misconfigured
+        ? `${host} isn't pointing at us yet. Add the record below — we'll keep checking, and it goes live on its own once DNS updates.`
+        : `The host isn't serving ${host} yet. It usually takes a minute to issue the certificate — it will go live on its own shortly.`,
     };
   }
-
-  // DNS pointing here is only half the answer. The other half is whether the HOST
-  // will actually serve it -- and only the host can answer that. Skipping this was
-  // the bug that let the app report "Live" for a domain that reset every
-  // connection, because Vercel had no certificate for a domain it didn't know about.
-  const status = await getVercelDomainStatus(host, target);
-
-  if (!status.skipped && !status.serving) {
-    // Attaching is idempotent, so just try again -- it covers the case where the
-    // domain was added before the Vercel token existed.
-    const attached = await addDomainToVercel(host);
-    if (!attached.ok) return { error: attached.error };
-
-    const recheck = await getVercelDomainStatus(host, target);
-    if (!recheck.skipped && !recheck.serving) {
-      return {
-        error: `DNS is correct, but the host isn't serving ${host} yet. It usually takes a minute to issue the certificate — try again shortly.`,
-      };
-    }
-  }
-
-  // service_role: custom_domain_verified is not in the tenant's column grants, by
-  // design. If it were, this check would be trivially bypassable.
-  const { error } = await createAdminClient()
-    .from("tenants")
-    .update({ custom_domain_verified: true })
-    .eq("id", tenantId);
-
-  if (error) return { error: error.message };
 
   revalidateSettings(tenantId);
   return { success: `${host} is live.` };

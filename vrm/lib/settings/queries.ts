@@ -2,8 +2,8 @@ import "server-only";
 
 import { createClient } from "@vrm/lib/supabase/server";
 import { verifySession } from "@vrm/lib/auth/dal";
-import { getVercelDomainStatus, type DnsRecord } from "@vrm/lib/vercel/client";
-import { cnameTarget } from "@vrm/lib/domains/domain";
+import { type DnsRecord } from "@vrm/lib/vercel/client";
+import { syncDomainVerification } from "@vrm/lib/domains/verify";
 
 export type TenantSettingsData = {
   tenant: {
@@ -92,18 +92,15 @@ export async function getTenantSettings(
   let dns: TenantSettingsData["dns"] = { records: [], serving: t.custom_domain_verified };
 
   if (t.custom_domain) {
-    const status = await getVercelDomainStatus(t.custom_domain, cnameTarget());
-    if (status.skipped) {
-      // No host API configured: fall back to the statically configured target.
-      dns = {
-        records: [
-          { type: "CNAME", name: t.custom_domain.split(".")[0], value: cnameTarget() },
-        ],
-        serving: t.custom_domain_verified,
-      };
-    } else {
-      dns = { records: status.records, serving: status.serving };
-    }
+    // Not just a read: if the host is serving a domain we still have down as
+    // unverified, this persists that. Opening the page is one of the moments we get
+    // to learn the answer, and the client should never have to press a button to
+    // record something we already know.
+    const status = await syncDomainVerification(t.id, t.custom_domain, {
+      verified: t.custom_domain_verified,
+    });
+    dns = { records: status.records, serving: status.serving };
+    if (status.verifiedNow) t.custom_domain_verified = true;
   }
 
   return {

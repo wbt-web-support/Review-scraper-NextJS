@@ -21,6 +21,7 @@
     "verify:login": "tsx --env-file=.env.local scripts/vrm/e2e-browser.ts",
     "verify:video": "tsx --env-file=.env.local scripts/vrm/e2e-video.ts",
     "verify:domain": "tsx --env-file=.env.local scripts/vrm/e2e-domain.ts",
+    "domains:reverify": "tsx --env-file=.env.local scripts/vrm/reverify-domains.ts",
     "verify:settings": "tsx --env-file=.env.local scripts/vrm/e2e-settings.ts",
     "verify:video-limit": "tsx --env-file=.env.local scripts/vrm/e2e-video-limit.ts",
     "verify:review-delete": "tsx --env-file=.env.local scripts/vrm/e2e-review-delete.ts",

@@ -133,7 +133,7 @@ export function DomainForm({
                 )
               }
             >
-              {verifying ? "Checking…" : serving ? "Re-check" : "Verify"}
+              {verifying ? "Checking…" : "Check now"}
             </Button>
           </div>
 
@@ -143,9 +143,14 @@ export function DomainForm({
               connection. */}
           {!serving && (
             <>
+              {/* No instruction to press anything: verification is automatic now,
+                  on save, on this page loading, hourly, and on the first visit to
+                  the domain. Re-check is there for the impatient, not the required
+                  step it used to be. */}
               <p className="mt-5 text-sm text-ink">
                 Add {records.length === 1 ? "this record" : "these records"} at your DNS
-                provider (GoDaddy, Cloudflare, Namecheap…), then press Verify.
+                provider (GoDaddy, Cloudflare, Namecheap…). It goes live on its own once
+                DNS updates, usually within minutes.
               </p>
 
               <div className="mt-3 overflow-x-auto rounded-field border border-muted bg-surface">

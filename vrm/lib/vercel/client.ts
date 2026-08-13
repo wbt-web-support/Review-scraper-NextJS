@@ -127,6 +127,8 @@ export type DomainStatus =
       skipped?: false;
       /** Vercel is serving it: attached to the project AND DNS resolves here. */
       serving: boolean;
+      /** Registered against THIS project. Without it Vercel serves nothing. */
+      attached: boolean;
       /** DNS is not (yet) pointing at Vercel. */
       misconfigured: boolean;
       /** Exactly what the client must add at their DNS provider. */
@@ -203,12 +205,16 @@ export async function getVercelDomainStatus(
   const body = conf.body as Record<string, unknown>;
   const records = parseRecords(body, subdomain, fallbackCname);
 
-  if (!attached.ok) {
-    return { serving: false, misconfigured: true, records };
-  }
-
+  // Kept separate on purpose. "Not attached" and "DNS is wrong" both mean the domain
+  // does not work, but they need different fixes -- one is ours to make, one is the
+  // client's -- and the caller cannot choose between them if we collapse the two.
   const misconfigured = Boolean(body.misconfigured);
-  return { serving: !misconfigured, misconfigured, records };
+  return {
+    attached: attached.ok,
+    serving: attached.ok && !misconfigured,
+    misconfigured,
+    records,
+  };
 }
 
 /** Detach a domain, so a deleted tenant doesn't leave it squatting on the project. */
