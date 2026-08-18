@@ -252,17 +252,6 @@
     injectStyles: function () {
       if (document.getElementById('reviewhub-grid-widget-styles')) return;
 
-      // Font Awesome for stars and icons (same as widget-carousel.js)
-      if (!document.querySelector('link[href*="font-awesome"]')) {
-        const fontAwesome = document.createElement('link');
-        fontAwesome.rel = 'stylesheet';
-        fontAwesome.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css';
-        fontAwesome.integrity = 'sha512-1ycn6IcaQQ40/MKBW2W4Rhis/DbILU74C1vSrLJxCq57o941Ym01SwNsOMqvEBFlcgUa6xLiPY/NS5R+E6ztJQ==';
-        fontAwesome.crossOrigin = 'anonymous';
-        fontAwesome.referrerPolicy = 'no-referrer';
-        document.head.appendChild(fontAwesome);
-      }
-
       // Google Fonts (Inter for modern typography)
       if (!document.querySelector('link[href*="fonts.googleapis.com/css2?family=Inter"]')) {
         const preconnect1 = document.createElement('link');
@@ -346,9 +335,34 @@
           box-sizing: border-box;
         }
 
-        /* Font Awesome class prefixes */
-        .rh-fas { font-family: 'Font Awesome 5 Free'; font-weight: 900; }
-        .rh-far { font-family: 'Font Awesome 5 Free'; font-weight: 400; }
+        /* Icon font: Font Awesome 5 Free subset (7 glyphs), inlined as woff2 data URIs.
+           Self-hosted so widgets never block on the cdnjs stylesheet + webfont request.
+           Font Awesome Free fonts are licensed SIL OFL 1.1 (https://fontawesome.com/license/free). */
+        @font-face {
+          font-family: 'RH Icons';
+          font-style: normal;
+          font-weight: 900;
+          font-display: block;
+          src: url(data:font/woff2;base64,d09GMgABAAAAAANkAAwAAAAABdAAAAMYAUuGJAAAAAAAAAAAAAAAAAAAAAAAAAAAGhYGYABUEQgKhliFQwE2AiQDIAsSAAQgBQYHIBtUBACO1FEtOvfs+5y67yugyAnLlLACzEU8ppanNyS5ZbtAsksATuFGDKqCr4lz8Ua72TjSWmEi22fYgj4q6On9Bf9Fhh9lo4/EB3/dhhRHfx8+zWbwoLeBAPgCAAAGAsEbDB70h5sET4DakQygUalvMGPScgZPDvqQTnJ9PygffXOTW3Mjg86iGwACACqhdQCiI1vAAHAARHCginigqugLHqyt+ej5sdvHXp8s39yaBlSgK9jvPwF/A3YEbPVfJTSC0HFI08AA84ACkfYD6Ik242JpeHe/joEDB2bW6/nAQD7dOInQWZc4zN27r1smduu+aGNCj25rN4f17OFckdiTWlwOfbK6aLJZXSgmLbAbyLC1dPNTKc7FRpyxxJhKKsBWeaFctV+33XD06um61BxVNNHajXo6VEBZIAh2J5HNpbvmcNmc9gWKVdkp6hzHoCQJi5aaTIu4yLRg716o1WO/AG82brlhdEWt0dS6dcu45HndYtYpRaUpi11abnBeT1necBTeQA7v26dfZFKXmRaZbbpNUI4KgroLytK1a63/WFQ3CnYD1xYI9s1Gdm+AOnaWENqDxXfvEcq22ZJsVRPn6rP33esvm+ZK3/kJtb3u80MqZ/WX7+3LnquHdLG1VRbl7jInLxbNDXYPqfHVhokI3z5d+5Fwfs4cs2biqAMHDh/ucXizqtbXbx7YHbZat8D6QLgnfHyjnSQT8UO8137Qc4T5v5fFLBkjJRpQ7u668FjvXcuWUQSX1RiVGeQpe173zMnLa/f//pZboq5u1hNMW8lTowO/ZjKKt7bc/w9P5uXkPUz2DMpsjMriImjZsl29jy3s6i4fQFKkUTJbvP6bzU9m1eFvSMyZd5tRzsj351u43ML752dw57sz0jyxauKefck0p3OngQET1+fI5X0t+cEDizAMAAK0wyybWhGmPaN4WuLLobkZkfsCAqjtlLgRNPPXgLJvvI4BAO5ljfN3+Ghvtb1MpXMAeEAsAg6eDqYIBMw+JCH+LrIqBJAFw6Is7i6WSfubxfLUB9ELCYp6gYOSdgdmAA==) format('woff2');
+        }
+        @font-face {
+          font-family: 'RH Icons';
+          font-style: normal;
+          font-weight: 400;
+          font-display: block;
+          src: url(data:font/woff2;base64,d09GMgABAAAAAAGEAAwAAAAAAqgAAAE4AUuGJAAAAAAAAAAAAAAAAAAAAAAAAAAAGhQGYAA0EQgKeIERATYCJAMICwYABCAFBgcgG+gBAK4OOLw+Xhwpa+Y9i+JF9nNZBNFaWT3PHGJFDogWZMLGELIRsTHihAyw3J4rDWaWadv8WdtHlAi5wPnPrqvDAw08x0QmGCaYaWSBB1xAQX7Bu41B9hRHRqsmgXZACCGpj69xTQOxMQ5gjZ//NeIUSUMdr9p6YNU+x340/GiIz9VmxjIExPwQEwQS6tCvTqBfvQmoVy/40VDRpa4FICoSSKAeCZMxF9AOSCOtvH7cn+X3300rslcfRpfFnafTy/LhxZE8L4siy/KszLv65qg5MHx90j8nVlBb/k/K2CU1c64PLD15fMbxwTU+37v7Qt+iASLZ4IWDy2rMUuiqSnMiQWw4M2V6j7t2di38qy2B2uwjqrZUV6Wz8QXNEgjepNKxCyIK8GFKSEt1CSSfdILQ3KiOVGUEAA==) format('woff2');
+        }
+        .rh-fas, .rh-far {
+          -moz-osx-font-smoothing: grayscale;
+          -webkit-font-smoothing: antialiased;
+          display: inline-block;
+          font-style: normal;
+          font-variant: normal;
+          text-rendering: auto;
+          line-height: 1;
+        }
+        .rh-fas { font-family: 'RH Icons'; font-weight: 900; }
+        .rh-far { font-family: 'RH Icons'; font-weight: 400; }
         .rh-fa-star::before { content: "\\f005"; }
         .rh-fa-star-half-alt::before { content: "\\f5c0"; }
         .rh-fa-check-circle::before { content: "\\f058"; }
