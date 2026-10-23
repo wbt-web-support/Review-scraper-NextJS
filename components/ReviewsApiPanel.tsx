@@ -43,6 +43,7 @@ const SAMPLE_RESPONSE = `{
   "totalReviews": 219,
   "averageRating": 4.8,
   "recommendedPercentage": null,
+  "range": null,
   "total": 219, "limit": 2000, "offset": 0, "hasMore": false,
   "reviews": [
     {
@@ -195,6 +196,7 @@ export function ReviewsApiPanel({ businessId, businessName, domain }: { business
               <ul className="list-inside list-disc space-y-1 text-xs">
                 <li>Returns every review by default, including star ratings left without a comment.</li>
                 <li><code className="rounded bg-gray-100 px-1">?limit=50&amp;offset=0</code> pages through the reviews, up to 2000 per request.</li>
+                <li><code className="rounded bg-gray-100 px-1">?from=2026-01-01&amp;to=2026-03-31</code> returns only reviews posted in that range, both days included. Either date can be left out.</li>
                 <li><code className="rounded bg-gray-100 px-1">?minRating=4</code> keeps only 4 and 5 star reviews. On Facebook, 2 or more keeps recommended reviews only.</li>
               </ul>
             </div>

@@ -1,12 +1,8 @@
 {
   "crons": [
     {
-      "path": "/api/cron/google",
-      "schedule": "0 2 */4 * *"
-    },
-    {
-      "path": "/api/cron/facebook",
-      "schedule": "0 2 */15 * *"
+      "path": "/api/cron/crawl",
+      "schedule": "*/15 * * * *"
     },
     {
       "path": "/api/cron/verify-domains",

@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document, Model, Types } from 'mongoose';
+import { BusinessCrawlStateSchema, type IBusinessCrawlState } from './BusinessCrawlState';
 
 /**
  * The link a scraped business keeps to its Video Review Manager tenant in Supabase.
@@ -35,6 +36,7 @@ export interface IBusinessUrl extends Document {
   details?: IBusinessUrlDetails;
   /** Secret key for the JSON reviews API. See GoogleBusinessUrl.model for the note. */
   apiKey?: string;
+  crawl?: IBusinessCrawlState;
   addedAt?: Date;
   lastScrapedAt?: Date;
 }
@@ -67,6 +69,7 @@ const BusinessUrlSchema: Schema<IBusinessUrl> = new Schema({
   // Same field as GoogleBusinessUrl.model. This file registers the same model names,
   // so whichever loads first owns the schema; without it here, writes are dropped.
   apiKey: { type: String, select: false, unique: true, sparse: true },
+  crawl: { type: BusinessCrawlStateSchema, required: false },
   addedAt: { type: Date, default: Date.now },
   lastScrapedAt: { type: Date },
 });

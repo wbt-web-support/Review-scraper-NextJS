@@ -485,6 +485,13 @@ interface GetReviewsOptions {
    * rating with no comment is still one of the business's reviews.
    */
   requireText?: boolean;
+  /**
+   * Only reviews posted on or after / before these ISO timestamps. A review whose
+   * date is still "2 weeks ago" text cannot be placed in a range, so it is left out
+   * whenever either bound is set.
+   */
+  postedFrom?: string;
+  postedBefore?: string;
 }
 export const getReviewBatchForBusinessUrl = async (
   urlHash: string,
@@ -616,86 +623,160 @@ export const upsertReviews = async (data: UpsertReviewsArgs): Promise<IReviewBat
 };
 
 // New function to merge new reviews with existing ones
-export const mergeNewReviews = async (data: UpsertReviewsArgs): Promise<IReviewBatch> => {
+/** A real timestamp, as opposed to the "2 weeks ago" text older scrapes stored. */
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}/;
+
+/**
+ * Identity for a review that has no platform id. Author, opening text and rating
+ * together: two different people, or two different reviews, almost never match.
+ */
+const reviewFallbackKey = (r: IReviewItem): string =>
+  `${(r.author || '').trim().toLowerCase()}|${(r.content ?? (r as IReviewItem & { text?: string }).text ?? '').trim().slice(0, 50).toLowerCase()}|${r.rating ?? ''}`;
+
+/**
+ * Adds newly scraped reviews to a business. ADD-ONLY: nothing stored is ever
+ * removed or replaced, so a partial or odd scrape can never cost a client a review.
+ *
+ * Duplicates are judged against EVERY batch holding this business's reviews --
+ * some businesses have two, from being re-added under a new id, and the widgets
+ * read them all by urlHash. A review with a platform id is a duplicate only of the
+ * same id (or of an id-less stored copy of itself). A review without an id is
+ * compared by author, opening text and rating.
+ *
+ * The old version compared ids alone, and a stored review with no id put
+ * `undefined` in the id set -- after which every incoming review without an id
+ * was silently thrown away as "already stored".
+ *
+ * When a review comes back that is already stored with a "2 weeks ago" style date,
+ * its real timestamp replaces the text, which is what makes date filtering work on
+ * older data.
+ */
+export const mergeNewReviews = async (
+  data: UpsertReviewsArgs,
+): Promise<{ added: number; datesFixed: number; checked: number }> => {
   await ensureDbConnected();
   if (!Types.ObjectId.isValid(data.businessUrlId)) throw new Error("Invalid businessUrlId for mergeNewReviews");
-  
+
   const ReviewModelToUse = data.source === 'google' ? GoogleReviewBatchModel : FacebookReviewBatchModel;
-  
-  // Find existing review batch by businessUrlId
-  let existingBatch = await ReviewModelToUse.findOne({ 
-    businessUrlId: new Types.ObjectId(data.businessUrlId), 
-    source: data.source 
+  const businessOid = new Types.ObjectId(data.businessUrlId);
+
+  const batches = await ReviewModelToUse.find({
+    $or: [{ businessUrlId: businessOid }, { urlHash: data.urlHash }],
   }).exec();
 
-  // If not found, try to find by urlHash (to avoid duplicate key error)
-  if (!existingBatch) {
-    existingBatch = await ReviewModelToUse.findOne({ urlHash: data.urlHash, source: data.source }).exec();
+  type Slot = { batch: (typeof batches)[number]; index: number };
+  const byId = new Map<string, Slot>();
+  const idless = new Map<string, Slot>();
+  const allKeys = new Set<string>();
+  batches.forEach((batch) => {
+    (batch.reviews || []).forEach((review, index) => {
+      if (review.reviewId) byId.set(review.reviewId, { batch, index });
+      else if (!idless.has(reviewFallbackKey(review))) idless.set(reviewFallbackKey(review), { batch, index });
+      allKeys.add(reviewFallbackKey(review));
+    });
+  });
+
+  const toAdd: IReviewItem[] = [];
+  // In-place fixes to stored reviews, as positional $set paths per batch.
+  const fixes = new Map<(typeof batches)[number], Record<string, unknown>>();
+  const fix = (slot: Slot, field: 'postedAt' | 'reviewId', value: string) => {
+    const set = fixes.get(slot.batch) ?? {};
+    set[`reviews.${slot.index}.${field}`] = value;
+    fixes.set(slot.batch, set);
+  };
+  let datesFixed = 0;
+
+  const seenThisScrape = new Set<string>();
+  for (const review of data.reviews) {
+    const key = reviewFallbackKey(review);
+    if (review.reviewId) {
+      if (seenThisScrape.has(review.reviewId)) continue;
+      seenThisScrape.add(review.reviewId);
+      const stored = byId.get(review.reviewId);
+      if (stored) {
+        const current = stored.batch.reviews[stored.index];
+        if (!ISO_DATE.test(current.postedAt || '') && ISO_DATE.test(review.postedAt || '')) {
+          fix(stored, 'postedAt', review.postedAt);
+          datesFixed++;
+        }
+        continue;
+      }
+      // Stored before ids were kept: the same review, so give the stored copy its id
+      // (and real date) rather than adding a second one.
+      const twin = idless.get(key);
+      if (twin) {
+        const current = twin.batch.reviews[twin.index];
+        fix(twin, 'reviewId', review.reviewId);
+        if (!ISO_DATE.test(current.postedAt || '') && ISO_DATE.test(review.postedAt || '')) {
+          fix(twin, 'postedAt', review.postedAt);
+          datesFixed++;
+        }
+        idless.delete(key);
+        byId.set(review.reviewId, twin);
+        continue;
+      }
+    } else if (allKeys.has(key)) {
+      continue;
+    }
+    allKeys.add(key);
+    toAdd.push(review);
   }
 
-  if (!existingBatch) {
-    // If still not found, create new batch
-    console.log(`[Storage/mergeNewReviews] No existing batch found for businessUrlId: ${data.businessUrlId} or urlHash: ${data.urlHash}, creating new batch with ${data.reviews.length} reviews`);
-    const newBatch = await ReviewModelToUse.create({
-      businessUrlId: new Types.ObjectId(data.businessUrlId),
+  // Write into the batch owned by this business id, else the urlHash one, else a new one.
+  const primary = batches.find((b) => String(b.businessUrlId) === String(businessOid)) || batches[0];
+  if (!primary) {
+    await ReviewModelToUse.create({
+      businessUrlId: businessOid,
       url: data.url,
       urlHash: data.urlHash,
-      reviews: data.reviews,
+      reviews: toAdd,
       lastScrapedAt: new Date(),
-      source: data.source
+      source: data.source,
     });
-    if (!newBatch) {
-      throw new Error("Failed to create new review batch");
-    }
-    return newBatch;
+    return { added: toAdd.length, datesFixed: 0, checked: data.reviews.length };
   }
 
-  // Clean existing reviews: remove any with missing or empty content
-  // existingBatch.reviews = existingBatch.reviews.filter(
-  //   review => typeof review.content === 'string' && review.content.trim().length > 0
-  // );
-
-  // Merge new reviews with existing ones
-  // SELF-HEALING: Deduplicate the EXISTING batch first in case it has duplicates
-  const uniqueExistingReviews: IReviewItem[] = [];
-  const seenIds = new Set<string>();
-  
-  for (const review of existingBatch.reviews) {
-     const key = review.reviewId || `${review.author}|${(review.content || '').substring(0, 50)}`; // Relaxed fallback
-     if (!seenIds.has(key)) {
-         seenIds.add(key);
-         uniqueExistingReviews.push(review);
-     }
+  // Targeted, atomic writes -- never a rewrite of the whole array. Re-saving the
+  // array would re-validate every stored review (one bad legacy row would then
+  // block all saving for the business) and would overwrite anything another
+  // writer appended in the meantime. $push only appends, so the positional fixes
+  // computed above still point at the right reviews.
+  //
+  // Fixes go first, as their own update: MongoDB refuses a positional $set and a
+  // $push on the same array in one operation.
+  for (const [batch, set] of fixes) {
+    await ReviewModelToUse.updateOne({ _id: batch._id }, { $set: set }).exec();
   }
-  existingBatch.reviews = uniqueExistingReviews;
+  await ReviewModelToUse.updateOne(
+    { _id: primary._id },
+    {
+      $set: { lastScrapedAt: new Date(), url: data.url, urlHash: data.urlHash },
+      ...(toAdd.length > 0 ? { $push: { reviews: { $each: toAdd } } } : {}),
+    },
+  ).exec();
+  console.log(`[Storage/mergeNewReviews] ${data.source} ${data.businessUrlId}: checked ${data.reviews.length}, added ${toAdd.length}, dates fixed ${datesFixed}`);
+  return { added: toAdd.length, datesFixed, checked: data.reviews.length };
+};
 
-  const existingReviewIds = new Set(existingBatch.reviews.map(review => review.reviewId));
-  // Also filter new reviews for valid content (defensive)
-  // const newReviews = data.reviews.filter(
-  //   review => !existingReviewIds.has(review.reviewId) && typeof review.content === 'string' && review.content.trim().length > 0
-  // );
-  const newReviews = data.reviews.filter(
-    review => !existingReviewIds.has(review.reviewId)
-  );
-  
-  console.log(`[Storage/mergeNewReviews] Existing batch has ${existingBatch.reviews.length} reviews, ${data.reviews.length} new reviews provided, ${newReviews.length} are actually new`);
-
-  if (newReviews.length === 0) {
-    // No new reviews, just update the lastScrapedAt timestamp and url/urlHash
-    existingBatch.lastScrapedAt = new Date();
-    existingBatch.url = data.url;
-    existingBatch.urlHash = data.urlHash;
-    await existingBatch.save();
-    return existingBatch;
-  }
-
-  // Add new reviews to existing batch
-  existingBatch.reviews = [...existingBatch.reviews, ...newReviews];
-  existingBatch.lastScrapedAt = new Date();
-  existingBatch.url = data.url;
-  existingBatch.urlHash = data.urlHash;
-  await existingBatch.save();
-  return existingBatch;
+/**
+ * The newest real review date stored for a business, across all its batches.
+ * Only ISO timestamps count: "2 weeks ago" says nothing without knowing when it
+ * was scraped. Null when nothing usable is stored.
+ */
+export const getLatestStoredReviewDate = async (
+  urlHash: string,
+  source: 'google' | 'facebook',
+): Promise<Date | null> => {
+  await ensureDbConnected();
+  const ReviewModelToUse = source === 'google' ? GoogleReviewBatchModel : FacebookReviewBatchModel;
+  const [row] = await ReviewModelToUse.aggregate([
+    { $match: { urlHash } },
+    { $unwind: '$reviews' },
+    { $match: { 'reviews.postedAt': { $regex: ISO_DATE.source } } },
+    { $group: { _id: null, latest: { $max: '$reviews.postedAt' } } },
+  ]).exec();
+  const latest = row?.latest ? new Date(row.latest) : null;
+  return latest && !isNaN(latest.getTime()) ? latest : null;
 };
 
 /**
@@ -784,6 +865,7 @@ export const getReviewStatsAndReviews = async (
   const offset = options.offset || 0;
   const minRating = options.minRating;
   const requireText = options.requireText !== false;
+  const { postedFrom, postedBefore } = options;
 
   console.log(`[Storage] 📊 Aggregation Query: Stats & Reviews for urlHash=${urlHash}, source=${source}, limit=${limit}`);
 
@@ -801,18 +883,27 @@ export const getReviewStatsAndReviews = async (
        { $match: { urlHash: urlHash } },
        { $unwind: "$reviews" },
        // DEDUPLICATION STAGE:
-       // Group duplications by reviewId (or author+content fallback) to ensure accurate counts
+       // Group duplications by reviewId (or author+content fallback) to ensure accurate counts.
+       //
+       // The id test must look at the string's length. `$ne: [<missing field>, null]`
+       // is TRUE in aggregation, so the old test sent every review WITHOUT an id
+       // down the "has an id" branch, grouped them all under one empty key, and
+       // showed only one of them -- the rest silently vanished from widgets.
+       // The fallback key matches the one mergeNewReviews uses.
        {
          $group: {
            _id: {
              $cond: {
-               if: { $and: [{ $ne: ["$reviews.reviewId", null] }, { $ne: ["$reviews.reviewId", ""] }] },
-               then: "$reviews.reviewId",
+               if: { $gt: [{ $strLenCP: { $ifNull: ["$reviews.reviewId", ""] } }, 0] },
+               then: { $concat: ["id:", "$reviews.reviewId"] },
                else: { 
                  $concat: [
-                   { $ifNull: ["$reviews.author", "unknown"] }, 
+                   "nk:",
+                   { $toLower: { $trim: { input: { $ifNull: ["$reviews.author", ""] } } } },
                    "|", 
-                  { $substrCP: [{ $ifNull: ["$reviews.content", { $ifNull: ["$reviews.text", ""] }] }, 0, 20] } 
+                   { $toLower: { $substrCP: [{ $trim: { input: { $ifNull: ["$reviews.content", { $ifNull: ["$reviews.text", ""] }] } } }, 0, 50] } },
+                   "|",
+                   { $toString: { $ifNull: ["$reviews.rating", ""] } }
                  ] 
                }
              }
@@ -820,7 +911,39 @@ export const getReviewStatsAndReviews = async (
            doc: { $first: "$$ROOT" }
          }
        },
-       { $replaceRoot: { newRoot: "$doc" } }
+       { $replaceRoot: { newRoot: "$doc" } },
+       // Second pass: older scrapes stored some reviews without an id that were
+       // later stored again with one. Group by the fallback key and, where a group
+       // has copies WITH an id, keep only those -- distinct reviews that happen to
+       // share author, text and rating all keep their own ids, so none is lost.
+       {
+         $addFields: {
+           _hasId: { $gt: [{ $strLenCP: { $ifNull: ["$reviews.reviewId", ""] } }, 0] },
+           _fk: {
+             $concat: [
+               { $toLower: { $trim: { input: { $ifNull: ["$reviews.author", ""] } } } },
+               "|",
+               { $toLower: { $substrCP: [{ $trim: { input: { $ifNull: ["$reviews.content", { $ifNull: ["$reviews.text", ""] }] } } }, 0, 50] } },
+               "|",
+               { $toString: { $ifNull: ["$reviews.rating", ""] } }
+             ]
+           }
+         }
+       },
+       { $group: { _id: "$_fk", docs: { $push: "$$ROOT" } } },
+       {
+         $project: {
+           keep: {
+             $let: {
+               vars: { withId: { $filter: { input: "$docs", cond: "$$this._hasId" } } },
+               in: { $cond: [{ $gt: [{ $size: "$$withId" }, 0] }, "$$withId", [{ $arrayElemAt: ["$docs", 0] }]] }
+             }
+           }
+         }
+       },
+       { $unwind: "$keep" },
+       { $replaceRoot: { newRoot: "$keep" } },
+       { $project: { _hasId: 0, _fk: 0 } }
     ];
     
     // Definition of the filter criteria
@@ -846,7 +969,15 @@ export const getReviewStatsAndReviews = async (
                 : { "reviews.recommendationStatus": { $in: ["recommended", "not_recommended"] } }
               )
             : { "reviews.rating": { $gte: minRating } }
-        ] : [])
+        ] : []),
+        ...(postedFrom || postedBefore ? [{
+          // ISO strings sort as dates, so a string range is a date range.
+          "reviews.postedAt": {
+            $regex: "^\\d{4}-\\d{2}-\\d{2}",
+            ...(postedFrom ? { $gte: postedFrom } : {}),
+            ...(postedBefore ? { $lt: postedBefore } : {}),
+          },
+        }] : []),
     ];
     // $and refuses an empty array, so no conditions at all means match everything.
     const filterCriteria = filterConditions.length > 0 ? { $and: filterConditions } : {};

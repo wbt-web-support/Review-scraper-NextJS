@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document, Model, Types } from 'mongoose';
+import { BusinessCrawlStateSchema, type IBusinessCrawlState } from './BusinessCrawlState';
 
 /** The link to a Video Review Manager tenant, once video reviews are enabled. */
 export interface IBusinessUrlVideo {
@@ -32,6 +33,7 @@ export interface IFacebookBusinessUrl extends Document { // Can be similar to IG
   details?: IBusinessUrlDetails;
   /** Secret key for the JSON reviews API. See GoogleBusinessUrl.model for the note. */
   apiKey?: string;
+  crawl?: IBusinessCrawlState;
 }
 
 const BusinessUrlDetailsSchema = new Schema<IBusinessUrlDetails>({
@@ -62,6 +64,7 @@ const FacebookBusinessUrlSchema: Schema<IFacebookBusinessUrl> = new Schema({
   },
   details: { type: BusinessUrlDetailsSchema, required: false },
   apiKey: { type: String, select: false, unique: true, sparse: true },
+  crawl: { type: BusinessCrawlStateSchema, required: false },
 }, { timestamps: { createdAt: 'addedAt', updatedAt: true } });
 
 const FacebookBusinessUrlModel: Model<IFacebookBusinessUrl> =

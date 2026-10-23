@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document, Model, Types } from 'mongoose';
+import { BusinessCrawlStateSchema, type IBusinessCrawlState } from './BusinessCrawlState';
 
 /** The link to a Video Review Manager tenant, once video reviews are enabled. */
 export interface IBusinessUrlVideo {
@@ -42,6 +43,7 @@ export interface IGoogleBusinessUrl extends Document {
    * the key-management code asks for it with `.select('+apiKey')`.
    */
   apiKey?: string;
+  crawl?: IBusinessCrawlState;
 }
 
 const BusinessUrlDetailsSchema = new Schema<IBusinessUrlDetails>({
@@ -52,6 +54,7 @@ const BusinessUrlDetailsSchema = new Schema<IBusinessUrlDetails>({
   brandColor: { type: String },
   logoUrl: { type: String },
 }, { _id: false });
+
 
 const GoogleBusinessUrlSchema: Schema<IGoogleBusinessUrl> = new Schema({
   name: { type: String, required: true },
@@ -72,6 +75,7 @@ const GoogleBusinessUrlSchema: Schema<IGoogleBusinessUrl> = new Schema({
   },
   details: { type: BusinessUrlDetailsSchema, required: false },
   apiKey: { type: String, select: false, unique: true, sparse: true },
+  crawl: { type: BusinessCrawlStateSchema, required: false },
 }, { timestamps: { createdAt: 'addedAt', updatedAt: true } });
 
 const GoogleBusinessUrlModel: Model<IGoogleBusinessUrl> =

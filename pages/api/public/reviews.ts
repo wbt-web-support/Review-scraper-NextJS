@@ -34,8 +34,54 @@ type StoredReview = IReviewItem & { text?: string };
  *    response for another caller.
  *
  * By default it returns everything: star-only reviews with no text included, which
- * the widgets leave out. Pass `limit` and `offset` to page, or `minRating` to filter.
+ * the widgets leave out. Pass `limit` and `offset` to page, `minRating` to filter,
+ * and `from` / `to` for a date range:
+ *
+ *   ?from=2026-01-01&to=2026-03-31     posted in Q1, both days included
+ *   ?from=2026-10-01                    posted since 1 October
+ *
+ * A date range is read from what we already store, so it never triggers a crawl
+ * and costs no Apify credits -- it just keeps the response to what the caller needs.
+ * Reviews still stored with a "2 weeks ago" style date cannot be placed in a range
+ * and are left out of ranged requests; the crawler replaces those with real dates
+ * as it revisits each business.
  */
+
+/**
+ * Turns a `from` / `to` value into a bound in the stored format (ISO strings,
+ * which compare as dates). Never throws: a bad value comes back as a message for
+ * a 400.
+ *
+ * Accepted: a calendar day (2026-01-31), or a time WITH a zone
+ * (2026-01-31T09:00:00Z, 2026-01-31T09:00+05:30). A time without a zone is refused
+ * rather than guessed, since the answer would depend on the server's timezone.
+ *
+ * A day `from` starts at that day's first moment; a day `to` includes the whole
+ * day, so its bound is the start of the next day.
+ */
+function parseDateParam(raw: string | undefined, name: 'from' | 'to'): { bound?: string; error?: string } {
+  if (raw === undefined) return {};
+  // An unencoded "+05:30" arrives as " 05:30".
+  const v = raw.trim().replace(/ (\d{2}:?\d{2})$/, '+$1');
+  const help = `Use a date like 2026-01-31, or a time with a zone like 2026-01-31T09:00:00Z, for ${name}.`;
+  const m = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,3})?)?(Z|[+-]\d{2}:?\d{2}))?$/.exec(v);
+  if (!m) return { error: help };
+
+  const [, y, mo, d, hh, mm, ss] = m;
+  const day = new Date(Date.UTC(+y, +mo - 1, +d));
+  const realDay = day.getUTCFullYear() === +y && day.getUTCMonth() === +mo - 1 && day.getUTCDate() === +d;
+  if (!realDay) return { error: `${name} is not a real date.` };
+
+  if (hh === undefined) {
+    if (name === 'from') return { bound: v };
+    day.setUTCDate(day.getUTCDate() + 1);
+    return { bound: day.toISOString().slice(0, 10) };
+  }
+  if (+hh > 23 || +mm > 59 || (ss !== undefined && +ss > 59)) return { error: `${name} is not a real time.` };
+  const ms = Date.parse(v);
+  if (isNaN(ms)) return { error: help };
+  return { bound: new Date(name === 'to' ? ms + 1 : ms).toISOString() };
+}
 
 /** One request returns at most this many. The largest business today has ~1,650. */
 const MAX_LIMIT = 2000;
@@ -46,6 +92,9 @@ const QuerySchema = z.object({
   // Google: the lowest star rating to include. Facebook has recommendations rather
   // than stars: 2 or more returns only "recommended" reviews.
   minRating: z.coerce.number().int().min(1).max(5).optional(),
+  // Validated by parseDateParam, which reports bad dates as a 400 instead of throwing.
+  from: z.string().optional(),
+  to: z.string().optional(),
 });
 
 export interface PublicReview {
@@ -73,6 +122,8 @@ export interface PublicReviewsResponse {
   averageRating: number | null;
   /** Facebook: share of reviews that recommend the business. Null for Google. */
   recommendedPercentage: number | null;
+  /** The date range applied, echoed back. Null when none was asked for. */
+  range: { from: string | null; to: string | null } | null;
   /** Reviews matching this request's filters. Use with limit and offset to page. */
   total: number;
   limit: number;
@@ -125,7 +176,14 @@ export default async function handler(
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Invalid query.' });
   }
-  const { limit, offset, minRating } = parsed.data;
+  const { limit, offset, minRating, from, to } = parsed.data;
+  const start = parseDateParam(from, 'from');
+  const end = parseDateParam(to, 'to');
+  const dateError = start.error ?? end.error;
+  if (dateError) return res.status(400).json({ error: dateError });
+  if (start.bound && end.bound && start.bound >= end.bound) {
+    return res.status(400).json({ error: 'from must be on or before to.' });
+  }
 
   try {
     await dbConnect();
@@ -139,6 +197,8 @@ export default async function handler(
           offset,
           minRating,
           requireText: false,
+          postedFrom: start.bound,
+          postedBefore: end.bound,
         })
       : null;
 
@@ -169,6 +229,7 @@ export default async function handler(
       totalReviews: result?.totalCount ?? 0,
       averageRating: source === 'google' && typeof rating === 'number' && rating > 0 ? rating : null,
       recommendedPercentage: source === 'facebook' && typeof rating === 'string' ? parseInt(rating, 10) : null,
+      range: from || to ? { from: from ?? null, to: to ?? null } : null,
       total,
       limit,
       offset,
