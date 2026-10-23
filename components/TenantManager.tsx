@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { formatBytes, formatDuration } from "../lib/utils";
 import { normalizeRootDomain, reviewHostFor, rootDomainFor, REVIEW_SUBDOMAIN } from "@vrm/lib/domains/domain";
+import { readableTextOn } from "@vrm/lib/brand";
 import { apiRequest } from "../lib/queryClient";
 import { useToast } from "../hooks/use-toast";
 import { Button } from "./ui/button";
@@ -37,7 +38,7 @@ interface TenantReview {
 export interface Bundle {
   tenant: {
     id: string; name: string; slug: string; embed_key: string; api_key: string;
-    logo_url: string | null; brand_color: string; contact_email: string | null; contact_phone: string | null;
+    logo_url: string | null; brand_color: string; header_bg_color: string; contact_email: string | null; contact_phone: string | null;
     custom_domain: string | null; custom_domain_verified: boolean;
     review_open_mode: "dialog" | "page"; max_video_seconds: number;
   };
@@ -469,13 +470,14 @@ function BrandingTab({ base, businessId, bundle }: { base: string; businessId: s
   const invalidate = useInvalidate(businessId);
   const [name, setName] = useState(bundle.tenant.name);
   const [color, setColor] = useState(bundle.tenant.brand_color);
+  const [headerBg, setHeaderBg] = useState(bundle.tenant.header_bg_color || "#ffffff");
   const [logo, setLogo] = useState(bundle.tenant.logo_url ?? "");
   const [email, setEmail] = useState(bundle.tenant.contact_email ?? "");
   const [phone, setPhone] = useState(bundle.tenant.contact_phone ?? "");
 
   const save = useMutation<unknown, Error, void>({
     mutationFn: () => apiRequest("PUT", `${base}/settings`, {
-      section: "branding", name, brandColor: color, logoUrl: logo, contactEmail: email, contactPhone: phone,
+      section: "branding", name, brandColor: color, headerBgColor: headerBg, logoUrl: logo, contactEmail: email, contactPhone: phone,
     }),
     onSuccess: () => { invalidate(); toast({ title: "Saved" }); },
     onError: (e) => toast({ title: "Error", description: e.message, variant: "destructive" }),
@@ -484,19 +486,68 @@ function BrandingTab({ base, businessId, bundle }: { base: string; businessId: s
   return (
     <Panel title="Branding" hint="Shown on the collection page and the widget.">
       <Field label="Business name"><Input value={name} onChange={(e) => setName(e.target.value)} /></Field>
-      <Field label="Brand colour">
-        <div className="flex items-center gap-2">
-          <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-9 w-12 cursor-pointer rounded-md border border-gray-200 bg-white p-1" />
-          <span className="font-mono text-xs text-gray-500">{color.toUpperCase()}</span>
-        </div>
-      </Field>
+      <div className="flex flex-wrap gap-x-10 gap-y-4">
+        <Field label="Brand colour">
+          <ColourInput value={color} onChange={setColor} />
+        </Field>
+        <Field label="Header background">
+          <div className="flex items-center gap-2">
+            <ColourInput value={headerBg} onChange={setHeaderBg} />
+            {headerBg.toLowerCase() !== "#ffffff" && (
+              <button type="button" onClick={() => setHeaderBg("#ffffff")} className="text-xs text-gray-500 underline-offset-2 hover:text-gray-800 hover:underline">
+                Reset to white
+              </button>
+            )}
+          </div>
+        </Field>
+      </div>
       <Field label="Logo URL"><Input type="url" placeholder="https://…/logo.png" value={logo} onChange={(e) => setLogo(e.target.value)} /></Field>
+      <HeaderPreview logo={logo} name={name} background={headerBg} />
       <div className="flex gap-3">
         <div className="flex-1"><Field label="Contact email"><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></Field></div>
         <div className="w-44"><Field label="Contact phone"><Input value={phone} onChange={(e) => setPhone(e.target.value)} /></Field></div>
       </div>
       <SaveBar onSave={() => save.mutate()} pending={save.isPending} />
     </Panel>
+  );
+}
+
+/** A native colour picker with its hex beside it. */
+function ColourInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="flex items-center gap-2">
+      <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="h-9 w-12 cursor-pointer rounded-md border border-gray-200 bg-white p-1" />
+      <span className="font-mono text-xs text-gray-500">{value.toUpperCase()}</span>
+    </div>
+  );
+}
+
+/**
+ * The top of the collection page card, as it will look with these settings.
+ *
+ * The header background exists because a white logo vanishes on the default white
+ * band, and the only way to know which colour fixes that is to see the logo on it.
+ */
+function HeaderPreview({ logo, name, background }: { logo: string; name: string; background: string }) {
+  const [broken, setBroken] = useState<string | null>(null);
+  const showLogo = logo.trim() !== "" && broken !== logo;
+  return (
+    <div>
+      <p className="mb-1 text-sm text-gray-700">Header preview</p>
+      <div className="overflow-hidden rounded-xl border border-gray-200">
+        <div className="flex h-[70px] items-center px-5" style={{ backgroundColor: background }}>
+          {showLogo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logo} alt={name} className="h-[38px] max-w-[180px] object-contain" onError={() => setBroken(logo)} />
+          ) : (
+            <span className="text-sm font-semibold" style={{ color: readableTextOn(background) }}>
+              {logo.trim() && broken === logo ? "Logo failed to load" : name || "Business name"}
+            </span>
+          )}
+        </div>
+        <div className="h-5 bg-white" />
+      </div>
+    </div>
   );
 }
 

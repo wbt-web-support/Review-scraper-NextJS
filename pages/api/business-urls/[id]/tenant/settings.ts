@@ -28,6 +28,7 @@ const schemas = {
   branding: z.object({
     name: z.string().trim().min(1).max(120),
     brandColor: z.string().regex(/^#[0-9a-fA-F]{6}$/, "Use a hex colour like #8A9A5B."),
+    headerBgColor: z.string().regex(/^#[0-9a-fA-F]{6}$/, "Use a hex colour like #FFFFFF.").optional(),
     logoUrl: z.union([z.string().url(), z.literal("")]).optional(),
     contactEmail: z.union([z.string().email(), z.literal("")]).optional(),
     contactPhone: z.string().trim().max(40).optional(),
@@ -103,7 +104,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(200).json({ message: "Saved." });
 
       case "branding": {
-        const b = data as { name: string; brandColor: string; logoUrl?: string; contactEmail?: string; contactPhone?: string };
+        const b = data as { name: string; brandColor: string; headerBgColor?: string; logoUrl?: string; contactEmail?: string; contactPhone?: string };
         await tenant.updateBranding(tenantId, b);
         await mirrorBrandingToMongo(businessId, {
           name: b.name, brandColor: b.brandColor, logoUrl: b.logoUrl ?? "", email: b.contactEmail ?? "", phone: b.contactPhone ?? "",

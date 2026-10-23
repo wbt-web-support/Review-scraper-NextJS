@@ -302,6 +302,27 @@
   max-width: 180px;
 }
 
+/* The header band: the tenant's chosen colour behind the logo, edge to edge across
+   the top of the card. The negative margins cancel the card's padding so the band
+   reaches the card's border, and the card's overflow: hidden rounds its top corners.
+   The padding puts the logo back exactly where it sits without a band. Only used
+   when the colour isn't the default white. */
+.collect-brand-band {
+  margin: -20px -16px 22px;
+  padding: 20px 16px 18px;
+  border-bottom: 1px solid rgb(31 36 32 / 0.08);
+}
+.collect-brand-band .collect-company {
+  color: var(--header-ink, #2a2f29);
+}
+
+@media (min-width: 640px) {
+  .collect-brand-band {
+    margin: -24px -20px 22px;
+    padding: 24px 20px 20px;
+  }
+}
+
 .collect-monogram {
   width: 34px;
   height: 34px;

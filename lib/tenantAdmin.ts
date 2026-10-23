@@ -83,6 +83,8 @@ export type TenantBundle = {
     api_key: string;
     logo_url: string | null;
     brand_color: string;
+    /** Behind the logo at the top of the collection page. White unless changed. */
+    header_bg_color: string;
     contact_email: string | null;
     contact_phone: string | null;
     custom_domain: string | null;
@@ -100,7 +102,7 @@ export type TenantBundle = {
 };
 
 const TENANT_COLUMNS =
-  "id, name, slug, subdomain, embed_key, api_key, logo_url, brand_color, contact_email, contact_phone, custom_domain, custom_domain_verified, review_open_mode, max_video_seconds";
+  "id, name, slug, subdomain, embed_key, api_key, logo_url, brand_color, header_bg_color, contact_email, contact_phone, custom_domain, custom_domain_verified, review_open_mode, max_video_seconds";
 
 /** Everything the tenant-management tabs need, for one tenant. */
 export async function getTenantBundle(tenantId: string): Promise<TenantBundle | null> {
@@ -357,13 +359,22 @@ export async function updateWidgetSettings(
 
 export async function updateBranding(
   tenantId: string,
-  input: { name: string; brandColor: string; logoUrl?: string; contactEmail?: string; contactPhone?: string },
+  input: {
+    name: string;
+    brandColor: string;
+    /** Left out by forms that don't show it, which then leave the saved colour alone. */
+    headerBgColor?: string;
+    logoUrl?: string;
+    contactEmail?: string;
+    contactPhone?: string;
+  },
 ): Promise<void> {
   const { error } = await createAdminClient()
     .from("tenants")
     .update({
       name: input.name,
       brand_color: input.brandColor,
+      ...(input.headerBgColor !== undefined ? { header_bg_color: input.headerBgColor } : {}),
       logo_url: input.logoUrl || null,
       contact_email: input.contactEmail || null,
       contact_phone: input.contactPhone || null,

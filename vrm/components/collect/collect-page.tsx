@@ -1,5 +1,5 @@
 import type { CollectionPage } from "@vrm/lib/collect/queries";
-import { brandVars } from "@vrm/lib/brand";
+import { brandVars, readableTextOn } from "@vrm/lib/brand";
 import { newsreader, hanken } from "@vrm/lib/fonts";
 import { CollectForm } from "./collect-form";
 import "./collect.css";
@@ -34,6 +34,15 @@ export function CollectPage({
 }) {
   const { tenant } = page;
   const style = brandVars(tenant.brandColor);
+  // The band behind the logo. White, the default, is drawn exactly as before: no
+  // band at all, so the tenants who never touch this see no change. Any other
+  // colour fills the full width of the card's top, not just the logo's box, and the
+  // no-logo fallback name switches to whichever ink stays readable on it.
+  const headerBg = tenant.headerBgColor;
+  const hasBand = headerBg.toLowerCase() !== "#ffffff";
+  const bandStyle = hasBand
+    ? ({ backgroundColor: headerBg, "--header-ink": readableTextOn(headerBg) } as React.CSSProperties)
+    : undefined;
   const fonts = `${newsreader.variable} ${hanken.variable}`;
 
   const header = (
@@ -87,8 +96,13 @@ export function CollectPage({
       <div className="collect-card-wrap">
         <div className="collect-card">
           <div className="collect-card-inner">
-            {/* Logo inside the card, centered at the top. */}
-            <div className="collect-brand-top">{header}</div>
+            {/* Logo inside the card at the top, on the tenant's header colour. */}
+            <div
+              className={hasBand ? "collect-brand-top collect-brand-band" : "collect-brand-top"}
+              style={bandStyle}
+            >
+              {header}
+            </div>
             <CollectForm page={page} />
           </div>
         </div>

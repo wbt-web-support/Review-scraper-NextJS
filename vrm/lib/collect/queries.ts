@@ -24,6 +24,8 @@ export type CollectionPage = {
     slug: string;
     logoUrl: string | null;
     brandColor: string;
+    /** The band behind the logo at the top of the card. White unless changed. */
+    headerBgColor: string;
   };
   promptQuestions: string[];
   /** First step: the ask. Heading, then body copy with one paragraph per blank line. */
@@ -49,7 +51,7 @@ export async function getCollectionPage(slug: string): Promise<CollectionPage | 
 
   const { data: tenant, error } = await admin
     .from("tenants")
-    .select("id, name, slug, logo_url, brand_color, max_video_seconds")
+    .select("id, name, slug, logo_url, brand_color, header_bg_color, max_video_seconds")
     .eq("slug", slug)
     .maybeSingle();
   if (error) throw error;
@@ -76,6 +78,7 @@ export async function getCollectionPage(slug: string): Promise<CollectionPage | 
       slug: tenant.slug,
       logoUrl: tenant.logo_url,
       brandColor: tenant.brand_color,
+      headerBgColor: tenant.header_bg_color || "#ffffff",
     },
     promptQuestions,
     introTitle: settings?.intro_title ?? "We value your feedback",
