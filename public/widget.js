@@ -73,7 +73,8 @@
       'badge': 'widget-badge.js',
       'grid': 'widget-grid.js',
       'masonry': 'widget-masonry.js',
-      'list': 'widget-list.js'
+      'list': 'widget-list.js',
+      'wall': 'widget-wall.js'
     },
 
     // Widget class mappings
@@ -82,7 +83,8 @@
       'badge': 'ReviewHubBadge',
       'grid': 'ReviewHubGrid',
       'masonry': 'ReviewHubMasonry',
-      'list': 'ReviewHubList'
+      'list': 'ReviewHubList',
+      'wall': 'ReviewHubWall'
     },
 
     DEFAULT_LAYOUT: 'carousel',
@@ -610,6 +612,12 @@
         showRatings: script.getAttribute('data-show-ratings') || undefined,
         showDates: script.getAttribute('data-show-dates') || undefined,
         showProfilePictures: script.getAttribute('data-show-avatars') || undefined,
+        direction: script.getAttribute('data-direction') || undefined,
+        columns: script.getAttribute('data-columns') || undefined,
+        rows: script.getAttribute('data-rows') || undefined,
+        speed: script.getAttribute('data-speed') || undefined,
+        height: script.getAttribute('data-height') || undefined,
+        theme: script.getAttribute('data-theme') || undefined,
 
         _scriptTag: script
       };
@@ -663,6 +671,10 @@
 
     createList: function (config) {
       return window.ReviewHubMain.init({ ...config, layout: 'list' });
+    },
+
+    createWall: function (config) {
+      return window.ReviewHubMain.init({ ...config, layout: 'wall' });
     }
   };
 

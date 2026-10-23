@@ -44,7 +44,11 @@ import {
   RectangleEllipsis,
   Video,
   RefreshCw,
-  ExternalLink
+  ExternalLink,
+  GalleryVertical,
+  MoveVertical,
+  MoveHorizontal,
+  type LucideIcon
 } from "lucide-react";
 import { slugify } from "@vrm/lib/tenants/slug";
 import { normalizeRootDomain, reviewHostFor } from "@vrm/lib/domains/domain";
@@ -68,6 +72,7 @@ export type WidgetLayout =
   | "masonry"
   | "badge"
   | "bar"
+  | "wall"
   | "video";
 
 export interface FormValues {
@@ -114,6 +119,167 @@ const emptyVideoForm = (): VideoFormValues => ({
 const WIDGET_VERSION =
   process.env.NEXT_PUBLIC_WIDGET_VERSION ?? "1";
 
+// Map layout to the correct widget file
+const widgetFileFor = (layout: string) => {
+  switch (layout) {
+    case 'bar':
+      return 'widget-bar.js';
+    case 'grid':
+      return 'widget-grid.js';
+    case 'list':
+      return 'widget-list.js';
+    case 'masonry':
+      return 'widget-masonry.js';
+    case 'badge':
+      return 'widget-badge.js';
+    case 'wall':
+      return 'widget-wall.js';
+    case 'carousel':
+    default:
+      return 'widget.js';
+  }
+};
+
+/**
+ * How the Wall layout scrolls. These travel in the embed snippet as data-* attributes,
+ * the same way data-layout does, so nothing is saved: the copied code is the setting.
+ * public/widget-wall.js reads them.
+ */
+export interface WallSettings {
+  direction: "vertical" | "horizontal";
+  columns: number;
+  rows: number;
+  speed: "slow" | "normal" | "fast";
+  theme: "light" | "dark";
+}
+
+const DEFAULT_WALL_SETTINGS: WallSettings = {
+  direction: "vertical",
+  columns: 3,
+  rows: 2,
+  speed: "normal",
+  theme: "light",
+};
+
+/** Vertical walls need a fixed height to scroll inside. Same default as widget-wall.js. */
+const WALL_HEIGHT = 600;
+
+/** The wall's data-* attributes, one per line, lined up under data-layout in the snippet. */
+const wallEmbedAttributes = (wall: WallSettings) => {
+  const lanes = wall.direction === "vertical"
+    ? { columns: wall.columns, height: WALL_HEIGHT }
+    : { rows: wall.rows };
+  return Object.entries({ direction: wall.direction, ...lanes, speed: wall.speed, theme: wall.theme })
+    .map(([name, value]) => `\n        data-${name}="${value}"`)
+    .join("");
+};
+
+interface SegmentedOption<T extends string | number> {
+  value: T;
+  label: string;
+  icon?: LucideIcon;
+}
+
+const Segmented = <T extends string | number>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  options: SegmentedOption<T>[];
+  onChange: (value: T) => void;
+}) => (
+  <div>
+    <Label className="text-sm font-medium text-gray-700">{label}</Label>
+    <div className="mt-1.5 flex rounded-lg border border-gray-200 bg-gray-50 p-1">
+      {options.map((option) => {
+        const IconComponent = option.icon;
+        const isActive = option.value === value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            aria-pressed={isActive}
+            onClick={() => onChange(option.value)}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium transition-colors ${isActive
+              ? 'bg-white text-blue-700 shadow-sm ring-1 ring-blue-200'
+              : 'text-gray-600 hover:text-gray-900'
+              }`}
+          >
+            {IconComponent && <IconComponent className="h-4 w-4" />}
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  </div>
+);
+
+const laneOptions = (max: number): SegmentedOption<number>[] =>
+  Array.from({ length: max }, (_, i) => ({ value: i + 1, label: String(i + 1) }));
+
+// Declared outside CreateWidgetModal so it keeps its identity across renders: the
+// modal's own inner components (LayoutSelector, PreviewFrame) remount on every change.
+const WallLayoutControls = ({
+  value,
+  onChange,
+}: {
+  value: WallSettings;
+  onChange: (value: WallSettings) => void;
+}) => {
+  const isVertical = value.direction === "vertical";
+  const update = (patch: Partial<WallSettings>) => onChange({ ...value, ...patch });
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-4">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-4">
+        <h4 className="font-semibold text-gray-900">Wall Settings</h4>
+        <p className="text-sm text-gray-500">
+          Pauses on hover. Narrow screens show fewer columns so cards stay readable.
+        </p>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Segmented
+          label="Scroll Direction"
+          value={value.direction}
+          options={[
+            { value: "vertical", label: "Vertical", icon: MoveVertical },
+            { value: "horizontal", label: "Horizontal", icon: MoveHorizontal },
+          ]}
+          onChange={(direction) => update({ direction })}
+        />
+        <Segmented
+          label={isVertical ? "Columns" : "Rows"}
+          value={isVertical ? value.columns : value.rows}
+          options={laneOptions(isVertical ? 6 : 4)}
+          onChange={(count) => update(isVertical ? { columns: count } : { rows: count })}
+        />
+        <Segmented
+          label="Speed"
+          value={value.speed}
+          options={[
+            { value: "slow", label: "Slow" },
+            { value: "normal", label: "Normal" },
+            { value: "fast", label: "Fast" },
+          ]}
+          onChange={(speed) => update({ speed })}
+        />
+        <Segmented
+          label="Card Style"
+          value={value.theme}
+          options={[
+            { value: "light", label: "Light" },
+            { value: "dark", label: "Dark" },
+          ]}
+          onChange={(theme) => update({ theme })}
+        />
+      </div>
+    </div>
+  );
+};
+
 const CreateWidgetModal = ({
   isOpen,
   onClose,
@@ -128,6 +294,7 @@ const CreateWidgetModal = ({
   const [selectedLayout, setSelectedLayout] = useState<WidgetLayout>("grid");
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [videoForm, setVideoForm] = useState<VideoFormValues>(emptyVideoForm);
+  const [wallSettings, setWallSettings] = useState<WallSettings>(DEFAULT_WALL_SETTINGS);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState<FormValues>({
@@ -181,6 +348,7 @@ const CreateWidgetModal = ({
         setSelectedLayout("grid");
         setVideoForm(emptyVideoForm());
       }
+      setWallSettings(DEFAULT_WALL_SETTINGS);
       setActiveTab(initialTab);
     }
   }, [isOpen, mode, widget, initialTab]);
@@ -368,30 +536,11 @@ const CreateWidgetModal = ({
     // Use different attribute for carousel to avoid conflicts with other widgets
     const widgetIdAttribute = layout === 'carousel' ? 'data-reviewhub-widget-id' : 'data-widget-id';
 
-    // Map layout to the correct widget file
-    const getWidgetFile = (layout: string) => {
-      switch (layout) {
-        case 'bar':
-          return 'widget-bar.js';
-        case 'grid':
-          return 'widget-grid.js';
-        case 'list':
-          return 'widget-list.js';
-        case 'masonry':
-          return 'widget-masonry.js';
-        case 'badge':
-          return 'widget-badge.js';
-        case 'carousel':
-        default:
-          return 'widget.js';
-      }
-    };
-
     return `<div id="reviewhub-widget"></div>
 <script async fetchpriority="high"
-        src="${domain}/${getWidgetFile(layout)}?v=${WIDGET_VERSION}" 
+        src="${domain}/${widgetFileFor(layout)}?v=${WIDGET_VERSION}"
         ${widgetIdAttribute}="${widgetId}"
-        data-layout="${layout}"
+        data-layout="${layout}"${layout === 'wall' ? wallEmbedAttributes(wallSettings) : ''}
         data-container-id="reviewhub-widget">
 </script>`;
   };
@@ -425,6 +574,7 @@ const CreateWidgetModal = ({
     { value: "masonry", label: "Masonry", icon: Columns, description: "Pinterest-style layout" },
     { value: "badge", label: "Badge", icon: Star, description: "Compact rating badge" },
     { value: "bar", label: "Bar", icon: RectangleEllipsis, description: "Horizontal rating bar" },
+    { value: "wall", label: "Wall", icon: GalleryVertical, description: "Auto-scrolling columns" },
     // Video reviews are set up under Businesses (/reviews), not as a widget here.
   ];
 
@@ -666,7 +816,7 @@ const CreateWidgetModal = ({
           Responsive on all devices
         </div>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
         {layoutOptions.map((option) => {
           const IconComponent = option.icon;
           return (
@@ -723,6 +873,9 @@ const CreateWidgetModal = ({
       );
     }
 
+    // Dark wall cards are made for dark sites, so preview them on one.
+    const previewBackground = selectedLayout === 'wall' && wallSettings.theme === 'dark' ? '#0B0D12' : '#f9fafb';
+
     // For edit mode, show actual preview using embed code
     const previewHtml = `
       <!DOCTYPE html>
@@ -736,7 +889,7 @@ const CreateWidgetModal = ({
             margin: 0;
             padding: 20px;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-            background-color: #f9fafb;
+            background-color: ${previewBackground};
           }
           
         </style>
@@ -762,7 +915,8 @@ const CreateWidgetModal = ({
           </div>
           <iframe
             srcDoc={previewHtml}
-            className="w-full h-[400px] border-0"
+            // A vertical wall is WALL_HEIGHT tall, plus the preview page's padding.
+            className={`w-full border-0 ${selectedLayout === 'wall' ? 'h-[640px]' : 'h-[400px]'}`}
             title={`Widget Preview - ${selectedLayout}`}
             sandbox="allow-scripts allow-same-origin"
           />
@@ -1087,11 +1241,17 @@ const CreateWidgetModal = ({
 
               <TabsContent value="preview" className="space-y-6 px-0">
                 <LayoutSelector />
+                {selectedLayout === 'wall' && (
+                  <WallLayoutControls value={wallSettings} onChange={setWallSettings} />
+                )}
                 <PreviewFrame />
               </TabsContent>
 
               <TabsContent value="embed" className="space-y-6 px-0">
                 <LayoutSelector />
+                {selectedLayout === 'wall' && (
+                  <WallLayoutControls value={wallSettings} onChange={setWallSettings} />
+                )}
 
                 <div className="bg-white border border-gray-200 rounded-xl p-6">
                   <div className="flex items-center justify-between mb-4">
@@ -1155,9 +1315,9 @@ const CreateWidgetModal = ({
                           </h5>
                           <pre className="bg-gray-50 text-gray-800 rounded-lg p-3 text-xs overflow-x-auto border">
                             <code>{`<div id="homepage-reviews"></div>
-<script src="${domain}/${selectedLayout === 'bar' ? 'widget-bar.js' : selectedLayout === 'grid' ? 'widget-grid.js' : selectedLayout === 'list' ? 'widget-list.js' : selectedLayout === 'masonry' ? 'widget-masonry.js' : selectedLayout === 'badge' ? 'widget-badge.js' : 'widget.js'}" 
+<script src="${domain}/${widgetFileFor(selectedLayout)}"
         ${selectedLayout === 'carousel' ? 'data-reviewhub-widget-id' : 'data-widget-id'}="${widgetId}"
-        data-layout="${selectedLayout}"
+        data-layout="${selectedLayout}"${selectedLayout === 'wall' ? wallEmbedAttributes(wallSettings) : ''}
         data-container-id="homepage-reviews">
 </script>`}</code>
                           </pre>

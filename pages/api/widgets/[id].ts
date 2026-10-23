@@ -13,8 +13,8 @@ interface UpdateWidgetData {
   name?: string;
   businessUrlId?: string;
   themeColor?: string;
-  type?: "grid" | "carousel" | "list" | "masonry" | "badge" | "bar";
-  layout?: "grid" | "carousel" | "list" | "masonry" | "badge" | "bar";
+  type?: "grid" | "carousel" | "list" | "masonry" | "badge" | "bar" | "wall";
+  layout?: "grid" | "carousel" | "list" | "masonry" | "badge" | "bar" | "wall";
   minRating?: number;
   showRatings?: boolean;
   showDates?: boolean;

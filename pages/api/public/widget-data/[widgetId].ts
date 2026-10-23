@@ -250,7 +250,7 @@ export default async function handler(
     const widgetSettingsForPublic: IWidgetSettingsFromForm = {
       name: widgetDoc.name,
       themeColor: widgetDoc.themeColor || '#3B82F6',
-      layout: (widgetDoc.type as "grid" | "carousel" | "list" | "masonry" | "badge" | "bar") || "grid",
+      layout: (widgetDoc.type as "grid" | "carousel" | "list" | "masonry" | "badge" | "bar" | "wall") || "grid",
       minRating: widgetSource === 'google' ? (widgetDoc.minRating || 1) : undefined, // Only include minRating for Google
       initialReviewCount: widgetDoc.initialReviewCount || 12,
       showRatings: widgetDoc.showRatings !== undefined ? widgetDoc.showRatings : true,

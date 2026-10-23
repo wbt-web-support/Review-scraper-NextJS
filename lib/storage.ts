@@ -1178,7 +1178,7 @@ export interface CreateWidgetArgs {
   /** Required for type 'video', ignored otherwise. */
   video?: IWidgetVideoTenant;
   name: string;
-  type?: "grid" | "carousel" | "list" | "masonry" | "badge" | "bar" | "video";
+  type?: "grid" | "carousel" | "list" | "masonry" | "badge" | "bar" | "wall" | "video";
   minRating?: number;
   themeColor?: string;
   showRatings?: boolean;
@@ -1228,7 +1228,7 @@ export const createWidget = async (widgetData: CreateWidgetArgs): Promise<IWidge
 };
 interface UpdateWidgetArgs {
   name?: string;
-  type?: "grid" | "carousel" | "list" | "masonry" | "badge" | "bar" | "video";
+  type?: "grid" | "carousel" | "list" | "masonry" | "badge" | "bar" | "wall" | "video";
   maxReviews?: number;
   minRating?: number;
   businessUrlId?: string;
