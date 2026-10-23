@@ -34,6 +34,14 @@ export interface IGoogleBusinessUrl extends Document {
   source: 'google';
   video?: IBusinessUrlVideo;
   details?: IBusinessUrlDetails;
+  /**
+   * Secret key for the JSON reviews API (GET /api/public/reviews). One per business,
+   * so each client gets their own credential and one can be rotated or revoked
+   * without touching another. Absent until someone creates it from the Embed Code
+   * tab. `select: false` keeps it out of every existing query and response; only
+   * the key-management code asks for it with `.select('+apiKey')`.
+   */
+  apiKey?: string;
 }
 
 const BusinessUrlDetailsSchema = new Schema<IBusinessUrlDetails>({
@@ -63,6 +71,7 @@ const GoogleBusinessUrlSchema: Schema<IGoogleBusinessUrl> = new Schema({
     required: false,
   },
   details: { type: BusinessUrlDetailsSchema, required: false },
+  apiKey: { type: String, select: false, unique: true, sparse: true },
 }, { timestamps: { createdAt: 'addedAt', updatedAt: true } });
 
 const GoogleBusinessUrlModel: Model<IGoogleBusinessUrl> =

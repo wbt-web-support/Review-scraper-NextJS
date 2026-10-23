@@ -33,6 +33,8 @@ export interface IBusinessUrl extends Document {
   source?: 'google' | 'facebook' | string;
   video?: IBusinessUrlVideo;
   details?: IBusinessUrlDetails;
+  /** Secret key for the JSON reviews API. See GoogleBusinessUrl.model for the note. */
+  apiKey?: string;
   addedAt?: Date;
   lastScrapedAt?: Date;
 }
@@ -62,6 +64,9 @@ const BusinessUrlSchema: Schema<IBusinessUrl> = new Schema({
     }, { _id: false }),
     required: false,
   },
+  // Same field as GoogleBusinessUrl.model. This file registers the same model names,
+  // so whichever loads first owns the schema; without it here, writes are dropped.
+  apiKey: { type: String, select: false, unique: true, sparse: true },
   addedAt: { type: Date, default: Date.now },
   lastScrapedAt: { type: Date },
 });

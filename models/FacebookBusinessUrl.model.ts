@@ -30,6 +30,8 @@ export interface IFacebookBusinessUrl extends Document { // Can be similar to IG
   source: 'facebook';
   video?: IBusinessUrlVideo;
   details?: IBusinessUrlDetails;
+  /** Secret key for the JSON reviews API. See GoogleBusinessUrl.model for the note. */
+  apiKey?: string;
 }
 
 const BusinessUrlDetailsSchema = new Schema<IBusinessUrlDetails>({
@@ -59,6 +61,7 @@ const FacebookBusinessUrlSchema: Schema<IFacebookBusinessUrl> = new Schema({
     required: false,
   },
   details: { type: BusinessUrlDetailsSchema, required: false },
+  apiKey: { type: String, select: false, unique: true, sparse: true },
 }, { timestamps: { createdAt: 'addedAt', updatedAt: true } });
 
 const FacebookBusinessUrlModel: Model<IFacebookBusinessUrl> =

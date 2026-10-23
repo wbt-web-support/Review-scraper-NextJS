@@ -78,7 +78,10 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        source: '/api/public/:path*',
+        // The widget feed only. /api/public/reviews is deliberately NOT here: it takes
+        // a secret per-business key, and allowing browsers to call it would invite
+        // people to ship that key to every visitor. See pages/api/public/reviews.ts.
+        source: '/api/public/widget-data/:path*',
         headers: [
           {
             key: 'Access-Control-Allow-Origin',

@@ -15,6 +15,7 @@ import { useToast } from "../hooks/use-toast";
 import { apiRequest } from "../lib/queryClient";
 import { IBusinessUrlDisplay } from "@/lib/storage";
 import { IWidget } from "./WidgetCard";
+import { ReviewsApiPanel } from "./ReviewsApiPanel";
 import {
   Select,
   SelectContent,
@@ -1293,6 +1294,16 @@ const CreateWidgetModal = ({
                     </pre>
                   </div>
                 </div>
+
+                {/* JSON reviews API. Per business, so it needs a saved scraper widget
+                    to know which business; video widgets have their own v1 API. */}
+                {mode === 'edit' && widget && widget.type !== 'video' && formData.businessUrlId && (
+                  <ReviewsApiPanel
+                    businessId={formData.businessUrlId}
+                    businessName={businessUrls.find(url => url._id === formData.businessUrlId)?.name}
+                    domain={domain}
+                  />
+                )}
 
                 {/* Multiple Widgets Instructions */}
                 <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">

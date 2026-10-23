@@ -382,6 +382,62 @@ export const updateBusinessUrlDetails = async (
     if (f.matchedCount === 0) throw new Error('Business not found.');
   }
 };
+/**
+ * Keys for the JSON reviews API (GET /api/public/reviews): "rh_" and 48 hex
+ * characters, which is 24 random bytes. Checked before any database lookup, so a
+ * malformed key costs nothing and nothing but a plain string reaches the query.
+ */
+export const REVIEWS_API_KEY_PATTERN = /^rh_[0-9a-f]{48}$/;
+
+/** The business's reviews API key, or null if none has been created. */
+export const getBusinessApiKey = async (businessUrlId: string): Promise<string | null> => {
+  await ensureDbConnected();
+  const g = await GoogleBusinessUrlModel.findById(businessUrlId).select('+apiKey').lean().exec();
+  if (g) return g.apiKey ?? null;
+  const f = await FacebookBusinessUrlModel.findById(businessUrlId).select('+apiKey').lean().exec();
+  return f?.apiKey ?? null;
+};
+
+/**
+ * Creates the business's reviews API key, or replaces it. The old key stops working
+ * the moment this returns, which is the point: it is how a leaked key is killed.
+ */
+export const rotateBusinessApiKey = async (businessUrlId: string): Promise<string> => {
+  await ensureDbConnected();
+  const apiKey = `rh_${crypto.randomBytes(24).toString('hex')}`;
+  const g = await GoogleBusinessUrlModel.updateOne({ _id: businessUrlId }, { $set: { apiKey } }).exec();
+  if (g.matchedCount === 0) {
+    const f = await FacebookBusinessUrlModel.updateOne({ _id: businessUrlId }, { $set: { apiKey } }).exec();
+    if (f.matchedCount === 0) throw new Error('Business not found.');
+  }
+  return apiKey;
+};
+
+/** Removes the key, which switches the reviews API off for this business. */
+export const revokeBusinessApiKey = async (businessUrlId: string): Promise<void> => {
+  await ensureDbConnected();
+  const g = await GoogleBusinessUrlModel.updateOne({ _id: businessUrlId }, { $unset: { apiKey: 1 } }).exec();
+  if (g.matchedCount === 0) {
+    const f = await FacebookBusinessUrlModel.updateOne({ _id: businessUrlId }, { $unset: { apiKey: 1 } }).exec();
+    if (f.matchedCount === 0) throw new Error('Business not found.');
+  }
+};
+
+/**
+ * The business a reviews API key belongs to, or null for any bad key. The key is
+ * the only thing that picks the business: the API takes no business id, so there
+ * is no parameter a caller could change to read someone else's reviews.
+ */
+export const getBusinessUrlByApiKey = async (apiKey: string): Promise<IBusinessUrl | null> => {
+  if (!REVIEWS_API_KEY_PATTERN.test(apiKey)) return null;
+  await ensureDbConnected();
+  const g = await GoogleBusinessUrlModel.findOne({ apiKey }).lean().exec();
+  if (g) return { ...g, source: 'google' as const };
+  const f = await FacebookBusinessUrlModel.findOne({ apiKey }).lean().exec();
+  if (f) return { ...f, source: 'facebook' as const };
+  return null;
+};
+
 export const updateBusinessUrlScrapedTime = async (
   id: string,
   source: 'google' | 'facebook'
@@ -423,6 +479,12 @@ interface GetReviewsOptions {
   limit?: number;    
   offset?: number;   
   minRating?: number;
+  /**
+   * Drop reviews with no written text. True unless set: the widgets only show
+   * reviews with words in them. The JSON reviews API passes false, since a star
+   * rating with no comment is still one of the business's reviews.
+   */
+  requireText?: boolean;
 }
 export const getReviewBatchForBusinessUrl = async (
   urlHash: string,
@@ -721,6 +783,7 @@ export const getReviewStatsAndReviews = async (
   const limit = options.limit || 8;
   const offset = options.offset || 0;
   const minRating = options.minRating;
+  const requireText = options.requireText !== false;
 
   console.log(`[Storage] 📊 Aggregation Query: Stats & Reviews for urlHash=${urlHash}, source=${source}, limit=${limit}`);
 
@@ -761,9 +824,8 @@ export const getReviewStatsAndReviews = async (
     ];
     
     // Definition of the filter criteria
-    const filterCriteria = {
-      $and: [
-        {
+    const filterConditions = [
+        ...(requireText ? [{
           $expr: {
             $gt: [
               {
@@ -776,7 +838,7 @@ export const getReviewStatsAndReviews = async (
               0
             ]
           }
-        },
+        }] : []),
         ...(minRating !== undefined ? [
           source === 'facebook' 
             ? (minRating >= 2 
@@ -785,8 +847,9 @@ export const getReviewStatsAndReviews = async (
               )
             : { "reviews.rating": { $gte: minRating } }
         ] : [])
-      ]
-    };
+    ];
+    // $and refuses an empty array, so no conditions at all means match everything.
+    const filterCriteria = filterConditions.length > 0 ? { $and: filterConditions } : {};
 
     const finalPipeline = [
       ...basePipeline,
