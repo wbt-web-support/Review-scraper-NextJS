@@ -32,24 +32,66 @@ export function ApiAccess({
 
   return (
     <div className="space-y-6">
-      <CopyField label="Endpoint" value={`GET ${endpoint}`} />
+      <CopyField label="Base URL" value={`${origin}/api/v1`} />
       <CopyField label="API key (secret)" value={apiKey} />
 
       <div className="rounded-field border border-amber-200 bg-amber-50 px-3.5 py-3">
         <p className="text-xs leading-relaxed text-amber-900">
-          This key returns pending and rejected reviews, and reviewer email
-          addresses. It belongs on the client&apos;s server, never in their website&apos;s
-          JavaScript, where every visitor would be handed a copy. For a public
-          testimonial wall they want the embed widget instead, which exposes only
-          approved reviews with no personal data.
+          This key returns pending and rejected reviews and reviewer email
+          addresses, and it can now moderate and permanently delete them. It belongs
+          on the client&apos;s server, never in their website&apos;s JavaScript, where
+          every visitor would be handed a copy, and one of them would eventually
+          work out that DELETE exists. For a public testimonial wall they want the
+          embed widget instead, which exposes only approved reviews with no personal
+          data.
         </p>
       </div>
 
       <div className="space-y-1.5">
-        <span className="block text-sm font-medium text-ink">Example</span>
+        <span className="block text-sm font-medium text-ink">Endpoints</span>
+        <dl className="overflow-hidden rounded-field border border-muted text-xs">
+          {[
+            ["GET /reviews", "List reviews. Filters below."],
+            ["GET /reviews/{id}", "One review."],
+            ["PATCH /reviews/{id}", `Moderate it: {"status":"approved"}. Also pending or rejected.`],
+            ["DELETE /reviews/{id}", "Delete it and its video. Permanent, no undo."],
+            ["GET /settings", "Branding, collection page wording, widget layout."],
+            ["PATCH /settings", "Change any of those. Sent fields only; the rest are left alone."],
+          ].map(([route, meaning]) => (
+            <div
+              key={route}
+              className="flex flex-col gap-1 border-b border-muted px-3.5 py-2.5 last:border-b-0 sm:flex-row sm:gap-3"
+            >
+              <dt className="shrink-0 font-mono text-ink sm:w-44">{route}</dt>
+              <dd className="text-ink-muted">{meaning}</dd>
+            </div>
+          ))}
+        </dl>
+        <p className="pt-1 text-xs leading-relaxed text-ink-muted">
+          Rejecting hides a review but keeps it, which is the right move for
+          &quot;we&apos;re not using this one&quot;. Deleting removes the row and the
+          video for good: use it when a review must not exist, such as a customer
+          withdrawing consent.
+        </p>
+      </div>
+
+      <div className="space-y-1.5">
+        <span className="block text-sm font-medium text-ink">Examples</span>
         <pre className="overflow-x-auto rounded-field border border-muted bg-base px-3.5 py-3 font-mono text-xs leading-relaxed text-ink">
-{`curl -H "Authorization: Bearer ${apiKey}" \\
-  "${endpoint}?status=approved&type=video&limit=50"`}
+{`# newest 50 approved videos
+curl -H "Authorization: Bearer ${apiKey}" \\
+  "${endpoint}?status=approved&type=video&limit=50"
+
+# approve one
+curl -X PATCH -H "Authorization: Bearer ${apiKey}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"status":"approved"}' "${endpoint}/REVIEW_ID"
+
+# change the collection page heading
+curl -X PATCH -H "Authorization: Bearer ${apiKey}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"collection":{"welcome_text":"Tell us how we did"}}' \\
+  "${origin}/api/v1/settings"`}
         </pre>
       </div>
 
