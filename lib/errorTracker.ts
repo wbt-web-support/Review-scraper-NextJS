@@ -183,6 +183,9 @@ export function captureConsoleErrors(): void {
     try {
       const first = typeof args[0] === 'string' ? (args[0] as string) : '';
       if (first.startsWith('[crawler]')) return;
+      // Node prints its own warnings (ExperimentalWarning, DeprecationWarning) through
+      // console.error as "(node:8) ...Warning: ...". They are not app errors.
+      if (/^\(node:\d+\) \w*Warning\b/.test(first)) return;
       const error = args.find((a) => a instanceof Error);
       const context = args.filter((a) => typeof a === 'string').join(' ').slice(0, 300);
       const other = error ? undefined : args.find((a) => a !== undefined && typeof a !== 'string');
