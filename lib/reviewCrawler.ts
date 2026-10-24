@@ -197,7 +197,8 @@ async function collect(source: ReviewSource, business: CrawlBusiness, run: Crawl
       : { added: 0, checked: 0 };
 
     if (!run.succeeded) {
-      return recordFailure(source, business, `Apify run ${runId} ended ${run.status}; saved the ${added} new reviews it found, will retry.`);
+      const reason = run.statusMessage ? `: ${run.statusMessage}` : '';
+      return recordFailure(source, business, `Apify run ${runId} ended ${run.status}${reason}. Saved the ${added} new reviews it found; will retry.`);
     }
 
     await modelFor(source).updateOne(
@@ -314,7 +315,12 @@ export async function runCrawlBatch(
   const slots = Math.max(0, MAX_IN_FLIGHT - inFlight);
 
   const dueQuery = (source: ReviewSource) => ({
-    $and: [noRun, unlocked(now), retryAllowed(now), lastCrawledBefore(new Date(now.getTime() - CRAWL_POLICY[source].everyDays * DAY_MS))],
+    $and: [
+      noRun, unlocked(now), retryAllowed(now),
+      lastCrawledBefore(new Date(now.getTime() - CRAWL_POLICY[source].everyDays * DAY_MS)),
+      // Only real listing links: a run on anything else fails and is still paid for.
+      { url: { $regex: apify.CRAWLABLE_LINK[source] } },
+    ],
   });
   const candidates: { source: ReviewSource; business: CrawlBusiness }[] = [];
   let waiting = 0;
@@ -356,8 +362,9 @@ export async function runCrawlBatch(
   let failing = 0;
   for (const source of SOURCES) {
     const cutoff = new Date(Date.now() - (CRAWL_POLICY[source].everyDays + 1) * DAY_MS);
-    overdue += await modelFor(source).countDocuments(lastCrawledBefore(cutoff));
-    failing += await modelFor(source).countDocuments({ 'crawl.failures': { $gt: 0 } });
+    const crawlable = { url: { $regex: apify.CRAWLABLE_LINK[source] } };
+    overdue += await modelFor(source).countDocuments({ $and: [lastCrawledBefore(cutoff), crawlable] });
+    failing += await modelFor(source).countDocuments({ 'crawl.failures': { $gt: 0 }, ...crawlable });
   }
 
   const summary: CrawlBatchSummary = {
@@ -393,6 +400,11 @@ export async function crawlBusinessNow(
     if (business) { source = s; break; }
   }
   if (!business || !source) throw new Error('Business not found.');
+
+  if (!apify.isCrawlableLink(source, business.url)) {
+    const page = source === 'google' ? 'Google Maps listing' : 'Facebook page';
+    return { businessId, name: business.name, source, status: 'failed', error: `The saved link is not a ${page}. Edit the business and paste the link to its ${page}.` };
+  }
 
   // A crawl already in flight: wait on that one rather than paying for a second.
   // If it was a full crawl, or none was asked for, that is the answer. If a full

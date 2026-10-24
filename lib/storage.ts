@@ -48,11 +48,9 @@ export const clearLatestReviewsCache = (userId?: string) => {
     // Clear cache for specific user
     const keysToDelete = Array.from(latestReviewsCache.keys()).filter(key => key.startsWith(`${userId}:`));
     keysToDelete.forEach(key => latestReviewsCache.delete(key));
-    console.log(`[Storage/clearLatestReviewsCache] Cleared cache for user: ${userId}`);
   } else {
     // Clear all cache
     latestReviewsCache.clear();
-    console.log('[Storage/clearLatestReviewsCache] Cleared all latest reviews cache');
   }
 };
 
@@ -136,12 +134,10 @@ export const getBusinessUrlById = async (id: string): Promise<IBusinessUrl | nul
     console.warn(`[Storage/getBusinessUrlById] Invalid ID format: ${id}`);
     return null;
   }
-  console.log(`[Storage/getBusinessUrlById] Searching for ID: ${id}`);
   
   // Try Google first - use correct collection name
   const googleBusinessUrl = await GoogleBusinessUrlModel.findById(id).lean().exec();
   if (googleBusinessUrl) {
-    console.log(`[Storage/getBusinessUrlById] Found in GoogleBusinessUrlModel:`, googleBusinessUrl.name);
     return {
       ...googleBusinessUrl,
       source: 'google' as const
@@ -149,17 +145,14 @@ export const getBusinessUrlById = async (id: string): Promise<IBusinessUrl | nul
   }
 
   // Try Facebook if not found in Google - use correct collection name
-  console.log(`[Storage/getBusinessUrlById] Not in Google, trying FacebookBusinessUrlModel for ID: ${id}`);
   const facebookBusinessUrl = await FacebookBusinessUrlModel.findById(id).lean().exec();
   if (facebookBusinessUrl) {
-    console.log(`[Storage/getBusinessUrlById] Found in FacebookBusinessUrlModel:`, facebookBusinessUrl.name);
     return {
       ...facebookBusinessUrl,
       source: 'facebook' as const
     };
   }
 
-  console.log(`[Storage/getBusinessUrlById] ID ${id} not found in any business URL collection.`);
   return null;
 };
 export const getBusinessUrlByUrlHash = async (urlHash: string): Promise<IBusinessUrl | null> => {
@@ -192,20 +185,17 @@ export const getBusinessUrlsByUserId = async (userId: string): Promise<IBusiness
     return [];
   }
   const userIdObj = new Types.ObjectId(userId);
-  console.log(`[Storage/getBusinessUrlsByUserId] Fetching URLs for userId (ObjectId): ${userIdObj}`);
 
   try {
     const googleUrlsRaw = await GoogleBusinessUrlModel.find({ userId: userIdObj })
       .sort({ addedAt: -1 })
       .lean()
       .exec();
-    console.log(`[Storage/getBusinessUrlsByUserId] Found ${googleUrlsRaw.length} Google URLs.`);
 
     const facebookUrlsRaw = await FacebookBusinessUrlModel.find({ userId: userIdObj })
       .sort({ addedAt: -1 })
       .lean()
       .exec();
-    console.log(`[Storage/getBusinessUrlsByUserId] Found ${facebookUrlsRaw.length} Facebook URLs.`);
 
     const googleUrls: IBusinessUrlDisplay[] = googleUrlsRaw.map(doc => ({
       _id: doc._id.toString(),
@@ -230,7 +220,6 @@ export const getBusinessUrlsByUserId = async (userId: string): Promise<IBusiness
     }));
 
     const combinedUrls = [...googleUrls, ...facebookUrls];
-    console.log(`[Storage/getBusinessUrlsByUserId] Combined ${combinedUrls.length} URLs for userId: ${userId}`);
     return combinedUrls;
 
   } catch (error) {
@@ -251,20 +240,17 @@ interface CreateBusinessUrlArgs {
 }
 export const getAllBusinessUrlsForDisplay = async (): Promise<IBusinessUrlDisplay[]> => {
   await ensureDbConnected();
-  console.log("[Storage/getAllBusinessUrlsForDisplay] Fetching all business URLs for display");
 
   try {
     const googleUrlsRaw = await GoogleBusinessUrlModel.find()
       .sort({ addedAt: -1 })
       .lean()
       .exec();
-    console.log(`[Storage/getAllBusinessUrlsForDisplay] Found ${googleUrlsRaw.length} Google URLs.`);
 
     const facebookUrlsRaw = await FacebookBusinessUrlModel.find()
       .sort({ addedAt: -1 })
       .lean()
       .exec();
-    console.log(`[Storage/getAllBusinessUrlsForDisplay] Found ${facebookUrlsRaw.length} Facebook URLs.`);
 
     const googleUrls: IBusinessUrlDisplay[] = googleUrlsRaw.map(doc => ({
       _id: doc._id.toString(),
@@ -289,7 +275,6 @@ export const getAllBusinessUrlsForDisplay = async (): Promise<IBusinessUrlDispla
     }));
 
     const combinedUrls = [...googleUrls, ...facebookUrls];
-    console.log(`[Storage/getAllBusinessUrlsForDisplay] Combined ${combinedUrls.length} URLs for display`);
     return combinedUrls;
 
   } catch (error) {
@@ -493,57 +478,71 @@ interface GetReviewsOptions {
   postedFrom?: string;
   postedBefore?: string;
 }
+/**
+ * One copy of each review, in the order given. Same rules as the widgets' query:
+ * one review per platform id (keeping the copy with a real date), and a review
+ * without an id is dropped when the same review also exists with one.
+ */
+export function dedupeStoredReviews<T extends IReviewItem>(reviews: T[]): T[] {
+  const idKeys = new Set(reviews.filter((r) => r.reviewId).map(reviewFallbackKey));
+  const byId = new Map<string, number>();
+  const seenIdless = new Set<string>();
+  const out: T[] = [];
+  for (const r of reviews) {
+    if (r.reviewId) {
+      const at = byId.get(r.reviewId);
+      if (at === undefined) {
+        byId.set(r.reviewId, out.length);
+        out.push(r);
+      } else if (!ISO_DATE.test(out[at].postedAt || '') && ISO_DATE.test(r.postedAt || '')) {
+        out[at] = r;
+      }
+      continue;
+    }
+    const key = reviewFallbackKey(r);
+    if (idKeys.has(key) || seenIdless.has(key)) continue;
+    seenIdless.add(key);
+    out.push(r);
+  }
+  return out;
+}
+
+/**
+ * Every stored review for a business, as one batch.
+ *
+ * Some businesses have two batches (re-added under a new id at some point) and the
+ * crawler writes to the one owned by the current business id. This used to read
+ * only the first batch it found, so the reviews page hid whole batches -- over two
+ * thousand reviews across dozens of businesses -- and showed the same review id
+ * twice where a batch held duplicates.
+ */
 export const getReviewBatchForBusinessUrl = async (
   urlHash: string,
   source: 'google' | 'facebook'
 ): Promise<IReviewBatch | null> => {
   await ensureDbConnected();
   const ModelToUse = source === 'google' ? GoogleReviewBatchModel : FacebookReviewBatchModel;
-  
-  console.log(`[Storage] 📊 Database Query: Fetching review batch for urlHash=${urlHash}, source=${source}`);
-  
-  // First try to find by urlHash
-  let reviewBatch = await ModelToUse.findOne({ urlHash }).lean().exec();
-  
-  // If not found by urlHash, try to find the business URL and then look up by businessUrlId
-  if (!reviewBatch) {
-    console.log(`[Storage] 📊 No batch found by urlHash ${urlHash}, trying businessUrlId lookup`);
-    
-    // Find the business URL by urlHash to get the businessUrlId
+
+  let batches = await ModelToUse.find({ urlHash }).lean().exec();
+  if (batches.length === 0) {
+    // Older batches can be keyed only by the business id.
     const BusinessUrlModel = source === 'google' ? GoogleBusinessUrlModel : FacebookBusinessUrlModel;
     const businessUrl = await (BusinessUrlModel as any).findOne({ urlHash }).lean().exec();
-    
-    if (businessUrl) {
-      console.log(`[Storage] 📊 Found business URL with ID ${businessUrl._id}, looking for reviews`);
-      reviewBatch = await ModelToUse.findOne({ businessUrlId: businessUrl._id }).lean().exec();
-    }
+    if (businessUrl) batches = await ModelToUse.find({ businessUrlId: businessUrl._id }).lean().exec();
   }
-  
-  if (!reviewBatch) {
-    console.log(`[Storage] 📊 No review batch found in database for urlHash=${urlHash}, source=${source}`);
-    return null;
-  }
-  
-  // Add source to each review in the batch
-  const reviewsWithSource = reviewBatch.reviews?.map(review => ({
-    ...review,
-    source
-  })) || [];
-  
-  console.log(`[Storage] 📊 Database Query Success: Found ${reviewsWithSource.length} reviews in database for urlHash=${urlHash}, source=${source}`);
-  
-  return { 
-    ...reviewBatch, 
-    source,
-    reviews: reviewsWithSource
-  };
+  if (batches.length === 0) return null;
+
+  // The most recently scraped batch first, so its url and timestamps represent the business.
+  batches.sort((a, b) => new Date(String(b.lastScrapedAt ?? 0)).getTime() - new Date(String(a.lastScrapedAt ?? 0)).getTime());
+  const reviews = dedupeStoredReviews(batches.flatMap((b) => b.reviews || [])).map((review) => ({ ...review, source }));
+
+  return { ...batches[0], source, reviews } as IReviewBatch;
 };
 export const getFilteredReviewsFromBatch = (
   reviewBatch: IReviewBatch | null,
   options: GetReviewsOptions = {}
 ): IReviewItem[] => {
   if (!reviewBatch || !reviewBatch.reviews || reviewBatch.reviews.length === 0) {
-    console.log(`[Storage] 📊 No reviews available in batch`);
     return [];
   }
   
@@ -551,7 +550,6 @@ export const getFilteredReviewsFromBatch = (
   const initialCount = items.length;
   
   // Log initial state
-  console.log(`[Storage] 📊 Processing ${initialCount} reviews from database batch`);
   
   if (options.minRating !== undefined) {
     const beforeFilterCount = items.length;
@@ -572,7 +570,6 @@ export const getFilteredReviewsFromBatch = (
     });
     
     const afterFilterCount = items.length;
-    console.log(`[Storage] 📊 Rating filter applied: ${beforeFilterCount} → ${afterFilterCount} reviews (minRating: ${options.minRating})`);
   }
   
   const offset = options.offset || 0;
@@ -583,15 +580,12 @@ export const getFilteredReviewsFromBatch = (
     const beforePaginationCount = items.length;
     items = items.slice(offset, offset + limit);
     const afterPaginationCount = items.length;
-    console.log(`[Storage] 📊 Pagination applied: offset=${offset}, limit=${limit}, ${beforePaginationCount} → ${afterPaginationCount} reviews`);
   } else if (offset > 0) {
     const beforePaginationCount = items.length;
     items = items.slice(offset);
     const afterPaginationCount = items.length;
-    console.log(`[Storage] 📊 Offset applied: offset=${offset}, ${beforePaginationCount} → ${afterPaginationCount} reviews`);
   }
   
-  console.log(`[Storage] 📊 Final result: Returning ${items.length} reviews from database`);
   return items;
 };
 interface UpsertReviewsArgs {
@@ -754,7 +748,6 @@ export const mergeNewReviews = async (
       ...(toAdd.length > 0 ? { $push: { reviews: { $each: toAdd } } } : {}),
     },
   ).exec();
-  console.log(`[Storage/mergeNewReviews] ${data.source} ${data.businessUrlId}: checked ${data.reviews.length}, added ${toAdd.length}, dates fixed ${datesFixed}`);
   return { added: toAdd.length, datesFixed, checked: data.reviews.length };
 };
 
@@ -804,7 +797,6 @@ export const getLatestReviewDateForBusiness = async (
     }).exec();
 
     if (!reviewBatch || !reviewBatch.reviews || reviewBatch.reviews.length === 0) {
-      console.log(`[Storage/getLatestReviewDateForBusiness] No reviews found for businessUrlId: ${businessUrlId}, source: ${source}`);
       return null;
     }
 
@@ -833,7 +825,6 @@ export const getLatestReviewDateForBusiness = async (
       }
     }
 
-    console.log(`[Storage/getLatestReviewDateForBusiness] Latest review date for businessUrlId: ${businessUrlId}, source: ${source}: ${latestDate}`);
     return latestDate;
     
   } catch (error) {
@@ -867,7 +858,6 @@ export const getReviewStatsAndReviews = async (
   const requireText = options.requireText !== false;
   const { postedFrom, postedBefore } = options;
 
-  console.log(`[Storage] 📊 Aggregation Query: Stats & Reviews for urlHash=${urlHash}, source=${source}, limit=${limit}`);
 
   try {
     // 4. Facet stage to get stats/reviews
@@ -1021,7 +1011,19 @@ export const getReviewStatsAndReviews = async (
           // C. Get paginated FILTERED reviews
           "filteredReviews": [
             { $match: filterCriteria }, // Apply same filters
-            { $sort: { "reviews.postedAt": -1 } },
+            // Newest first, in a FIXED order. Sorting the raw postedAt string put
+            // "a year ago" text ahead of real dates (letters sort after digits) and
+            // left ties in no particular order, so the same widget showed reviews in
+            // a different order on each request and "load more" could repeat or skip
+            // one. Real dates first, newest first; text-dated reviews after; the
+            // review id breaks any tie.
+            {
+              $addFields: {
+                _sortDate: { $cond: [{ $regexMatch: { input: { $ifNull: ["$reviews.postedAt", ""] }, regex: "^\\d{4}-\\d{2}-\\d{2}" } }, "$reviews.postedAt", ""] },
+                _sortId: { $ifNull: ["$reviews.reviewId", { $ifNull: ["$reviews.author", ""] }] },
+              },
+            },
+            { $sort: { _sortDate: -1, _sortId: -1 } },
             { $replaceRoot: { newRoot: "$reviews" } },
             { $skip: offset },
             { $limit: limit }
@@ -1034,7 +1036,6 @@ export const getReviewStatsAndReviews = async (
     const result = await ModelToUse.aggregate(finalPipeline as any[]).exec();
     
     if (!result || result.length === 0) {
-       console.log(`[Storage] 📊 No reviews found via aggregation for urlHash=${urlHash}`);
        return null;
     }
 
@@ -1054,13 +1055,6 @@ export const getReviewStatsAndReviews = async (
     const reviews = result[0].filteredReviews || [];
     
     // DEBUG: Log the raw aggregation result
-    console.log(`[Storage] 📊 DEBUG Aggregation Result:`, {
-      totalResults: result[0].totalResults,
-      totalGroup,
-      absoluteTotalCount,
-      filteredStatsCount: stats.count,
-      reviewsReturned: reviews.length
-    });
     
     // Format the Avg Rating (based on FILTERED subset usually? Or should avg rating be global? 
     // Usually if you filter "4 stars+", you want average of THOSE. 
@@ -1093,7 +1087,6 @@ export const getReviewStatsAndReviews = async (
     // IMPORTANT: Return absoluteTotalCount as `totalCount` so the widget displays "219 Reviews".
     // We can also return a new field `filteredCount` if the widget needs to limit "Load More" (pagination).
     
-    console.log(`[Storage] 📊 Aggregation Success: Total=${absoluteTotalCount}, Filtered=${stats.count}, Returning limits=${reviews.length}, avg=${formattedAvgRating}`);
 
     return {
       totalCount: absoluteTotalCount, // THIS FIXES THE VISIBLE COUNT
@@ -1124,7 +1117,6 @@ export const getLatestReviews = async (
   userId: string,
   limit = 10
 ): Promise<{ data: Array<IReviewItem & { businessName: string; source: 'google' | 'facebook' | string; businessUrl?: string }>, cacheHit: boolean }> => {
-  console.log(`[Storage/getLatestReviews] Attempting for userId: ${userId}, limit: ${limit}`);
   await ensureDbConnected();
 
   if (!Types.ObjectId.isValid(userId)) {
@@ -1136,12 +1128,10 @@ export const getLatestReviews = async (
   const cacheKey = `${userId}:${limit}`;
   const cached = latestReviewsCache.get(cacheKey);
   if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
-    console.log(`[Storage/getLatestReviews] Returning cached results for ${cacheKey}`);
     return { data: cached.data, cacheHit: true };
   }
 
   const userIdObj = new Types.ObjectId(userId);
-  console.log(`[Storage/getLatestReviews] Converted userId to ObjectId: ${userIdObj}`);
 
   try {
     // Use Promise.all to run both queries in parallel for better performance
@@ -1259,7 +1249,6 @@ export const getLatestReviews = async (
       timestamp: Date.now()
     });
 
-    console.log(`[Storage/getLatestReviews] Returning ${finalResults.length} reviews after optimization.`);
     return { data: finalResults, cacheHit: false };
 
   } catch (dbError: unknown) {
@@ -1273,10 +1262,24 @@ export const getWidgetById = async (id: string): Promise<IWidget | null> => {
   if (!Types.ObjectId.isValid(id)) return null;
   return WidgetModel.findById(id).populate('businessUrlId').lean().exec();
 };
+/** The widget alone, for the public feed: one round trip, no populate. */
+export const getWidgetForPublicFeed = async (id: string): Promise<IWidget | null> => {
+  await ensureDbConnected();
+  if (!Types.ObjectId.isValid(id)) return null;
+  return WidgetModel.findById(id).lean<IWidget>().exec();
+};
+
+/** Just the stored url of a business's review batch, without loading its reviews. */
+export const getReviewBatchUrl = async (urlHash: string, source: 'google' | 'facebook'): Promise<string | null> => {
+  await ensureDbConnected();
+  const ModelToUse = source === 'google' ? GoogleReviewBatchModel : FacebookReviewBatchModel;
+  const batch = await ModelToUse.findOne({ urlHash }, { url: 1 }).lean().exec();
+  return batch?.url ?? null;
+};
+
 export const getWidgetsByUserId = async (userId: string): Promise<IWidget[]> => {
   await ensureDbConnected();
   if (!Types.ObjectId.isValid(userId)) return [];
-  console.log(`[Storage/getWidgetsByUserId] Fetching widgets for userId: ${userId}`);
   
   const widgets = await WidgetModel.find({ userId: new Types.ObjectId(userId) })
     .sort({ createdAt: -1 })
@@ -1389,7 +1392,6 @@ export interface CreateWidgetArgs {
 }
 export const createWidget = async (widgetData: CreateWidgetArgs): Promise<IWidget> => {
   await ensureDbConnected();
-  console.log("[Storage/createWidget] Received data:", widgetData);
   const newWidgetDocumentData = {
     userId: new Types.ObjectId(widgetData.userId),
     // Spread, not a plain property: `new Types.ObjectId(undefined)` does not yield
@@ -1414,10 +1416,8 @@ export const createWidget = async (widgetData: CreateWidgetArgs): Promise<IWidge
     initialReviewCount: widgetData.initialReviewCount ?? 10,
     views: 0,
   };
-  console.log("[Storage/createWidget] Data for new WidgetModel:", newWidgetDocumentData);
   const newWidget = new WidgetModel(newWidgetDocumentData);
   const savedWidget = await newWidget.save();
-  console.log("[Storage/createWidget] Widget saved:", savedWidget);
   return savedWidget.toObject({ getters: true, virtuals: false }) as IWidget; 
 };
 interface UpdateWidgetArgs {
@@ -1516,7 +1516,6 @@ export const deleteWidget = async (id: string): Promise<{ acknowledged: boolean;
     const result = await WidgetModel.deleteOne({ _id: new Types.ObjectId(id) }).exec();
     
     // Log deletion result
-    console.log(`Widget deletion result for ID ${id}:`, result);
     
     return result;
   } catch (error) {
@@ -1758,7 +1757,6 @@ export const getPaginatedWidgetsByUserId = async (params: PaginatedWidgetsParams
     };
   }
 
-  console.log(`[Storage/getPaginatedWidgetsByUserId] Fetching widgets for userId: ${params.userId}`, params);
 
   // Build query
   // Video-review widgets are managed under Businesses (/reviews), not on My Widgets,

@@ -194,7 +194,9 @@ const WidgetPreview = ({
   const source = settings.businessUrl?.source || "google";
   const businessName = settings.businessUrl?.name || "Business Name";
   const sourceIcon = source === 'google' ? 'fab fa-google' : 'fab fa-facebook-f';
-  const getReviewKey = (review: IReviewItemFromAPI, index: number): string => review._id || review.reviewId || `review-${index}`;
+  // Index included: the same review can arrive twice from older stored data, and
+  // React needs every key in a list to be unique.
+  const getReviewKey = (review: IReviewItemFromAPI, index: number): string => `${review.reviewId || review._id || 'review'}-${index}`;
   const displaySettingsForCard = {
     showRatings: settings.showRatings,
     showDates: settings.showDates,

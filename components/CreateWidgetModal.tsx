@@ -468,7 +468,6 @@ const CreateWidgetModal = ({
       return;
     }
 
-    console.log('Form submission started', { formData, businessUrls });
 
     if (!formData.name.trim()) {
       toast({
@@ -490,8 +489,6 @@ const CreateWidgetModal = ({
 
     // Check selected business URL details
     const selectedBusinessUrl = businessUrls.find(url => url._id === formData.businessUrlId);
-    console.log('Selected business URL:', selectedBusinessUrl);
-    console.log('Form minRating:', formData.minRating);
 
     const submitData = {
       name: formData.name.trim(),
@@ -504,7 +501,6 @@ const CreateWidgetModal = ({
       initialReviewCount: formData.initialReviewCount,
     };
 
-    console.log('Submitting data:', submitData);
 
     if (mode === 'edit') {
       updateMutation.mutate(submitData);
@@ -1218,7 +1214,6 @@ const CreateWidgetModal = ({
                 <div className="flex justify-end pt-4 border-t border-gray-100">
                   <Button
                     onClick={() => {
-                      console.log('Create Widget button clicked');
                       handleSubmit();
                     }}
                     disabled={isSubmitting || (isVideo && mode === 'create' && !videoSlug)}

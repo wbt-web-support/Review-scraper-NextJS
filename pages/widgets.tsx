@@ -109,15 +109,10 @@ const Widgets = () => {
         ),
       enabled: true, // Removed authentication requirement since data is not user-specific
     });
-  console.log(
-    `[${router.pathname}] businessUrlsData from useQuery:`,
-    businessUrlsData
-  );
   const derivedBusinessUrls = useMemo(
     () => businessUrlsData?.businessUrls || [],
     [businessUrlsData]
   );
-  console.log(`[${router.pathname}] derivedBusinessUrls:`, derivedBusinessUrls);
   const deleteMutation = useMutation<unknown, Error, string>({
     mutationFn: async (widgetId: string) => {
       return apiRequest("DELETE", `/api/widgets/${widgetId}`);

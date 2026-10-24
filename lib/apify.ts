@@ -81,6 +81,19 @@ const parseFacebookReviewFromApify = (item: ApifyFacebookReviewItem): IReviewIte
 
 export type ReviewSource = 'google' | 'facebook';
 
+/**
+ * Links the actors can crawl. Anything else (a Google search page, a placeholder
+ * left by a test, a link missing its place) is refused by Apify in seconds, every
+ * time -- so the crawler checks first and never starts a run it knows will fail.
+ * Checked against every stored link: these accept all 273 that crawl and reject
+ * exactly the 3 that don't.
+ */
+export const CRAWLABLE_LINK: Record<ReviewSource, RegExp> = {
+  google: /^https?:\/\/(?:(?:www\.|maps\.)?google\.[a-z.]+\/maps\/(?:place|search|reviews|dir)\/|(?:www\.)?google\.[a-z.]+\/maps\/?\?(?:.*&)?cid=\d+|maps\.app\.goo\.gl\/|goo\.gl\/maps\/|g\.page\/|search\.google\.com\/local\/(?:writereview|reviews))/i,
+  facebook: /^https?:\/\/(?:[a-z]+\.)?(?:facebook|fb)\.com\/(?!search\b|login\b)[^/?#]+/i,
+};
+export const isCrawlableLink = (source: ReviewSource, url: string | null | undefined) => CRAWLABLE_LINK[source].test(url || '');
+
 const clientFor = (source: ReviewSource) => (source === 'google' ? googleClient : facebookClient);
 const actorFor = (source: ReviewSource) => (source === 'google' ? GOOGLE_REVIEWS_ACTOR_NAME : FACEBOOK_REVIEWS_ACTOR_NAME);
 const tokenFor = (source: ReviewSource) => (source === 'google' ? GOOGLE_APIFY_TOKEN : FACEBOOK_APIFY_TOKEN);
@@ -121,6 +134,8 @@ export async function startCrawlRun(source: ReviewSource, input: Record<string, 
 
 export interface CrawlRunStatus {
   status: string;
+  /** Apify's own explanation, e.g. "INVALID INPUT: startUrls don't contain any valid URLs". */
+  statusMessage: string | null;
   finished: boolean;
   succeeded: boolean;
   datasetId: string;
@@ -136,11 +151,18 @@ export async function checkCrawlRun(source: ReviewSource, runId: string, waitSec
   if (!run) throw new Error(`Apify run ${runId} was not found.`);
   return {
     status: run.status,
+    statusMessage: run.statusMessage ?? null,
     finished: FINISHED.has(run.status),
     succeeded: run.status === 'SUCCEEDED',
     datasetId: run.defaultDatasetId,
     startedAt: new Date(run.startedAt),
   };
+}
+
+/** Apify's explanation for a past run, for failures recorded before it was kept. */
+export async function crawlRunMessage(source: ReviewSource, runId: string): Promise<string | null> {
+  const run = await clientFor(source).run(runId).get();
+  return run?.statusMessage ?? null;
 }
 
 export async function abortCrawlRun(source: ReviewSource, runId: string): Promise<void> {

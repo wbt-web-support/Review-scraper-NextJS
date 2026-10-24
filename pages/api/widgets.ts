@@ -110,7 +110,6 @@ export default async function handler(
       return res.status(401).json({ message: "Unauthorized" });
     }
     const userId = session.user.id as string;
-    console.log(`[API /api/widgets] User ID: ${userId}`);
 
     if (req.method === "POST") {
       // Video widgets are provisioned against Supabase, not built from a scraped

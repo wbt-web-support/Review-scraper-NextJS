@@ -11,7 +11,6 @@ export default async function handler(
   res: NextApiResponse<{ reviews?: IReviewItem[]; message?: string }>
 ) {
   const { urlHash, source } = req.query;
-  console.log('API called with:', { urlHash, source });
 
   if (req.method !== 'GET') {
     res.setHeader('Allow', ['GET']);
@@ -19,26 +18,21 @@ export default async function handler(
   }
 
   if (typeof urlHash !== 'string' || !urlHash || (source !== 'google' && source !== 'facebook')) {
-    console.log('Invalid parameters:', { urlHash, source });
     return res.status(400).json({ message: 'Bad Request: urlHash and valid source are required.' });
   }
 
   try {
     await dbConnect();
-    console.log('Fetching reviews for:', { urlHash, source });
     
     // Add direct database query for debugging
     const ModelToUse = source === 'google' ? GoogleReviewBatchModel : FacebookReviewBatchModel;
     const BusinessUrlModel = source === 'google' ? GoogleBusinessUrlModel : FacebookBusinessUrlModel;
-    console.log('Using model:', source === 'google' ? 'GoogleReviewBatchModel' : 'FacebookReviewBatchModel');
     
     // Check if any documents exist for this urlHash
     const allDocsWithUrlHash = await ModelToUse.find({ urlHash }).lean().exec();
-    console.log(`Found ${allDocsWithUrlHash.length} documents with urlHash ${urlHash}`);
     
     // Check all documents in the collection
     const totalDocs = await ModelToUse.countDocuments();
-    console.log(`Total documents in ${source} collection:`, totalDocs);
     
     // Get a sample of documents to see what urlHashes exist
     const sampleDocs = await ModelToUse.find({}).limit(5).select('urlHash businessUrlId').lean().exec();
@@ -46,22 +40,18 @@ export default async function handler(
     
     // Check if business URL exists
     const businessUrl = await (BusinessUrlModel as any).findOne({ urlHash }).lean().exec();
-    console.log('Business URL found:', businessUrl ? `ID: ${businessUrl._id}, Name: ${businessUrl.name}` : 'null');
     
     // If business URL exists, check for reviews by businessUrlId
     if (businessUrl) {
       const reviewsByBusinessId = await ModelToUse.find({ businessUrlId: businessUrl._id }).lean().exec();
-      console.log(`Reviews found by businessUrlId ${businessUrl._id}:`, reviewsByBusinessId.length);
       if (reviewsByBusinessId.length > 0) {
         // console.log('Sample review by businessUrlId:', reviewsByBusinessId[0]);
       }
     }
     
     const reviewBatch = await storage.getReviewBatchForBusinessUrl(urlHash, source as 'google' | 'facebook');
-    console.log('Review batch found:', reviewBatch ? `${reviewBatch.reviews?.length || 0} reviews` : 'null');
     
     if (!reviewBatch || !reviewBatch.reviews || reviewBatch.reviews.length === 0) {
-      console.log('No reviews found, returning empty array');
       return res.status(200).json({ reviews: [] });
     }
     
@@ -94,7 +84,6 @@ export default async function handler(
     }
     reviews = uniqueReviews;
     
-    console.log('Returning reviews (deduplicated):', reviews.length);
     return res.status(200).json({ reviews });
   } catch (error) {
     console.error('Error fetching reviews:', error);

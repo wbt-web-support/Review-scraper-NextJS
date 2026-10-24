@@ -20,7 +20,6 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<LatestReviewsApiResponse>
 ) {
-  console.log(`[API /latest-reviews] Method: ${req.method}, Query:`, req.query);
 
   if (req.method !== 'GET') {
     res.setHeader('Allow', ['GET']);
@@ -29,27 +28,20 @@ export default async function handler(
 
   try {
     await dbConnect();
-    console.log("[API /latest-reviews] DB Connected.");
 
     const session = await getServerSession(req, res, authOptions);
-    console.log("[API /latest-reviews] Session:", session ? `User ID: ${session.user?.id}` : "No session");
 
     if (!session || !session.user?.id) {
-      console.log("[API /latest-reviews] Unauthorized.");
       return res.status(401).json({ message: 'Unauthorized' });
     }
     const userId = session.user.id as string; // Assuming session.user.id is string
-    console.log(`[API /latest-reviews] Authenticated User ID: ${userId}`);
 
     const limitQuery = req.query.limit;
     const limit = typeof limitQuery === 'string' && !isNaN(parseInt(limitQuery))
       ? parseInt(limitQuery)
       : 10;
-    console.log(`[API /latest-reviews] Parsed Limit: ${limit}`);
 
-    console.log(`[API /latest-reviews] Calling storage.getLatestReviews for user: ${userId}, limit: ${limit}`);
     const latestReviewsResult = await storage.getLatestReviews(userId, limit); // <--- CALL TO STORAGE
-    console.log(`[API /latest-reviews] Reviews from storage count: ${latestReviewsResult.data?.length}`);
 
     // Add cache hit header for monitoring
     res.setHeader('x-cache-hit', latestReviewsResult.cacheHit.toString());

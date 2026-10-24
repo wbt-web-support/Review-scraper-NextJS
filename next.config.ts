@@ -1,5 +1,13 @@
 import type { NextConfig } from "next";
 
+/**
+ * Widget scripts run on client sites. Browsers reuse them for 10 minutes, then use
+ * the copy they have while fetching a fresh one in the background, so a visitor
+ * never waits on us for the script. A change to a script reaches live embeds within
+ * about 10 minutes (the ?v= in the snippet is fixed per embed, so it does not help).
+ */
+const WIDGET_SCRIPT_CACHE = 'public, max-age=600, stale-while-revalidate=86400';
+
 const nextConfig: NextConfig = {
   // There are other package-lock.json files further up the tree, so Next infers the
   // workspace root as ../ and warns. Pin it to this project.
@@ -42,7 +50,19 @@ const nextConfig: NextConfig = {
           },
           {
             key: 'Cache-Control',
-            value: 'public, max-age=60',
+            value: WIDGET_SCRIPT_CACHE,
+          },
+        ],
+      },
+      {
+        // The per-layout bundles (widget-grid.js, widget-carousel.js, ...), which is
+        // what most embeds load. Without a rule they were served must-revalidate, so
+        // every page view waited on a round trip to us before the widget could start.
+        source: '/:file(widget-[a-z]+\\.js)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: WIDGET_SCRIPT_CACHE,
           },
         ],
       },

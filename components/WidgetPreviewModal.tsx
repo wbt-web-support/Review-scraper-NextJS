@@ -79,10 +79,8 @@ const WidgetPreviewModal = ({ isOpen, onClose, widget }: WidgetPreviewModalProps
     queryKey: ['widgetPreviewReviews', widget.businessUrlId],
     queryFn: async () => {
       if (!widget.businessUrlId) { 
-        console.log("[PreviewQuery] No businessUrlId, returning empty reviews.");
         return { reviews: [], totalReviewCount: 0 };
       }
-      console.log(`[PreviewQuery] Fetching reviews for ID: ${widget.businessUrlId}`);
       return apiRequest<{ reviews: ReviewItemForPreviewModal[], totalReviewCount?: number }>(
         "GET",
         `/api/business-urls/${widget.businessUrlId}/reviews?limit=${customizations.maxReviews || 10}` 

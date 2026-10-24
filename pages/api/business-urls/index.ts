@@ -31,20 +31,15 @@ export default async function handler(
   res: NextApiResponse<BusinessUrlsApiResponse | IBusinessUrlDisplay | ErrorResponse>
 ) {
    const { method } = req;
-  console.log(`[API /api/business-urls] Received request: Method ${method}`);
 
   try {
     await dbConnect();
-    console.log("[API /api/business-urls] DB Connected.");
     const session = await getServerSession(req, res, authOptions);
     if (!session || !session.user?.id) {
-      console.log("[API /api/business-urls] Unauthorized: No session or user ID.");
       return res.status(401).json({ message: 'Unauthorized: Not authenticated.' });
     }
     const userId_string = session.user.id as string;
-    console.log(`[API /api/business-urls] Authenticated User ID: ${userId_string}`);
     if (req.method === 'GET') {
-      console.log(`[API /api/business-urls GET] Calling storage.getBusinessUrlsByUserId for user: ${userId_string}`);
       const businessUrls = await storage.getBusinessUrlsByUserId(userId_string);
       return res.status(200).json({ businessUrls: businessUrls || [] });
     } else if (method === 'POST') {
@@ -108,7 +103,6 @@ export default async function handler(
         newBusinessUrl.details = details;
       }
 
-      console.log("[API /api/business-urls POST] Created new business URL:", newBusinessUrl._id);
       return res.status(201).json(newBusinessUrl);
     } else {
       res.setHeader('Allow', ['GET', 'POST']);

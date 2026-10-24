@@ -227,7 +227,7 @@ const ReviewTable = ({  reviews, isLoading = false, emptyState, error, onReviewD
               const source = getReviewSource(review);
 
               return (
-                <TableRow key={review._id || review.reviewId || `review-${index}`} className="hover:bg-slate-50/50  transition-colors">
+                <TableRow key={`${review.reviewId || review._id || 'review'}-${index}`} className="hover:bg-slate-50/50  transition-colors">
                   <TableCell className="px-4 py-3 whitespace-nowrap">
                     <div className="flex items-center justify-center">
                       {source === 'google' ? (
