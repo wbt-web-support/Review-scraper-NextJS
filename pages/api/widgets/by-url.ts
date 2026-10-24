@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { requireOperator } from '../../../lib/apiAuth';
 import dbConnect from "@/lib/mongodb";
 import * as storage from "@/lib/storage";
 
@@ -10,13 +11,19 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<{ widgetId: string } | ErrorResponse>
 ) {
+  // Operators only: refuses anyone signed out, and client logins.
+  if (!(await requireOperator(req, res))) return;
+
   if (req.method !== "POST") {
     return res.status(405).json({ message: "Method not allowed" });
   }
 
   try {
     await dbConnect();
-    const { businessUrl } = req.body;
+    const { businessUrl } = req.body ?? {};
+    if (typeof businessUrl !== 'string' || !businessUrl) {
+      return res.status(400).json({ message: 'businessUrl must be a link.' });
+    }
 
     if (!businessUrl) {
       return res.status(400).json({ message: "Business URL is required" });

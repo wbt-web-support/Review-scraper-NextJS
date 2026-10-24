@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { LoadError } from "../components/LoadError";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -43,7 +44,7 @@ const VideoReviews = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data, isLoading } = useQuery<{ videoBusinesses: IVideoBusiness[] }>({
+  const { data, isLoading, error: loadError, refetch } = useQuery<{ videoBusinesses: IVideoBusiness[] }>({
     queryKey: ["videoBusinesses"],
     queryFn: () => apiRequest("GET", "/api/video-businesses"),
   });
@@ -105,7 +106,9 @@ const VideoReviews = () => {
           <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search video businesses…" className="pl-9" />
         </div>
 
-        {isLoading ? (
+        {loadError ? (
+          <LoadError what="your video businesses" onRetry={() => refetch()} />
+        ) : isLoading ? (
           <div className="space-y-2">{[0, 1, 2].map((i) => <div key={i} className="h-14 animate-pulse rounded-lg bg-gray-100" />)}</div>
         ) : filtered.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-gray-200 py-16 text-center">

@@ -195,9 +195,10 @@
     // Everything from the API is user-submitted (a reviewer typed it). Never
     // interpolate it into innerHTML unescaped -- that would be stored XSS on the
     // client's own website, which is about the worst thing this widget could do.
-    var div = document.createElement("div");
-    div.textContent = value == null ? "" : String(value);
-    return div.innerHTML;
+    // Quotes too: this output also goes inside attributes (aria-label="...").
+    return (value == null ? "" : String(value)).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
   }
 
   function starsHtml(rating, color) {

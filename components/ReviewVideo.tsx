@@ -32,7 +32,10 @@ export function ReviewVideo({ videoGuid, fileUrl, thumbnailUrl, reviewerName, on
   // No poster image? Nudge the browser to render the first frame as the preview.
   const src = fileUrl ? (thumbnailUrl ? fileUrl : `${fileUrl}#t=0.1`) : "";
 
-  const Player = ({ big }: { big?: boolean }) => (
+  // A function returning the <video>, NOT a component defined in here: a component
+  // created during render is a new type every render, so React rebuilt the <video>
+  // (and stopped playback) whenever the parent re-rendered, e.g. on approving another review.
+  const renderPlayer = (big?: boolean) => (
     <video
       src={src}
       poster={thumbnailUrl ?? undefined}
@@ -53,7 +56,7 @@ export function ReviewVideo({ videoGuid, fileUrl, thumbnailUrl, reviewerName, on
     <>
       <div className="group relative h-full w-full overflow-hidden bg-gray-900">
         {canPlay ? (
-          <Player />
+          renderPlayer()
         ) : videoGuid ? (
           <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-gray-400">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-600 border-t-gray-300" />
@@ -85,7 +88,7 @@ export function ReviewVideo({ videoGuid, fileUrl, thumbnailUrl, reviewerName, on
             <X className="h-5 w-5" />
           </button>
           <div className="aspect-video w-full max-w-5xl overflow-hidden rounded-xl bg-black" onClick={(e) => e.stopPropagation()}>
-            <Player big />
+            {renderPlayer(true)}
           </div>
         </div>
       )}

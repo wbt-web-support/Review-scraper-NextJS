@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { LoadError } from "../../components/LoadError";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -74,7 +75,7 @@ export default function BusinessProfile() {
   const queryClient = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
 
-  const { data, isLoading } = useQuery<{ businessUrls: IBusinessUrl[] }>({
+  const { data, isLoading, error: businessError, refetch: refetchBusinesses } = useQuery<{ businessUrls: IBusinessUrl[] }>({
     queryKey: ["businessUrls"],
     queryFn: () => apiRequest("GET", "/api/business-urls/all"),
   });
@@ -84,7 +85,7 @@ export default function BusinessProfile() {
     [data, id],
   );
 
-  const { data: reviewsData, isLoading: reviewsLoading } = useQuery<{ reviews: IReviewItem[] }>({
+  const { data: reviewsData, isLoading: reviewsLoading, error: reviewsError, refetch: refetchReviews } = useQuery<{ reviews: IReviewItem[] }>({
     queryKey: ["reviews", id],
     queryFn: () =>
       apiRequest(
@@ -103,6 +104,14 @@ export default function BusinessProfile() {
     },
     onError: (e) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
+
+  if (businessError && !data) {
+    return (
+      <Layout>
+        <div className="mx-auto max-w-6xl px-6 py-8"><LoadError what="this business" onRetry={() => refetchBusinesses()} /></div>
+      </Layout>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -190,7 +199,9 @@ export default function BusinessProfile() {
               <RefreshCcw className="mr-2 h-3.5 w-3.5" /> Recrawl
             </Button>
           </div>
-          {reviews.length === 0 && !reviewsLoading ? (
+          {reviewsError ? (
+            <LoadError what="the reviews" onRetry={() => refetchReviews()} />
+          ) : reviews.length === 0 && !reviewsLoading ? (
             <div className="rounded-2xl border border-gray-200 bg-white py-16 text-center">
               <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 text-gray-400">
                 <MessageSquare className="h-5 w-5" />

@@ -1,4 +1,5 @@
 import  { handleZodError }  from '../../../lib/utils';
+import { requireOperator } from '../../../lib/apiAuth';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
@@ -30,6 +31,9 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<BusinessUrlsApiResponse | IBusinessUrlDisplay | ErrorResponse>
 ) {
+  // Operators only: refuses anyone signed out, and client logins.
+  if (!(await requireOperator(req, res))) return;
+
    const { method } = req;
 
   try {

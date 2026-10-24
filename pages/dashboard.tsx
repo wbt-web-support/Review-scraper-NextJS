@@ -85,8 +85,6 @@ const Dashboard = () => {
 
         <Briefing data={data?.briefing} />
 
-        <Issues issues={data?.issues} />
-
         <div className="grid items-start gap-6 lg:grid-cols-3">
           <div className="min-w-0 space-y-6 lg:col-span-2">
             <TopClients businesses={data?.topBusinesses} />
@@ -96,6 +94,14 @@ const Dashboard = () => {
             <LatestReviews reviews={data?.latestReviews} />
           </div>
         </div>
+
+        <Issues
+          issues={data?.issues}
+          onResolveError={async (id) => {
+            const res = await fetch(`/api/errors/${id}`, { method: "PATCH" });
+            if (res.ok) refresh();
+          }}
+        />
       </div>
     </Layout>
   );

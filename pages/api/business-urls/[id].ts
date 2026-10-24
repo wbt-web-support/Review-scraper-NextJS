@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { requireOperator } from '../../../lib/apiAuth';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
 import * as storage from '../../../lib/storage';
@@ -36,6 +37,9 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<IBusinessUrl | Omit<ErrorResponse, 'details'> | ErrorResponse | { message: string }>
 ) {
+  // Operators only: refuses anyone signed out, and client logins.
+  if (!(await requireOperator(req, res))) return;
+
   try {
     await dbConnect(); 
     const session = await getServerSession(req, res, authOptions);

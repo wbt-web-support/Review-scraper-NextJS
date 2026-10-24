@@ -1,4 +1,5 @@
 import { Types } from 'mongoose';
+import { createHash, timingSafeEqual } from "crypto";
 import dbConnect from './mongodb';
 import VideoBusinessModel, {
   type IVideoBusinessTenant,
@@ -67,20 +68,34 @@ export async function setVideoBusinessPassword(id: string, loginPassword: string
  * stored password, and only NextAuth's authorize() calls it.
  */
 export async function findVideoBusinessLogin(
-  email: string,
-  password: string,
+  email: unknown,
+  password: unknown,
 ): Promise<{ _id: string; email: string; name: string } | null> {
+  // Plain strings only, checked here as well as in authorize(): this function must
+  // be safe whoever calls it.
+  if (typeof email !== "string" || typeof password !== "string" || !email.trim() || !password) return null;
   await dbConnect();
   const normalized = email.trim().toLowerCase();
-  const doc = await VideoBusinessModel.findOne({
-    "details.email": { $regex: `^${escapeRegex(normalized)}$`, $options: "i" },
-    loginPassword: password,
-  })
+  // Find by email ONLY, then compare the password here in code. The password used
+  // to be part of the database query, where a crafted value acts as a condition
+  // ("any password that isn't X") and signs someone in without knowing it.
+  const docs = await VideoBusinessModel.find(
+    { "details.email": { $regex: `^${escapeRegex(normalized)}$`, $options: "i" } },
+    { name: 1, details: 1, loginPassword: 1 },
+  )
     .lean()
     .exec();
-  if (!doc) return null;
-  const d = doc as unknown as { _id: Types.ObjectId; name: string; details?: { email?: string } };
-  return { _id: d._id.toString(), email: d.details?.email ?? normalized, name: d.name };
+  const match = (docs as unknown as { _id: Types.ObjectId; name: string; details?: { email?: string }; loginPassword?: unknown }[])
+    .find((d) => typeof d.loginPassword === "string" && d.loginPassword.length > 0 && samePassword(d.loginPassword, password));
+  if (!match) return null;
+  return { _id: match._id.toString(), email: match.details?.email ?? normalized, name: match.name };
+}
+
+/** Constant-time comparison, so response timing reveals nothing about the password. */
+function samePassword(stored: string, given: string): boolean {
+  const a = createHash("sha256").update(stored).digest();
+  const b = createHash("sha256").update(given).digest();
+  return timingSafeEqual(a, b);
 }
 
 function escapeRegex(value: string): string {

@@ -8,6 +8,7 @@ import VideoBusinessModel from '../models/VideoBusiness.model';
 import { createAdminClient } from '@vrm/lib/supabase/admin';
 import { CRAWL_POLICY } from './reviewCrawler';
 import { crawlRunMessage, isCrawlableLink } from './apify';
+import { listOpenErrors, type TrackedError } from './errorTracker';
 
 /**
  * Everything the operator dashboard shows, in one call.
@@ -76,6 +77,8 @@ export interface DashboardCrawlFailure {
 }
 
 export interface DashboardIssues {
+  /** Errors the app recorded (server and browser) in the last 7 days, not marked fixed. */
+  errors: { total: number; items: TrackedError[] };
   crawlFailures: DashboardCrawlFailure[];
   /** Clients added more than once: each copy is crawled (and paid for) separately. */
   duplicates: { extraEntries: number; examples: { name: string; entries: number; businessId: string; source: Source }[] };
@@ -427,7 +430,10 @@ export async function getDashboardOverview(): Promise<DashboardOverview> {
     return !b.lastCrawledAt || now - new Date(b.lastCrawledAt).getTime() > due;
   });
 
+  const tracked = await listOpenErrors(7, 10).catch(() => ({ total: 0, errors: [] as TrackedError[] }));
+
   const issues: DashboardIssues = {
+    errors: { total: tracked.total, items: tracked.errors },
     crawlFailures,
     invalidLinks: invalid,
     duplicates: { extraEntries: businesses.length - listings.length, examples: duplicateExamples },

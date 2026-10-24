@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Loader2, MessageSquare } from "lucide-react";
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useSession } from 'next-auth/react';
@@ -86,7 +87,7 @@ const onSubmit = async (data: RegisterFormData) => {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
             <span className="text-primary text-3xl mr-2 transition-theme">
-              <i className="fas fa-comment-dots"></i>
+              <MessageSquare className="h-6 w-6" aria-hidden="true" />
             </span>
             <h1 className="font-heading font-bold text-2xl text-foreground dark:text-foreground transition-theme">ReviewHub</h1>
           </div>
@@ -195,7 +196,7 @@ const onSubmit = async (data: RegisterFormData) => {
                 >
                   {isLoading ? (
                     <span className="flex items-center justify-center">
-                      <i className="fas fa-spinner fa-spin mr-2"></i> Creating account...
+                      <Loader2 className="mr-2 inline h-4 w-4 animate-spin" aria-hidden="true" /> Creating account...
                     </span>
                   ) : (
                     "Create Account"

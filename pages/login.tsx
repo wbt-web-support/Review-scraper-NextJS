@@ -16,6 +16,16 @@ import Image from 'next/image';
 import type { GetServerSideProps } from "next";
 import { getTenantBrandingByHost } from "../lib/tenantByHost";
 
+/**
+ * Where to go after signing in: a path on this site only. A full or
+ * protocol-relative URL (https://…, //…) in the link would otherwise send a
+ * freshly signed-in user to any outside website.
+ */
+function safeCallbackUrl(value: string | string[] | undefined): string {
+  const v = Array.isArray(value) ? value[0] : value;
+  return typeof v === "string" && /^\/(?![\/\\])/.test(v) ? v : "/dashboard";
+}
+
 const loginSchema = z.object({
   email: z.string().trim().toLowerCase().email("Please enter a valid email address."),
   password: z.string().min(1, "Password is required"),
@@ -41,7 +51,7 @@ const Login = ({ brand }: { brand: Brand | null }) => {
         router.push('/my-reviews');
         return;
       }
-      const callbackUrl = router.query.callbackUrl as string || "/dashboard";
+      const callbackUrl = safeCallbackUrl(router.query.callbackUrl);
       router.push(callbackUrl);
     }
   }, [authStatus, session, router]);
@@ -76,7 +86,7 @@ const Login = ({ brand }: { brand: Brand | null }) => {
         if (freshSession?.user?.role === "client") {
           router.push("/my-reviews");
         } else {
-          const callbackUrl = router.query.callbackUrl as string || "/dashboard";
+          const callbackUrl = safeCallbackUrl(router.query.callbackUrl);
           router.push(callbackUrl);
         }
       } else if (!result?.ok && !result?.error) {

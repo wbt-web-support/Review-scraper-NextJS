@@ -329,7 +329,7 @@ export async function deleteTenantReview(tenantId: string, reviewId: string): Pr
 
 export async function updateCollection(
   tenantId: string,
-  input: { welcomeText: string; description: string; thankYouText: string; promptQuestions: string[]; introTitle: string; introBody: string },
+  input: { welcomeText: string; description: string; thankYouText: string; promptQuestions: string[]; introTitle?: string; introBody?: string },
 ): Promise<void> {
   const questions = input.promptQuestions.map((q) => q.trim()).filter(Boolean).slice(0, 10);
   const { error } = await createAdminClient()
@@ -339,8 +339,10 @@ export async function updateCollection(
       description: input.description,
       thank_you_text: input.thankYouText,
       prompt_questions: questions,
-      intro_title: input.introTitle,
-      intro_body: input.introBody,
+      // Only when sent: the client's form has no intro fields, and writing the
+      // defaults here wiped the agency's heading and paragraphs on every save.
+      ...(input.introTitle !== undefined ? { intro_title: input.introTitle } : {}),
+      ...(input.introBody !== undefined ? { intro_body: input.introBody } : {}),
     })
     .eq("tenant_id", tenantId);
   if (error) throw new Error(error.message);

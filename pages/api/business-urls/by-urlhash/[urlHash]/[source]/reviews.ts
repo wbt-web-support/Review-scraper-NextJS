@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { requireOperator } from '../../../../../../lib/apiAuth';
 import dbConnect from '@/lib/mongodb';
 import * as storage from '@/lib/storage';
 import { IReviewItem } from '@/models/Review.model';
@@ -10,6 +11,9 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<{ reviews?: IReviewItem[]; message?: string }>
 ) {
+  // Operators only: refuses anyone signed out, and client logins.
+  if (!(await requireOperator(req, res))) return;
+
   const { urlHash, source } = req.query;
 
   if (req.method !== 'GET') {

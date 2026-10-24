@@ -40,13 +40,17 @@ export async function purgeTenant(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const admin = createAdminClient();
 
-  const { data: tenant } = await admin
+  const { data: tenant, error: lookupError } = await admin
     .from("tenants")
     .select("id, name, custom_domain, bunny_collection_id")
     .eq("id", tenantId)
     .maybeSingle();
 
-  if (!tenant) return { ok: false, error: "That business no longer exists." };
+  // A real error stops the delete. A tenant that is simply gone has nothing left to
+  // remove, so that counts as done: reporting it as a failure meant the business
+  // (or widget) that pointed at it could never be deleted.
+  if (lookupError) return { ok: false, error: lookupError.message };
+  if (!tenant) return { ok: true };
 
   // 1. Their videos. Gather the storage paths before the rows disappear.
   const { data: reviews } = await admin

@@ -13,6 +13,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../components/ui/form";
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
+import { Loader2 } from "lucide-react";
 
 interface IUser { 
   _id: string; 
@@ -38,7 +39,7 @@ const profileSchema = z.object({
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(1, "Current password is required."),
-  newPassword: z.string().min(6, "New password must be at least 6 characters long."),
+  newPassword: z.string().min(8, "New password must be at least 8 characters long."),
   confirmPassword: z.string().min(6, "Please confirm your new password.")
 }).refine(data => data.newPassword === data.confirmPassword, {
   message: "New passwords do not match.",
@@ -172,7 +173,7 @@ const Settings = () => {
                       <FormField control={profileForm.control} name="email" render={({ field }) => ( <FormItem> <FormLabel>Email</FormLabel> <FormControl><Input type="email" placeholder="your.email@example.com" {...field} disabled /></FormControl> <FormMessage /> <p className="text-xs text-muted-foreground pt-1">Email cannot be changed.</p> </FormItem> )} />
                       <FormField control={profileForm.control} name="username" render={({ field }) => ( <FormItem> <FormLabel>Username</FormLabel> <FormControl><Input placeholder="Your unique username" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
                       <Button type="submit" className="mt-4" disabled={updateProfileMutation.isPending || !profileForm.formState.isDirty}>
-                        {updateProfileMutation.isPending ? (<><i className="fas fa-spinner fa-spin mr-2"></i>Saving...</>) : "Save Changes"}
+                        {updateProfileMutation.isPending ? (<><Loader2 className="mr-2 inline h-4 w-4 animate-spin" aria-hidden="true" />Saving...</>) : "Save Changes"}
                       </Button>
                     </form>
                   </Form>
@@ -196,7 +197,7 @@ const Settings = () => {
                     <FormField control={passwordForm.control} name="newPassword" render={({ field }) => ( <FormItem> <FormLabel>New Password</FormLabel> <FormControl><Input type="password" placeholder="Enter new password" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
                     <FormField control={passwordForm.control} name="confirmPassword" render={({ field }) => ( <FormItem> <FormLabel>Confirm New Password</FormLabel> <FormControl><Input type="password" placeholder="Confirm new password" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
                     <Button type="submit" className="mt-4" disabled={changePasswordMutation.isPending}>
-                      {changePasswordMutation.isPending ? (<><i className="fas fa-spinner fa-spin mr-2"></i>Changing...</>) : "Change Password"}
+                      {changePasswordMutation.isPending ? (<><Loader2 className="mr-2 inline h-4 w-4 animate-spin" aria-hidden="true" />Changing...</>) : "Change Password"}
                     </Button>
                   </form>
                 </Form>
@@ -206,26 +207,14 @@ const Settings = () => {
           <TabsContent value="api">
             <Card>
               <CardHeader>
-                <CardTitle>API Keys</CardTitle>
+                <CardTitle>API keys</CardTitle>
                 <CardDescription>
-                  Manage your API keys for external integrations.
+                  Each business has its own key for the reviews API, so one client&apos;s key never works for another.
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                      Apify API Key
-                    </h3>
-                    <p className="text-sm text-muted-foreground mb-3">Used for review scraping services.</p>
-                    <p className="text-sm text-muted-foreground italic">Apify key is configured server-side.</p>
-                    <div className="flex items-center space-x-2">
-                      <Input type="text" value="API_KEY_PLACEHOLDER_FETCH_FROM_BACKEND" readOnly />
-                      <Button className="border border-input bg-background hover:bg-accent hover:text-accent-foreground"><i className="fas fa-copy mr-2"></i>Copy</Button>
-                    </div>
-                      <Button className="mt-2 text-sm text-primary hover:text-primary-hover">Regenerate Key</Button>
-                    </div>
-                  </div>
+              <CardContent className="space-y-2 text-sm text-muted-foreground">
+                <p>To create, copy, regenerate or revoke a key, open the business&apos;s widget in <b>My Widgets</b> and go to the <b>Embed Code</b> tab.</p>
+                <p>The Apify key used for crawling is set on the server and is not shown here.</p>
               </CardContent>
             </Card>
           </TabsContent>

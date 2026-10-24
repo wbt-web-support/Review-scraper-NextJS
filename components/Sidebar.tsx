@@ -1,3 +1,4 @@
+import { HelpCircle, LayoutDashboard, LayoutGrid, LogOut, Star, Video, X } from "lucide-react";
 export interface IUserSessionData {
   id?: string;
   username?: string | null;
@@ -19,11 +20,11 @@ interface SidebarProps {
 
 const Sidebar = ({ isMobile, isOpen, onClose, onLogout, user, currentPath, _resolvedTheme }: SidebarProps) => {
   const navItems = [
-    { label: "Dashboard", icon: "tachometer-alt", href: "/dashboard" },
-    { label: "My Widgets", icon: "th-large", href: "/widgets" },
-    { label: "Reviews", icon: "star", href: "/reviews" },
-    { label: "Video Reviews", icon: "video", href: "/video-reviews" },
-    { label: "Help & Support", icon: "question-circle", href: "/help" },
+    { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
+    { label: "My Widgets", icon: LayoutGrid, href: "/widgets" },
+    { label: "Reviews", icon: Star, href: "/reviews" },
+    { label: "Video Reviews", icon: Video, href: "/video-reviews" },
+    { label: "Help & Support", icon: HelpCircle, href: "/help" },
   ];
   if (isMobile && !isOpen) {
     return null;
@@ -61,9 +62,10 @@ const Sidebar = ({ isMobile, isOpen, onClose, onLogout, user, currentPath, _reso
           {isMobile && (
             <button
               onClick={onClose}
+              aria-label="Close menu"
               className="rounded-md p-2 text-slate-500 hover:bg-slate-200 hover:text-slate-700"
             >
-              <i className="fas fa-times"></i>
+              <X className="h-4 w-4" aria-hidden="true" />
             </button>
           )}
         </div>
@@ -76,7 +78,7 @@ const Sidebar = ({ isMobile, isOpen, onClose, onLogout, user, currentPath, _reso
                 href={item.href}
                 className={`${navItemBase} ${isActive ? navItemActiveClasses : `${navItemInactiveText} ${navItemInactiveBgHover}`}`}
               >
-                <i className={`fas fa-${item.icon} ${isActive ? navIconActiveText : navIconText} mr-3`}></i>
+                <item.icon className={`h-4 w-4 ${isActive ? navIconActiveText : navIconText} mr-3`} aria-hidden="true" />
                 {item.label}
               </a>
             );
@@ -101,7 +103,7 @@ const Sidebar = ({ isMobile, isOpen, onClose, onLogout, user, currentPath, _reso
               onClick={onLogout}
               className="flex w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
             >
-              <i className="fas fa-sign-out-alt"></i>
+              <LogOut className="h-4 w-4" aria-hidden="true" />
               Logout
             </button>
           </div>

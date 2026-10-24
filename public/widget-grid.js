@@ -103,17 +103,24 @@
     },
 
     escapeHtml: function (text) {
+      // Quotes too: escaped text also goes inside attributes (aria-label, title).
       if (typeof text !== 'string') return '';
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
+      return text.replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
     },
 
     stripHtml: function (text) {
+      // Plain text only. Never parse review text as HTML: building elements from it
+      // (even in a detached div) loads images and runs their onerror handlers, which
+      // let any review run script on the client's website.
       if (typeof text !== 'string') return '';
-      const div = document.createElement('div');
-      div.innerHTML = text.replace(/<br\s*\/?>/gi, ' ');
-      return (div.textContent || div.innerText || '').trim();
+      return text
+        .replace(/<br\s*\/?>/gi, ' ')
+        .replace(/<[^>]*>/g, '')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&')
+        .trim();
     },
 
     getInitials: function (name) {
@@ -274,7 +281,8 @@
       style.textContent = `
         /* Global styles */
 
-        i {
+        /* Only inside our own widget, never the client's page. */
+        [class^="reviewhub-"] i, [class*=" reviewhub-"] i, [class^="rh-"] i, [class*=" rh-"] i {
             font-style: normal !important;
         } 
 
@@ -947,7 +955,7 @@
               .then(res => {
                 clearTimeout(timeoutId);
                 if (!res.ok) {
-                  throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                  const httpError = new Error(`HTTP ${res.status}: ${res.statusText}`); httpError.status = res.status; throw httpError;
                 }
                 return res.json();
               })
@@ -959,6 +967,8 @@
           });
           return response;
         } catch (error) {
+          // A 4xx (widget not found, deactivated) will not change on a retry.
+          if (error && error.status >= 400 && error.status < 500 && error.status !== 408 && error.status !== 429) throw error;
           attempt++;
           if (attempt > retries) {
             throw error;
@@ -1117,7 +1127,7 @@
 
       const reviewCardsHtml = reviewsToShow.map((review, index) => {
         const author = this.escapeHtml(review.author || 'Anonymous');
-        const initials = this.getInitials(review.author);
+        const initials = this.escapeHtml(this.getInitials(review.author));
         const profilePicture = review.profilePicture;
         const date = this.formatDate(review.postedAt);
         const rating = parseFloat(review.rating) || 0;
@@ -1314,8 +1324,8 @@
 
             if (newData && newData.reviews && newData.reviews.length > 0) {
               // Add new reviews to the state
-              widgetState.loadedReviews.push(...newData.reviews);
-              widgetState.currentOffset += newData.reviews.length;
+              // renderWidget adds the batch to loadedReviews and moves the offset on;
+              // doing it here as well showed each batch twice and skipped the next.
               widgetState.displayCount += CONFIG.GRID_SETTINGS.LOAD_MORE_INCREMENT;
               widgetState.isExpanded = true;
 
@@ -1323,7 +1333,7 @@
               this.renderWidget(container, newData, config, widgetState.displayCount);
 
               // Check if there are more reviews to load
-              const hasMoreReviews = data.totalReviewCount > widgetState.loadedReviews.length;
+              const hasMoreReviews = (typeof data.totalFilteredReviewCount === 'number' ? data.totalFilteredReviewCount : data.totalReviewCount) > widgetState.loadedReviews.length;
               if (!hasMoreReviews) {
                 loadMoreBtn.textContent = 'No More Reviews';
                 loadMoreBtn.disabled = true;
@@ -1352,7 +1362,8 @@
           const initialCount = data.widgetSettings.initialReviewCount || CONFIG.GRID_SETTINGS.INITIAL_REVIEW_COUNT;
           widgetState.displayCount = initialCount;
           widgetState.isExpanded = false;
-          this.renderWidget(container, data, config, initialCount);
+          // No reviews passed: collapsing must not add the last batch again.
+          this.renderWidget(container, { ...data, reviews: [] }, config, initialCount);
 
           // Smooth scroll to top of widget
           container.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1371,7 +1382,7 @@
       const platformName = reviewSource === 'facebook' ? 'Facebook' : 'Google';
 
       const author = this.escapeHtml(review.author || 'Anonymous');
-      const initials = this.getInitials(review.author);
+      const initials = this.escapeHtml(this.getInitials(review.author));
       const profilePicture = review.profilePicture;
       const date = this.formatDate(review.postedAt);
       const rating = parseFloat(review.rating) || 0;
@@ -1498,45 +1509,51 @@
         return;
       }
 
-      // For grid layout, use pagination for initial load
+      const retryLoad = () => {
+        container.innerHTML = '';
+        this.initWidget(config);
+      };
+
+      // For grid layout, use pagination for initial load. Inside a try: a failed
+      // fetch used to escape, leaving "Loading reviews..." on screen for good.
       let data;
-      const widgetId = config.widgetId;
+      try {
+        const widgetId = config.widgetId;
 
-      // Check for pre-fetched data from widget.js
-      if (window.ReviewHubMain && window.ReviewHubMain.dataCache && window.ReviewHubMain.dataCache.has(widgetId)) {
-        try {
-        
-          data = await window.ReviewHubMain.dataCache.get(widgetId);
-        } catch (e) {
-          console.warn(`[ReviewHubGrid] Pre-fetch lookup failed for ${widgetId}, falling back...`);
-        }
-      }
-
-      if (!data) {
-        if (config.layout === 'grid') {
+        // Check for pre-fetched data from widget.js
+        if (window.ReviewHubMain && window.ReviewHubMain.dataCache && window.ReviewHubMain.dataCache.has(widgetId)) {
           try {
-            // Use API default for initial fetch
-            data = await this.fetchReviewsWithPagination(config.widgetId, 0, null, config.nocache, config.t);
-          } catch (error) {
-            // Fallback to old method if pagination fails
+        
+            data = await window.ReviewHubMain.dataCache.get(widgetId);
+          } catch (e) {
+            console.warn(`[ReviewHubGrid] Pre-fetch lookup failed for ${widgetId}, falling back...`);
+          }
+        }
+
+        if (!data) {
+          if (config.layout === 'grid') {
+            try {
+              // Use API default for initial fetch
+              data = await this.fetchReviewsWithPagination(config.widgetId, 0, null, config.nocache, config.t);
+            } catch (error) {
+              // Fallback to old method if pagination fails
+              const params = new URLSearchParams();
+              const queryString = params.toString();
+              const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${config.widgetId}${queryString ? '?' + queryString : ''}`;
+              data = await this.fetchWithRetry(apiUrl);
+            }
+          } else {
+            // For other layouts, use the old method
             const params = new URLSearchParams();
             const queryString = params.toString();
             const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${config.widgetId}${queryString ? '?' + queryString : ''}`;
             data = await this.fetchWithRetry(apiUrl);
           }
-        } else {
-          // For other layouts, use the old method
-          const params = new URLSearchParams();
-          const queryString = params.toString();
-          const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${config.widgetId}${queryString ? '?' + queryString : ''}`;
-          data = await this.fetchWithRetry(apiUrl);
         }
+      } catch (error) {
+        this.showError(container, error, config, retryLoad);
+        return;
       }
-
-      const retryLoad = () => {
-        container.innerHTML = '';
-        this.initWidget(config);
-      };
 
       try {
         if (data && data.reviews) {
@@ -1571,7 +1588,16 @@
   // Auto-initialize widgets from script tags
   function initializeWidgetsFromScripts() {
     const scriptTags = document.querySelectorAll('script[data-widget-id][src*="widget-grid.js"]');
+    // Start each widget once. This runs up to three times while a page loads
+    // (now, DOMContentLoaded, load); without the guard a widget fetched its reviews
+    // and redrew itself each time. A container that isn't in the page yet is left
+    // for a later pass, as before.
+    const started = window.__reviewhubStarted || (window.__reviewhubStarted = new WeakSet());
     scriptTags.forEach(script => {
+      if (started.has(script)) return;
+      const waitFor = script.getAttribute('data-container-id');
+      if (waitFor && !document.getElementById(waitFor) && document.readyState === 'loading') return;
+      started.add(script);
       const config = {
         widgetId: script.getAttribute('data-widget-id'),
         containerId: script.getAttribute('data-container-id') || null,

@@ -1,4 +1,5 @@
 import { Rating } from "../components/ui/Rating";
+import { Filter, Star } from "lucide-react";
 import { formatRating } from "../lib/utils";
 import { useMemo, useState, useEffect } from "react";
 import SingleReviewCard from "./SingleReviewCard";
@@ -193,7 +194,6 @@ const WidgetPreview = ({
   const colorStyle = { "--widget-theme-color": settings.themeColor || "#3B82F6" } as React.CSSProperties;
   const source = settings.businessUrl?.source || "google";
   const businessName = settings.businessUrl?.name || "Business Name";
-  const sourceIcon = source === 'google' ? 'fab fa-google' : 'fab fa-facebook-f';
   // Index included: the same review can arrive twice from older stored data, and
   // React needs every key in a list to be unique.
   const getReviewKey = (review: IReviewItemFromAPI, index: number): string => `${review.reviewId || review._id || 'review'}-${index}`;
@@ -206,7 +206,7 @@ const WidgetPreview = ({
 
   const NoFilteredReviews = () => (
     <div style={colorStyle} className="text-center py-10 text-muted-foreground">
-      <i className="fas fa-filter text-3xl mb-4"></i>
+      <Filter className="mx-auto mb-4 h-8 w-8" aria-hidden="true" />
       <h4 className="font-semibold text-lg text-foreground">No Reviews Match Filters</h4>
       <p className="text-sm">Try adjusting the minimum rating in the settings.</p>
     </div>
@@ -215,7 +215,7 @@ const WidgetPreview = ({
   if (!isLoadingReviews && filteredReviews.length === 0 && settings.layout !== 'badge') { // Use the prop
     return (
       <div style={colorStyle} className="border border-border rounded-lg p-6 bg-card text-card-foreground text-center min-h-[200px] flex flex-col justify-center items-center">
-        <i className="fas fa-star text-3xl text-muted-foreground mb-4"></i>
+        <Star className="mx-auto mb-4 h-8 w-8 text-muted-foreground" aria-hidden="true" />
         <h4 className="font-semibold text-lg text-foreground">No Reviews Match Filters</h4>
         <p className="text-sm text-muted-foreground">
           Try adjusting the minimum rating or this source has no reviews that meet the criteria.

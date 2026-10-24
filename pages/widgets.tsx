@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { LoadError } from "../components/LoadError";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
@@ -82,6 +83,8 @@ const Widgets = () => {
     widgets: allWidgets,
     pagination,
     isLoading: isWidgetsLoading,
+    error: widgetsError,
+    refetch: refetchWidgets,
     isSearchPending,
     currentPage,
     setCurrentPage,
@@ -408,7 +411,9 @@ const Widgets = () => {
 
         {/* Content */}
         <div className="mt-6">
-          {isWidgetsLoading ? (
+          {widgetsError ? (
+            <LoadError what="your widgets" onRetry={() => refetchWidgets()} />
+          ) : isWidgetsLoading ? (
             <WidgetSkeleton viewMode={viewMode} count={limit} />
           ) : allWidgets.length > 0 ? (
             viewMode === "grid" ? (

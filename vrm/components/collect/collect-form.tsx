@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import * as tus from "tus-js-client";
 import type { CollectionPage } from "@vrm/lib/collect/queries";
 import { formatVideoLength } from "@vrm/lib/video/limits";
@@ -147,6 +147,10 @@ export function CollectForm({ page }: { page: CollectionPage }) {
   const [submitting, setSubmitting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  // The review row and upload link from an attempt whose upload failed. A retry
+  // with the same video and details reuses them, instead of creating a second
+  // review that would sit at "Processing video…" for ever.
+  const pendingUpload = useRef<{ file: File; details: string; upload: VideoUpload } | null>(null);
 
   async function submit() {
     setError(null);
@@ -163,27 +167,44 @@ export function CollectForm({ page }: { page: CollectionPage }) {
     setProgress(0);
 
     try {
-      const res = await fetch(`/api/collect/${tenant.slug}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: mode,
-          reviewerName: name.trim(),
-          reviewerEmail: email.trim(),
-          rating,
-          consentGiven: consent,
-          ...(mode === "text"
-            ? { textReview: text.trim() }
-            : { contentType: baseMimeType(video?.type ?? "") }),
-        }),
-      });
+      const details = JSON.stringify([name.trim(), email.trim(), rating, consent]);
+      const pending = pendingUpload.current;
+      const reuse = mode === "video" && !!video && !!pending && pending.file === video && pending.details === details;
 
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Something went wrong.");
+      let upload: VideoUpload | undefined = reuse ? pending!.upload : undefined;
+      if (!reuse) {
+        const res = await fetch(`/api/collect/${tenant.slug}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: mode,
+            reviewerName: name.trim(),
+            reviewerEmail: email.trim(),
+            rating,
+            consentGiven: consent,
+            ...(mode === "text"
+              ? { textReview: text.trim() }
+              : { contentType: baseMimeType(video?.type ?? "") }),
+          }),
+        });
 
-      if (mode === "video" && json.upload && video) {
-        await uploadVideo(video, json.upload as VideoUpload, setProgress);
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error ?? "Something went wrong.");
+        upload = json.upload as VideoUpload | undefined;
+        if (mode === "video" && upload && video) pendingUpload.current = { file: video, details, upload };
       }
+
+      if (mode === "video" && upload && video) {
+        try {
+          await uploadVideo(video, upload, setProgress);
+        } catch (uploadError) {
+          // A reused link that fails too (say it expired) is dropped, so the next
+          // try starts fresh rather than failing the same way for ever.
+          if (reuse) pendingUpload.current = null;
+          throw uploadError;
+        }
+      }
+      pendingUpload.current = null;
 
       setStep("done");
 

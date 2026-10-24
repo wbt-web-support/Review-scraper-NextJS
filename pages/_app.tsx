@@ -5,6 +5,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { queryClient } from '@/lib/queryClient'; 
 import '../styles/globals.css';
 import { Toaster } from "@/components/ui/toaster";
+import ErrorReporter from "@/components/ErrorReporter";
 
 function MyApp({ Component, pageProps: { session, ...otherPageProps } }: AppProps) {
   return (
@@ -12,6 +13,7 @@ function MyApp({ Component, pageProps: { session, ...otherPageProps } }: AppProp
       <QueryClientProvider client={queryClient}>
         <Component {...otherPageProps} /> 
         <Toaster />
+        <ErrorReporter />
         <ReactQueryDevtools initialIsOpen={false} position="bottom" />
       </QueryClientProvider>
     </SessionProvider>

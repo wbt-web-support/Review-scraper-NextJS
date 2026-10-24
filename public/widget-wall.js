@@ -121,17 +121,24 @@
     },
 
     escapeHtml: function (text) {
+      // Quotes too: escaped text also goes inside attributes (aria-label, title).
       if (typeof text !== 'string') return '';
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
+      return text.replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
     },
 
     stripHtml: function (text) {
+      // Plain text only. Never parse review text as HTML: building elements from it
+      // (even in a detached div) loads images and runs their onerror handlers, which
+      // let any review run script on the client's website.
       if (typeof text !== 'string') return '';
-      const div = document.createElement('div');
-      div.innerHTML = text.replace(/<br\s*\/?>/gi, ' ');
-      return (div.textContent || div.innerText || '').trim();
+      return text
+        .replace(/<br\s*\/?>/gi, ' ')
+        .replace(/<[^>]*>/g, '')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&')
+        .trim();
     },
 
     getInitials: function (name) {
@@ -815,7 +822,7 @@
               .then(res => {
                 clearTimeout(timeoutId);
                 if (!res.ok) {
-                  throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                  const httpError = new Error(`HTTP ${res.status}: ${res.statusText}`); httpError.status = res.status; throw httpError;
                 }
                 return res.json();
               })
@@ -827,6 +834,8 @@
           });
           return response;
         } catch (error) {
+          // A 4xx (widget not found, deactivated) will not change on a retry.
+          if (error && error.status >= 400 && error.status < 500 && error.status !== 408 && error.status !== 429) throw error;
           attempt++;
           if (attempt > retries) {
             throw error;
@@ -891,7 +900,7 @@
       }
 
       const avatarHtml = widgetSettings.showProfilePictures !== false
-        ? `<div class="rh-wall-card-avatar">${this.escapeHtml(this.getInitials(review.author))}</div>`
+        ? `<div class="rh-wall-card-avatar">${this.escapeHtml(this.escapeHtml(this.getInitials(review.author)))}</div>`
         : '';
 
       const readMoreHtml = clamped && clamped.has(index)
@@ -1100,7 +1109,7 @@
         <div class="reviewhub-wall-modal" role="dialog" aria-modal="true" aria-label="Review by ${author}">
           <button type="button" class="reviewhub-wall-modal-close" aria-label="Close">&times;</button>
           <div class="reviewhub-wall-modal-header">
-            ${widgetSettings.showProfilePictures !== false ? `<div class="rh-wall-card-avatar">${this.escapeHtml(this.getInitials(review.author))}</div>` : ''}
+            ${widgetSettings.showProfilePictures !== false ? `<div class="rh-wall-card-avatar">${this.escapeHtml(this.escapeHtml(this.getInitials(review.author)))}</div>` : ''}
             <div class="reviewhub-wall-modal-author">
               <span class="reviewhub-wall-modal-name">${author}</span>
               ${date ? `<span class="reviewhub-wall-modal-date">${this.escapeHtml(date)}</span>` : ''}

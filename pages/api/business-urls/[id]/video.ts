@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { requireOperator } from '../../../../lib/apiAuth';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../auth/[...nextauth]';
 import * as storage from '../../../../lib/storage';
@@ -23,6 +24,9 @@ import {
  * itself has no auth of its own (see lib/videoTenant.ts), so this route is the guard.
  */
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // Operators only: refuses anyone signed out, and client logins.
+  if (!(await requireOperator(req, res))) return;
+
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
     return res.status(405).json({ message: `Method ${req.method} Not Allowed` });

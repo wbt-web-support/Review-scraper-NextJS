@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { LogOut, Menu, MessageSquare } from "lucide-react";
 import { useRouter } from 'next/router';
 import { useSession, signOut } from 'next-auth/react';
 import Sidebar from "./Sidebar";
@@ -84,15 +85,19 @@ const Layout = ({ children }: LayoutProps) => {
         onClose={() => setIsLogoutModalOpen(false)}
         onConfirm={handleLogout}
       />
-      <Sidebar
-        isMobile={false}
-        isOpen={true}
-        onClose={() => {}}
-        onLogout={() => setIsLogoutModalOpen(true)}
-        user={userForDisplay}
-        currentPath={router.pathname}
-        _resolvedTheme="light"
-      />
+      {/* Desktop sidebar: hidden on phones, where it used to sit over the left of
+          the screen and the menu button. Phones get the one the menu button opens. */}
+      <div className="hidden md:block">
+        <Sidebar
+          isMobile={false}
+          isOpen={true}
+          onClose={() => {}}
+          onLogout={() => setIsLogoutModalOpen(true)}
+          user={userForDisplay}
+          currentPath={router.pathname}
+          _resolvedTheme="light"
+        />
+      </div>
       <Sidebar 
         isMobile={true} 
         isOpen={isMobileSidebarOpen} 
@@ -113,11 +118,11 @@ const Layout = ({ children }: LayoutProps) => {
                 className={`${mutedTextClass} ${hoverTextClass} mr-2`}
                 aria-label="Open sidebar"
               >
-                <i className="fas fa-bars text-lg"></i>
+                <Menu className="h-5 w-5" aria-hidden="true" />
               </Button>
               <div className="flex items-center">
                 <span className={`${primaryTextClass} text-2xl mr-2`}>
-                  <i className="fas fa-comment-dots"></i>
+                  <MessageSquare className="h-6 w-6" aria-hidden="true" />
                 </span>
                 <h1 className="font-heading font-bold text-lg text-gray-900">ReviewHub</h1>
               </div>
@@ -132,7 +137,7 @@ const Layout = ({ children }: LayoutProps) => {
                     onClick={() => setIsLogoutModalOpen(true)}
                     className="text-sm text-gray-600 hover:text-gray-900"
                   >
-                    <i className="fas fa-sign-out-alt mr-2"></i>
+                    <LogOut className="mr-2 h-4 w-4" aria-hidden="true" />
                     Logout
                   </Button>
                 </div>

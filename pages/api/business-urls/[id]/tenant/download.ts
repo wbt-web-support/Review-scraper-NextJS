@@ -2,6 +2,9 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import dbConnect from "@/lib/mongodb";
 import { resolveOwnedTenant } from "@/lib/tenantAccess";
 import { getReviewDownloadSource } from "@/lib/tenantAdmin";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
+import type { ReadableStream as NodeWebReadableStream } from "node:stream/web";
 
 /**
  * Streams one review's video back as a download.
@@ -43,10 +46,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const len = upstream.headers.get("content-length");
     if (len) res.setHeader("Content-Length", len);
 
-    const buffer = Buffer.from(await upstream.arrayBuffer());
-    return res.status(200).send(buffer);
+    // Streamed through as it arrives. Buffering the whole file first hit Vercel's
+    // 4.5 MB cap on a single response, so longer videos never downloaded.
+    res.status(200);
+    await pipeline(Readable.fromWeb(upstream.body as unknown as NodeWebReadableStream), res);
+    return;
   } catch (error: unknown) {
     console.error("[tenant download]", error);
+    // Once streaming has begun the status is already sent; just end the response.
+    if (res.headersSent) return void res.end();
     return res.status(500).json({ message: error instanceof Error ? error.message : "Server error." });
   }
 }

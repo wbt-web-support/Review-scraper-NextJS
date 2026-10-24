@@ -533,12 +533,18 @@ const CreateWidgetModal = ({
     // Use different attribute for carousel to avoid conflicts with other widgets
     const widgetIdAttribute = layout === 'carousel' ? 'data-reviewhub-widget-id' : 'data-widget-id';
 
-    return `<div id="reviewhub-widget"></div>
+    // A container id of its own per widget, so two widgets pasted on one page each
+    // find their own box. (Every snippet used to say "reviewhub-widget", so the second
+    // widget drew over the first.) Snippets already on client sites keep working:
+    // the scripts use whatever id the snippet names.
+    const containerId = mode === 'edit' && widget ? `reviewhub-${widget._id}` : 'reviewhub-widget';
+
+    return `<div id="${containerId}"></div>
 <script async fetchpriority="high"
         src="${domain}/${widgetFileFor(layout)}?v=${WIDGET_VERSION}"
         ${widgetIdAttribute}="${widgetId}"
         data-layout="${layout}"${layout === 'wall' ? wallEmbedAttributes(wallSettings) : ''}
-        data-container-id="reviewhub-widget">
+        data-container-id="${containerId}">
 </script>`;
   };
 

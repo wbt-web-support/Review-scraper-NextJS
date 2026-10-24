@@ -65,12 +65,12 @@ const Help = () => {
                   <AccordionTrigger>How often are reviews updated?</AccordionTrigger>
                   <AccordionContent>
                     <p>
-                      Reviews are not automatically updated. You need to manually refresh the reviews by going to the Reviews page,
-                      selecting the business, and clicking the &ldquo;Refresh Reviews&ldquo; button. We recommend doing this periodically to
-                      ensure your widgets display the latest reviews.
+                      Automatically. Google reviews are checked every 4 days and Facebook reviews every 15 days. Each check
+                      fetches only the reviews posted since the last one, so new reviews reach your widgets within a few days.
                     </p>
                     <p className="mt-2">
-                      In the future, we plan to add automatic review updates based on your subscription plan.
+                      Need them sooner? Open the business on the Reviews page and click &ldquo;Recrawl&rdquo; to fetch everything now.
+                      The dashboard&apos;s Review crawling line shows whether every client is up to date.
                     </p>
                   </AccordionContent>
                 </AccordionItem>
@@ -84,8 +84,8 @@ const Help = () => {
                       efficient way.
                     </p>
                     <p className="mt-2">
-                      You can get your own Apify API key by signing up at <a href="https://apify.com" target="_blank" rel="noopener noreferrer" className="text-primary-500 hover:underline">apify.com</a>. 
-                      Once you have the key, you can add it in the Settings page under the API Keys tab.
+                      The Apify key is set up on the server by your agency, so there is nothing to enter here. The per-business
+                      key for the reviews API is different: find it in each widget&apos;s Embed Code tab.
                     </p>
                   </AccordionContent>
                 </AccordionItem>

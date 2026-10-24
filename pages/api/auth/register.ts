@@ -4,11 +4,22 @@ import { registerSchema } from '../../../lib/schemas/user';
 import * as storage from '../../../lib/storage'; 
 import { handleZodError } from '../../../lib/utils'; 
 import dbConnect from '../../../lib/mongodb';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from './[...nextauth]';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
     return res.status(405).json({ message: `Method ${req.method} Not Allowed` });
+  }
+  // Accounts made here are operators, who see and manage every client. So only a
+  // signed-in operator can add one (for a new teammate). It used to be open to
+  // anyone on the internet. ALLOW_PUBLIC_SIGNUP=1 reopens it if that is ever wanted.
+  if (process.env.ALLOW_PUBLIC_SIGNUP !== '1') {
+    const session = await getServerSession(req, res, authOptions);
+    if (!session?.user?.id || session.user.role === 'client') {
+      return res.status(403).json({ message: 'New accounts are created by an existing team member. Ask them to add you.' });
+    }
   }
   try {
     await dbConnect();

@@ -617,6 +617,39 @@ export const upsertReviews = async (data: UpsertReviewsArgs): Promise<IReviewBat
 };
 
 // New function to merge new reviews with existing ones
+/**
+ * Reviews an operator deleted. The crawler re-fetches reviews (and every 90 days
+ * fetches them all), so without this a deleted review would come back.
+ */
+const DELETED_REVIEWS = 'deleted_reviews';
+let deletedIndexReady = false;
+async function deletedReviewsCollection() {
+  await ensureDbConnected();
+  const { default: mongoose } = await import('mongoose');
+  const coll = mongoose.connection.db!.collection(DELETED_REVIEWS);
+  if (!deletedIndexReady) {
+    deletedIndexReady = true;
+    await coll.createIndex({ source: 1, reviewId: 1 }, { unique: true }).catch(() => undefined);
+  }
+  return coll;
+}
+
+export async function recordDeletedReview(entry: { source: 'google' | 'facebook'; reviewId: string; urlHash: string; deletedBy: string }): Promise<void> {
+  const coll = await deletedReviewsCollection();
+  await coll.updateOne(
+    { source: entry.source, reviewId: entry.reviewId },
+    { $set: { ...entry, deletedAt: new Date() } },
+    { upsert: true },
+  );
+}
+
+async function deletedReviewIds(source: 'google' | 'facebook', ids: string[]): Promise<Set<string>> {
+  if (ids.length === 0) return new Set();
+  const coll = await deletedReviewsCollection();
+  const rows = await coll.find({ source, reviewId: { $in: ids } }, { projection: { reviewId: 1 } }).toArray();
+  return new Set(rows.map((r) => r.reviewId as string));
+}
+
 /** A real timestamp, as opposed to the "2 weeks ago" text older scrapes stored. */
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}/;
 
@@ -680,8 +713,12 @@ export const mergeNewReviews = async (
   };
   let datesFixed = 0;
 
+  // Reviews an operator deleted stay deleted.
+  const deleted = await deletedReviewIds(data.source, data.reviews.map((r) => r.reviewId).filter((id): id is string => !!id));
+
   const seenThisScrape = new Set<string>();
   for (const review of data.reviews) {
+    if (review.reviewId && deleted.has(review.reviewId)) continue;
     const key = reviewFallbackKey(review);
     if (review.reviewId) {
       if (seenThisScrape.has(review.reviewId)) continue;
@@ -939,17 +976,31 @@ export const getReviewStatsAndReviews = async (
     // Definition of the filter criteria
     const filterConditions = [
         ...(requireText ? [{
+          // The widget feed's own "meaningful text" rule, applied BEFORE the page is
+          // cut: more than two visible characters, and not only punctuation. The feed
+          // used to drop these after skip/limit, so a page came back short and the
+          // next page started one review early, repeating it. Lengths count like
+          // JavaScript does (an emoji is two), so exactly the same reviews qualify.
           $expr: {
-            $gt: [
-              {
-                $strLenCP: {
-                  $trim: {
-                    input: { $ifNull: ["$reviews.content", { $ifNull: ["$reviews.text", ""] }] }
-                  }
-                }
+            $let: {
+              vars: { t: { $ifNull: ["$reviews.content", { $ifNull: ["$reviews.text", ""] }] } },
+              in: {
+                $and: [
+                  {
+                    $gt: [
+                      {
+                        $add: [
+                          { $size: { $regexFindAll: { input: "$$t", regex: "[^\\s\\x{00A0}\\x{2000}-\\x{200B}\\x{2028}\\x{2029}\\x{3000}]" } } },
+                          { $size: { $regexFindAll: { input: "$$t", regex: "[\\x{10000}-\\x{10FFFF}]" } } },
+                        ],
+                      },
+                      2,
+                    ],
+                  },
+                  { $regexMatch: { input: "$$t", regex: "[^\\s\\x{00A0}\\x{2000}-\\x{200B}\\x{2028}\\x{2029}\\x{3000}.,!?_-]" } },
+                ],
               },
-              0
-            ]
+            },
           }
         }] : []),
         ...(minRating !== undefined ? [
@@ -1421,6 +1472,10 @@ export const createWidget = async (widgetData: CreateWidgetArgs): Promise<IWidge
   return savedWidget.toObject({ getters: true, virtuals: false }) as IWidget; 
 };
 interface UpdateWidgetArgs {
+  /** Set together with businessUrlId, so the live widget reads the new business's reviews. */
+  businessUrlSource?: 'GoogleBusinessUrl' | 'FacebookBusinessUrl';
+  urlHash?: string;
+  isActive?: boolean;
   name?: string;
   type?: "grid" | "carousel" | "list" | "masonry" | "badge" | "bar" | "wall" | "video";
   maxReviews?: number;
@@ -1763,15 +1818,18 @@ export const getPaginatedWidgetsByUserId = async (params: PaginatedWidgetsParams
   // so they are excluded here.
   const query: any = { userId: new Types.ObjectId(params.userId), type: { $ne: 'video' } };
 
-  // Add source filter if specified
-  if (params.source && params.source !== 'all') {
-    // For source filtering, we need to join with business URLs
-    // This will be handled after the initial query
+  // Source filter, in the query itself: widgets whose business is on that platform.
+  // It used to run after skip/limit, so pages came back short and totals were wrong.
+  if (params.source === 'google' || params.source === 'facebook') {
+    const Model = params.source === 'google' ? GoogleBusinessUrlModel : FacebookBusinessUrlModel;
+    const ids = await (Model as any).find({}, { _id: 1 }).lean().exec();
+    query.businessUrlId = { $in: ids.map((d: { _id: Types.ObjectId }) => d._id) };
   }
 
-  // Add search filter if specified (optimized for performance)
+  // Search by name. The text is escaped: it is matched literally, so typing "(" or
+  // "*" no longer breaks the query.
   if (params.search && params.search.trim()) {
-    const searchTerm = params.search.trim();
+    const searchTerm = params.search.trim().slice(0, 100).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     query.$or = [
       { name: { $regex: searchTerm, $options: 'i' } },
       // You can add more searchable fields here if needed

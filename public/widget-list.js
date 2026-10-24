@@ -91,17 +91,24 @@
     },
 
     escapeHtml: function (text) {
+      // Quotes too: escaped text also goes inside attributes (aria-label, title).
       if (typeof text !== 'string') return '';
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
+      return text.replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
     },
 
     stripHtml: function (text) {
+      // Plain text only. Never parse review text as HTML: building elements from it
+      // (even in a detached div) loads images and runs their onerror handlers, which
+      // let any review run script on the client's website.
       if (typeof text !== 'string') return '';
-      const div = document.createElement('div');
-      div.innerHTML = text.replace(/<br\s*\/?>/gi, ' ');
-      return (div.textContent || div.innerText || '').trim();
+      return text
+        .replace(/<br\s*\/?>/gi, ' ')
+        .replace(/<[^>]*>/g, '')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&')
+        .trim();
     },
 
     getInitials: function (name) {
@@ -233,7 +240,8 @@
       style.id = 'reviewhub-list-widget-styles';
       style.textContent = `
         /* Global styles */
-        i {
+        /* Only inside our own widget, never the client's page. */
+        [class^="reviewhub-"] i, [class*=" reviewhub-"] i, [class^="rh-"] i, [class*=" rh-"] i {
             font-style: normal !important;
         }
         .reviewhub-list-widget-container h1,
@@ -921,7 +929,7 @@
               .then(res => {
                 clearTimeout(timeoutId);
                 if (!res.ok) {
-                  throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                  const httpError = new Error(`HTTP ${res.status}: ${res.statusText}`); httpError.status = res.status; throw httpError;
                 }
                 return res.json();
               })
@@ -933,6 +941,8 @@
           });
           return response;
         } catch (error) {
+          // A 4xx (widget not found, deactivated) will not change on a retry.
+          if (error && error.status >= 400 && error.status < 500 && error.status !== 408 && error.status !== 429) throw error;
           attempt++;
           if (attempt > retries) {
             throw error;
@@ -1059,7 +1069,7 @@
 
       return filteredReviews.map((review, index) => {
         const author = this.escapeHtml(review.author || 'Anonymous');
-        const initials = this.getInitials(review.author);
+        const initials = this.escapeHtml(this.getInitials(review.author));
         const profilePicture = review.profilePicture;
         const date = this.formatDate(review.postedAt);
         const rating = parseFloat(review.rating) || 0;
@@ -1335,7 +1345,7 @@
               this.attachModalEventListeners(container, widgetState.loadedReviews.slice(0, widgetState.displayCount), data, config);
 
               // Update load more button visibility
-              const hasMoreReviews = data.totalReviewCount > widgetState.loadedReviews.length;
+              const hasMoreReviews = (typeof data.totalFilteredReviewCount === 'number' ? data.totalFilteredReviewCount : data.totalReviewCount) > widgetState.loadedReviews.length;
               if (!hasMoreReviews) {
                 loadMoreBtn.textContent = 'No More Reviews';
                 loadMoreBtn.disabled = true;
@@ -1380,7 +1390,7 @@
       const { widgetSettings } = allData;
 
       const author = this.escapeHtml(review.author || 'Anonymous');
-      const initials = this.getInitials(review.author);
+      const initials = this.escapeHtml(this.getInitials(review.author));
       const profilePicture = review.profilePicture;
       const date = this.formatDate(review.postedAt);
       const rating = parseFloat(review.rating) || 0;
@@ -1557,7 +1567,16 @@
   // Auto-initialize widgets from script tags
   function initializeWidgetsFromScripts() {
     const scriptTags = document.querySelectorAll('script[data-widget-id][src*="widget-list.js"]');
+    // Start each widget once. This runs up to three times while a page loads
+    // (now, DOMContentLoaded, load); without the guard a widget fetched its reviews
+    // and redrew itself each time. A container that isn't in the page yet is left
+    // for a later pass, as before.
+    const started = window.__reviewhubStarted || (window.__reviewhubStarted = new WeakSet());
     scriptTags.forEach(script => {
+      if (started.has(script)) return;
+      const waitFor = script.getAttribute('data-container-id');
+      if (waitFor && !document.getElementById(waitFor) && document.readyState === 'loading') return;
+      started.add(script);
       const config = {
         widgetId: script.getAttribute('data-widget-id'),
         containerId: script.getAttribute('data-container-id') || null,

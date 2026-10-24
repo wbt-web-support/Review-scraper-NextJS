@@ -24,16 +24,21 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials): Promise<AuthorizeUserResponse | null> {
-        await dbConnect();
-        if (!credentials?.email || !credentials.password) {
+        // Text only. The login request does not have to come from our form, so a
+        // field can arrive as an object; passed on, an object becomes a database
+        // condition instead of a value to compare, and a crafted one matches any
+        // password. Refuse anything that isn't a plain string, before anything else.
+        const email = credentials?.email;
+        const password = credentials?.password;
+        if (typeof email !== 'string' || typeof password !== 'string' || !email.trim() || !password) {
           return null;
         }
-        console.log("[NextAuth Authorize] Received credentials:", { email: credentials.email })
+        await dbConnect();
         try {
           // 1) Agency operator (Mongo users, hashed password).
-          const userFromDb = await getUserByEmail(credentials!.email!);
+          const userFromDb = await getUserByEmail(email);
           if (userFromDb?.password) {
-            const isMatch = await comparePassword(credentials!.password!, userFromDb.password);
+            const isMatch = await comparePassword(password, userFromDb.password);
             if (isMatch) {
               return {
                 id: userFromDb._id.toString(),
@@ -49,7 +54,7 @@ export const authOptions: NextAuthOptions = {
           // 2) Video-business client. Their login lives on the VideoBusiness record
           // (email + the password the operator set), so the same /login page signs
           // them in and scopes them to their own business.
-          const client = await findVideoBusinessLogin(credentials!.email!, credentials!.password!);
+          const client = await findVideoBusinessLogin(email, password);
           if (client) {
             return {
               id: client._id,

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { LoadError } from "./LoadError";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Star, Check, X, Trash2, Copy, RefreshCw, Loader, Monitor, Smartphone,
@@ -91,11 +92,12 @@ function formatLen(s: number) {
 export function TenantManager({ businessId, origin, tab }: { businessId: string; origin: string; tab: TenantTabKey }) {
   const base = `/api/business-urls/${businessId}/tenant`;
 
-  const { data: bundle, isLoading } = useQuery<Bundle>({
+  const { data: bundle, isLoading, error: bundleError, refetch: refetchBundle } = useQuery<Bundle>({
     queryKey: ["tenant", businessId],
     queryFn: () => apiRequest("GET", base),
   });
 
+  if (bundleError && !bundle) return <LoadError what="this business" onRetry={() => refetchBundle()} />;
   if (isLoading || !bundle) {
     return <div className="h-40 animate-pulse rounded-xl bg-gray-100" />;
   }
@@ -116,6 +118,10 @@ function useInvalidate(businessId: string) {
   return () => {
     queryClient.invalidateQueries({ queryKey: ["tenant", businessId] });
     queryClient.invalidateQueries({ queryKey: ["businessUrls"] });
+    // The page's Edit dialog reads the business record; refresh it too, or its next
+    // save writes this tab's old values back.
+    queryClient.invalidateQueries({ queryKey: ["videoBusiness", businessId] });
+    queryClient.invalidateQueries({ queryKey: ["videoBusinesses"] });
   };
 }
 

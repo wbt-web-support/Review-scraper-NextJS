@@ -95,17 +95,24 @@
     },
 
     escapeHtml: function (text) {
+      // Quotes too: escaped text also goes inside attributes (aria-label, title).
       if (typeof text !== 'string') return '';
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
+      return text.replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
     },
 
     stripHtml: function (text) {
+      // Plain text only. Never parse review text as HTML: building elements from it
+      // (even in a detached div) loads images and runs their onerror handlers, which
+      // let any review run script on the client's website.
       if (typeof text !== 'string') return '';
-      const div = document.createElement('div');
-      div.innerHTML = text.replace(/<br\s*\/?>/gi, ' ');
-      return (div.textContent || div.innerText || '').trim();
+      return text
+        .replace(/<br\s*\/?>/gi, ' ')
+        .replace(/<[^>]*>/g, '')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&')
+        .trim();
     },
 
     getInitials: function (name) {
@@ -297,7 +304,7 @@
     generateReviewsHtml: function (reviews, widgetSettings) {
       return reviews.map((review) => {
         const formattedDate = this.formatDate(review.postedAt);
-        const initials = this.getInitials(review.author);
+        const initials = this.escapeHtml(this.getInitials(review.author));
 
         // Detect individual review source
         const reviewSource = this.detectReviewSource(review, widgetSettings);
@@ -364,7 +371,8 @@
       style.id = 'reviewhub-badge-widget-styles';
       style.textContent = `
         /* Global styles */
-        i {
+        /* Only inside our own widget, never the client's page. */
+        [class^="reviewhub-"] i, [class*=" reviewhub-"] i, [class^="rh-"] i, [class*=" rh-"] i {
             font-style: normal !important;
         }
         .reviewhub-badge-widget-container h1,
@@ -1168,7 +1176,8 @@
             font-size: 0.8rem;
           }
         }
-          i{
+          /* Only inside our own widget, never the client's page. */
+          [class^="reviewhub-"] i, [class*=" reviewhub-"] i, [class^="rh-"] i, [class*=" rh-"] i {
           font-style: normal !important;
           }
       `;
@@ -1195,7 +1204,7 @@
               .then(res => {
                 clearTimeout(timeoutId);
                 if (!res.ok) {
-                  throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                  const httpError = new Error(`HTTP ${res.status}: ${res.statusText}`); httpError.status = res.status; throw httpError;
                 }
                 return res.json();
               })
@@ -1207,6 +1216,8 @@
           });
           return response;
         } catch (error) {
+          // A 4xx (widget not found, deactivated) will not change on a retry.
+          if (error && error.status >= 400 && error.status < 500 && error.status !== 408 && error.status !== 429) throw error;
           attempt++;
           if (attempt > retries) {
             throw error;

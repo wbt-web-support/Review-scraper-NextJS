@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../components/ui/dialog";
-import { Building2, Code, Chrome, Facebook, Video, GalleryVertical } from "lucide-react";
+import { Building2, Chrome, Code, Facebook, GalleryVertical, Loader2, Star, Trash2, Video } from "lucide-react";
 
 interface IBusinessUrlForWidgetCard {
   _id: string;
@@ -206,7 +206,7 @@ const WidgetCard = ({ widget, onDelete, _onEdit, isDeleting, hideBusinessName }:
         {/* Review Count & Date */}
         <div className="flex justify-between items-center text-xs text-gray-500 mt-2">
           <span className="flex items-center gap-1">
-            <i className="fas fa-star text-yellow-400 text-sm"></i>
+            <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" aria-hidden="true" />
             {widget.totalReviewCount} Reviews
           </span>
           <span>Created: {createdDate}</span>
@@ -238,12 +238,12 @@ const WidgetCard = ({ widget, onDelete, _onEdit, isDeleting, hideBusinessName }:
             >
               {isDeleting ? (
                 <>
-                  <i className="fas fa-spinner fa-spin mr-2"></i>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
                   Deleting...
                 </>
               ) : (
                 <>
-                  <i className="fas fa-trash-alt mr-2"></i>
+                  <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
                   Delete
                 </>
               )}

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "../lib/queryClient";
 import { useToast } from "../hooks/use-toast";
 import { Button } from "./ui/button";
@@ -39,6 +39,12 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 export function ClientSettings({ base, businessId, bundle }: { base: string; businessId: string; bundle: ClientSettingsBundle }) {
+  const queryClient = useQueryClient();
+  // The header and the other tabs read the same data; refresh it after a save.
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: ["myTenant", businessId] });
+    queryClient.invalidateQueries({ queryKey: ["tenant", businessId] });
+  };
   const { toast } = useToast();
 
   // --- Branding ---
@@ -51,7 +57,7 @@ export function ClientSettings({ base, businessId, bundle }: { base: string; bus
     mutationFn: () => apiRequest("PUT", `${base}/settings`, {
       section: "clientBranding", name, brandColor, logoUrl: logoUrl || undefined, contactPhone: phone || undefined,
     }),
-    onSuccess: () => toast({ title: "Branding saved", description: "Your collection page and widget will reflect it shortly." }),
+    onSuccess: () => { refresh(); toast({ title: "Branding saved", description: "Your collection page and widget will reflect it shortly." }); },
     onError: (e) => toast({ title: "Could not save", description: e.message, variant: "destructive" }),
   });
 
@@ -66,7 +72,7 @@ export function ClientSettings({ base, businessId, bundle }: { base: string; bus
       section: "collection", welcomeText: welcome, description, thankYouText: thanks,
       promptQuestions: questions.split("\n").map((q) => q.trim()).filter(Boolean),
     }),
-    onSuccess: () => toast({ title: "Collection page saved" }),
+    onSuccess: () => { refresh(); toast({ title: "Collection page saved" }); },
     onError: (e) => toast({ title: "Could not save", description: e.message, variant: "destructive" }),
   });
 
@@ -74,7 +80,7 @@ export function ClientSettings({ base, businessId, bundle }: { base: string; bus
   const [maxSeconds, setMaxSeconds] = useState(String(bundle.tenant.max_video_seconds));
   const lengthSave = useMutation<{ message?: string }, Error, void>({
     mutationFn: () => apiRequest("PUT", `${base}/settings`, { section: "videoLimit", maxVideoSeconds: Number(maxSeconds) }),
-    onSuccess: (r) => toast({ title: "Saved", description: r?.message }),
+    onSuccess: (r) => { refresh(); toast({ title: "Saved", description: r?.message }); },
     onError: (e) => toast({ title: "Could not save", description: e.message, variant: "destructive" }),
   });
 

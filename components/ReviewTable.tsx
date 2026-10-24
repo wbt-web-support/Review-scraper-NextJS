@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { useToast } from "../hooks/use-toast";
+import { AlertTriangle, CheckCircle2, Star, Store } from "lucide-react";
 import { 
   Table, 
   TableBody, 
@@ -76,6 +78,8 @@ const ReviewTable = ({  reviews, isLoading = false, emptyState, error, onReviewD
     setDeleteDialogOpen(true);
   };
 
+  const { toast } = useToast();
+
   const handleDeleteConfirm = async () => {
     if (!reviewToDelete || !urlHash) {
       return;
@@ -104,13 +108,12 @@ const ReviewTable = ({  reviews, isLoading = false, emptyState, error, onReviewD
         }
         setDeleteDialogOpen(false);
         setReviewToDelete(null);
+        toast({ title: "Review deleted" });
       } else {
-        console.error('Failed to delete review:', data.message);
-        // You might want to show a toast notification here
+        toast({ title: "Could not delete the review", description: data.message || "Please try again.", variant: "destructive" });
       }
     } catch (error) {
-      console.error('Error deleting review:', error);
-      // You might want to show a toast notification here
+      toast({ title: "Could not delete the review", description: "Check your connection and try again.", variant: "destructive" });
     } finally {
       setIsDeleting(false);
     }
@@ -132,7 +135,7 @@ const ReviewTable = ({  reviews, isLoading = false, emptyState, error, onReviewD
   const defaultEmptyState = (
     <div className="text-center py-10"> {/* Increased padding */}
       <div className="w-16 h-16 mx-auto flex items-center justify-center rounded-full bg-slate-100  text-slate-400 mb-4">
-        <i className="fas fa-star text-2xl"></i> {/* Increased icon size */}
+        <Star className="h-6 w-6" aria-hidden="true" /> {/* Increased icon size */}
       </div>
       <h3 className="text-lg font-medium text-slate-800  mb-1">No Reviews Found</h3>
       <p className="text-slate-500 text-sm">
@@ -145,7 +148,7 @@ const ReviewTable = ({  reviews, isLoading = false, emptyState, error, onReviewD
     return (
       <div className="bg-white  rounded-xl shadow-sm border border-red-300  overflow-hidden">
         <div className="p-6 text-center text-red-600 ">
-          <i className="fas fa-exclamation-triangle fa-2x mb-3"></i>
+          <AlertTriangle className="mx-auto mb-3 h-8 w-8" aria-hidden="true" />
           <h3 className="text-lg font-medium mb-1">Error Loading Reviews</h3>
           <p className="text-sm">{error.message || "An unexpected error occurred."}</p>
         </div>
@@ -252,7 +255,7 @@ const ReviewTable = ({  reviews, isLoading = false, emptyState, error, onReviewD
                         </div>
                       ) : (
                         <div className="w-6 h-6 rounded-md flex items-center justify-center text-sm bg-slate-100 text-slate-600">
-                          <i className="fas fa-store-alt"></i>
+                          <Store className="h-4 w-4" aria-hidden="true" />
                         </div>
                       )}
                     </div>
@@ -402,14 +405,14 @@ const ReviewTable = ({  reviews, isLoading = false, emptyState, error, onReviewD
                         </div>
                       ) : (
                         <div className="w-5 h-5 rounded-md flex items-center justify-center text-xs bg-slate-100 text-slate-600">
-                          <i className="fas fa-store-alt"></i>
+                          <Store className="h-4 w-4" aria-hidden="true" />
                         </div>
                       )}
                       <span className="font-medium text-slate-900">
                         {selectedReview.author || "Anonymous"}
                       </span>
                       <span className="text-blue-500">
-                        <i className="fas fa-check-circle text-sm"></i>
+                        <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
                       </span>
                     </div>
                   );
@@ -491,7 +494,9 @@ const ReviewTable = ({  reviews, isLoading = false, emptyState, error, onReviewD
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDeleteConfirm}
+              // Keep the dialog open until the delete finishes, so its spinner and any
+              // error are seen; it closes itself on success.
+              onClick={(e) => { e.preventDefault(); void handleDeleteConfirm(); }}
               disabled={isDeleting}
               className="bg-red-600 hover:bg-red-700"
             >

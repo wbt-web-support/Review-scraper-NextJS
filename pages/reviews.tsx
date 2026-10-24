@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { LoadError } from "../components/LoadError";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -62,7 +63,7 @@ const Reviews = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data, isLoading } = useQuery<{ businessUrls: IBusinessUrl[] }>({
+  const { data, isLoading, error: loadError, refetch } = useQuery<{ businessUrls: IBusinessUrl[] }>({
     queryKey: ["businessUrls"],
     queryFn: () => apiRequest("GET", "/api/business-urls/all"),
   });
@@ -144,7 +145,9 @@ const Reviews = () => {
           </div>
         </div>
 
-        {isLoading ? (
+        {loadError ? (
+          <LoadError what="your businesses" onRetry={() => refetch()} />
+        ) : isLoading ? (
           <div className="space-y-2">
             {[0, 1, 2, 3].map((i) => <div key={i} className="h-14 animate-pulse rounded-lg bg-gray-100" />)}
           </div>

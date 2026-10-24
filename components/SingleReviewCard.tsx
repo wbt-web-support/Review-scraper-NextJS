@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Chrome, Facebook, ThumbsUp } from "lucide-react";
 import { Rating } from './ui/Rating'; 
 import { IReviewItemFromAPI } from './WidgetPreview';
 import {
@@ -25,7 +26,6 @@ const SingleReviewCard = ({ review, displaySettings, sourcePlatform, widgetStyle
   const [isModalOpen, setIsModalOpen] = useState(false);
   const content = review.content || "";
   const canReadMore = content.length > 180; 
-  const platformIcon = sourcePlatform === 'google' ? 'fab fa-google' : 'fab fa-facebook-f';
   const platformIconColor = sourcePlatform === 'google' ? 'text-red-500' : 'text-blue-600'; 
   
   // Get author initials for fallback avatar
@@ -86,7 +86,7 @@ const SingleReviewCard = ({ review, displaySettings, sourcePlatform, widgetStyle
                 {review.author || "Anonymous"}
               </h5>
               <div className={`w-7 h-7 rounded-full bg-gray-50 flex items-center justify-center ${platformIconColor} border border-gray-200`}>
-                <i className={`${platformIcon} text-sm`}></i>
+                {sourcePlatform === "google" ? <Chrome className="h-3.5 w-3.5" aria-label="Google" /> : <Facebook className="h-3.5 w-3.5" aria-label="Facebook" />}
               </div>
             </div>
             
@@ -101,7 +101,7 @@ const SingleReviewCard = ({ review, displaySettings, sourcePlatform, widgetStyle
                   </>
                 ) : review.recommendationStatus === 'recommended' ? (
                   <span className="text-sm font-bold text-green-600 flex items-center">
-                    <i className="fas fa-thumbs-up mr-2"></i> Recommended
+                    <ThumbsUp className="mr-2 inline h-4 w-4" aria-hidden="true" /> Recommended
                   </span>
                 ) : (
                   <span className="text-sm text-gray-400 italic">No Star Rating</span>
@@ -181,7 +181,7 @@ const SingleReviewCard = ({ review, displaySettings, sourcePlatform, widgetStyle
                     {review.author || "Anonymous"}
                   </DialogTitle>
                   <div className={`w-7 h-7 rounded-full bg-gray-50 flex items-center justify-center ${platformIconColor} border border-gray-200`}>
-                    <i className={`${platformIcon} text-sm`}></i>
+                    {sourcePlatform === "google" ? <Chrome className="h-3.5 w-3.5" aria-label="Google" /> : <Facebook className="h-3.5 w-3.5" aria-label="Facebook" />}
                   </div>
                 </div>
                 
@@ -196,7 +196,7 @@ const SingleReviewCard = ({ review, displaySettings, sourcePlatform, widgetStyle
                       </>
                     ) : review.recommendationStatus === 'recommended' ? (
                       <span className="text-sm font-bold text-green-600 flex items-center">
-                        <i className="fas fa-thumbs-up mr-2"></i> Recommended
+                        <ThumbsUp className="mr-2 inline h-4 w-4" aria-hidden="true" /> Recommended
                       </span>
                     ) : (
                       <span className="text-sm text-gray-400 italic">No Star Rating</span>

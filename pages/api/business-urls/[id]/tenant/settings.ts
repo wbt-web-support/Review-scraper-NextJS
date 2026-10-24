@@ -1,4 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '../../../auth/[...nextauth]';
 import { z } from "zod";
 import dbConnect from "@/lib/mongodb";
 import { resolveOwnedTenant } from "@/lib/tenantAccess";
@@ -52,6 +54,7 @@ const schemas = {
 } as const;
 
 type Section = keyof typeof schemas;
+const CLIENT_SECTIONS = new Set<string>(['clientBranding', 'collection', 'videoLimit']);
 
 /**
  * Keep the Mongo record in step with tenant branding. A video business owns a
@@ -81,7 +84,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!ctx) return;
 
     const section = req.body?.section as Section | undefined;
-    if (!section || !(section in schemas)) {
+    // Object.hasOwn: a plain `in` check also accepts inherited names like "constructor".
+    if (typeof section !== 'string' || !Object.hasOwn(schemas, section)) {
       return res.status(400).json({ message: "Unknown settings section." });
     }
     const parsed = schemas[section].safeParse(req.body ?? {});
@@ -89,6 +93,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid input." });
     }
     const data = parsed.data as Record<string, unknown>;
+
+    // A client may change their own branding (not their login email), collection
+    // page and video length. Everything else here is the agency's: the login
+    // email, the widget, the API key and the custom domain.
+    const session = await getServerSession(req, res, authOptions);
+    if (session?.user?.role === 'client' && !CLIENT_SECTIONS.has(section)) {
+      return res.status(403).json({ message: 'Only your agency can change this setting.' });
+    }
     const { tenantId, businessId } = ctx;
 
     switch (section) {
@@ -98,8 +110,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           description: (data.description as string) ?? "",
           thankYouText: data.thankYouText as string,
           promptQuestions: data.promptQuestions as string[],
-          introTitle: (data.introTitle as string) || "We value your feedback",
-          introBody: (data.introBody as string) ?? "",
+          // Left out when not sent, so a form without them keeps what is saved.
+          introTitle: data.introTitle === undefined ? undefined : (data.introTitle as string) || "We value your feedback",
+          introBody: data.introBody === undefined ? undefined : (data.introBody as string),
         });
         return res.status(200).json({ message: "Saved." });
 

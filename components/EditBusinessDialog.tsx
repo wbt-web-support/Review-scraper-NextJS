@@ -90,6 +90,11 @@ export function EditBusinessDialog({
     mutationFn: (values) => apiRequest("PUT", `${endpoint}/${business!._id}`, values),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [invalidateKey] });
+      // The business's page also holds its own copies (the record and the video
+      // tenant). Left stale, the Branding tab saved its old values over this edit.
+      if (business) queryClient.invalidateQueries({ queryKey: ["videoBusiness", business._id] });
+      if (business) queryClient.invalidateQueries({ queryKey: ["tenant", business._id] });
+      if (business) queryClient.invalidateQueries({ queryKey: ["myTenant", business._id] });
       onOpenChange(false);
       toast({ title: "Business updated" });
     },

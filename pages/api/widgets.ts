@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { requireOperator } from '../../lib/apiAuth';
 import { getServerSession } from "next-auth/next";
 import { z } from "zod/v4";
 import { authOptions } from "./auth/[...nextauth]";
@@ -96,6 +97,9 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<IWidget | { widgets?: IWidget[] } | ErrorResponse>
 ) {
+  // Operators only: refuses anyone signed out, and client logins.
+  if (!(await requireOperator(req, res))) return;
+
   if (req.method !== "GET" && req.method !== "POST") {
     res.setHeader("Allow", ["GET", "POST"]);
     return res

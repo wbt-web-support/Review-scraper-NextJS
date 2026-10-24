@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { requireOperator } from '../../../../lib/apiAuth';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../auth/[...nextauth]';
 import { Types } from 'mongoose';
@@ -17,6 +18,9 @@ import { crawlBusinessNow } from '../../../../lib/reviewCrawler';
 export const config = { maxDuration: 300 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // Operators only: refuses anyone signed out, and client logins.
+  if (!(await requireOperator(req, res))) return;
+
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
     return res.status(405).json({ message: `Method ${req.method} Not Allowed` });

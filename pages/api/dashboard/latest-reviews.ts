@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { requireOperator } from '../../../lib/apiAuth';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]'; 
 import dbConnect from '@/lib/mongodb';
@@ -20,6 +21,9 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<LatestReviewsApiResponse>
 ) {
+  // Operators only: refuses anyone signed out, and client logins.
+  if (!(await requireOperator(req, res))) return;
+
 
   if (req.method !== 'GET') {
     res.setHeader('Allow', ['GET']);

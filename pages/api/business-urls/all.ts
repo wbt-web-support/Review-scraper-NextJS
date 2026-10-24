@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { requireOperator } from '../../../lib/apiAuth';
 import * as storage from '../../../lib/storage';
 import dbConnect from '../../../lib/mongodb';
 
@@ -6,6 +7,9 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+  // Operators only: refuses anyone signed out, and client logins.
+  if (!(await requireOperator(req, res))) return;
+
   try {
     await dbConnect();
     if (req.method !== 'GET') {

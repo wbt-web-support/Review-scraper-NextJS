@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { requireOperator } from '../../../lib/apiAuth';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../auth/[...nextauth]";
 import dbConnect from "@/lib/mongodb";
@@ -14,6 +15,9 @@ import { createAdminClient } from "@vrm/lib/supabase/admin";
  * these onto its rows by urlHash and video.tenantId.
  */
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // Operators only: refuses anyone signed out, and client logins.
+  if (!(await requireOperator(req, res))) return;
+
   if (req.method !== "GET") {
     res.setHeader("Allow", ["GET"]);
     return res.status(405).json({ message: `Method ${req.method} Not Allowed` });

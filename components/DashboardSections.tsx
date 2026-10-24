@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { useState } from "react";
 import {
-  AlertTriangle, ArrowRight, Building2, CheckCircle2, Clock, Copy, Link2Off, MessageSquareText, XCircle,
+  AlertTriangle, ArrowRight, Bug, Building2, CheckCircle2, Clock, Copy, Link2Off, MessageSquareText, XCircle,
   PlayCircle, Star, ThumbsUp, TrendingUp, Video,
 } from "lucide-react";
 import type { DashboardOverview, DashboardBusiness, DashboardReview, DashboardVideoReview, DashboardIssues } from "../lib/dashboard";
@@ -304,8 +305,36 @@ function IssueGroup({ icon: Icon, tone, title, children }: { icon: typeof Star; 
   );
 }
 
-export function Issues({ issues }: { issues: DashboardIssues | undefined }) {
-  const total = issues ? issues.crawlFailures.length + issues.invalidLinks.length + (issues.duplicates.extraEntries > 0 ? 1 : 0) + (issues.lateCrawls.count > 0 ? 1 : 0) + (issues.pendingVideo > 0 ? 1 : 0) : 0;
+function TrackedErrorItem({ e, onResolve }: { e: DashboardIssues["errors"]["items"][number]; onResolve?: (id: string) => Promise<void> }) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="rounded-lg bg-red-50/60 p-2.5">
+      <div className="flex items-start justify-between gap-2">
+        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${e.where === "browser" ? "bg-blue-50 text-blue-700 ring-blue-200" : "bg-gray-100 text-gray-700 ring-gray-200"}`}>
+          {e.where === "browser" ? "Browser" : "Server"}
+        </span>
+        {onResolve && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => { setBusy(true); onResolve(e.id).finally(() => setBusy(false)); }}
+            className="shrink-0 rounded-md border border-gray-200 bg-white px-2 py-0.5 text-[11px] font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+          >
+            {busy ? "Saving…" : "Mark fixed"}
+          </button>
+        )}
+      </div>
+      <p className="mt-1.5 line-clamp-2 break-words text-xs font-medium text-gray-900" title={e.stack ?? e.message}>{e.message}</p>
+      {e.route && <p className="mt-0.5 truncate font-mono text-[11px] text-gray-500" title={e.route}>{e.route}</p>}
+      <p className="mt-0.5 text-[11px] text-gray-500">
+        {e.count} {e.count === 1 ? "time" : "times"} · last {timeAgo(e.lastSeen)} · first {timeAgo(e.firstSeen)}
+      </p>
+    </div>
+  );
+}
+
+export function Issues({ issues, onResolveError }: { issues: DashboardIssues | undefined; onResolveError?: (id: string) => Promise<void> }) {
+  const total = issues ? issues.errors.total + issues.crawlFailures.length + issues.invalidLinks.length + (issues.duplicates.extraEntries > 0 ? 1 : 0) + (issues.lateCrawls.count > 0 ? 1 : 0) + (issues.pendingVideo > 0 ? 1 : 0) : 0;
   return (
     <div id="issues" className="scroll-mt-6">
       <Section title="Errors and issues" hint={issues && total === 0 ? undefined : "What needs attention, and what to do"}>
@@ -315,6 +344,15 @@ export function Issues({ issues }: { issues: DashboardIssues | undefined }) {
           <p className="flex items-center gap-2 text-sm text-emerald-700"><CheckCircle2 className="h-4 w-4" />Nothing needs attention. Every client is crawling normally.</p>
         ) : (
           <div className="grid items-start gap-3 md:grid-cols-2 lg:grid-cols-3">
+            {issues.errors.total > 0 && (
+              <IssueGroup icon={Bug} tone="text-red-700" title={`${issues.errors.total} ${issues.errors.total === 1 ? "error" : "errors"} detected in the last 7 days`}>
+                {issues.errors.items.map((e) => <TrackedErrorItem key={e.id} e={e} onResolve={onResolveError} />)}
+                {issues.errors.total > issues.errors.items.length && (
+                  <p className="text-[11px] text-gray-500">Showing the {issues.errors.items.length} most recent.</p>
+                )}
+              </IssueGroup>
+            )}
+
             {issues.crawlFailures.length > 0 && (
               <IssueGroup icon={XCircle} tone="text-red-700" title={`${issues.crawlFailures.length} ${issues.crawlFailures.length === 1 ? "client is" : "clients are"} failing to crawl`}>
                 {issues.crawlFailures.map((f) => (

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { LoadError } from "../components/LoadError";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { useSession, signOut } from "next-auth/react";
@@ -77,13 +78,13 @@ export default function MyReviews() {
 
   const base = businessId ? `/api/business-urls/${businessId}/tenant` : "";
 
-  const { data: bundle } = useQuery<Bundle>({
+  const { data: bundle, error: bundleError, refetch: refetchBundle } = useQuery<Bundle>({
     queryKey: ["myTenant", businessId],
     queryFn: () => apiRequest("GET", base),
     enabled: Boolean(businessId) && role === "client",
   });
 
-  const { data: reviewsData, isLoading } = useQuery<{ reviews: TenantReview[] }>({
+  const { data: reviewsData, isLoading, error: reviewsError, refetch: refetchReviews } = useQuery<{ reviews: TenantReview[] }>({
     queryKey: ["myReviews", businessId, filter],
     queryFn: () => apiRequest("GET", `${base}/reviews${filter === "all" ? "" : `?status=${filter}`}`),
     enabled: Boolean(businessId) && role === "client",
@@ -189,6 +190,8 @@ export default function MyReviews() {
         {view === "settings" ? (
           bundle ? (
             <ClientSettings base={base} businessId={businessId} bundle={bundle} />
+          ) : bundleError ? (
+            <LoadError what="your settings" onRetry={() => refetchBundle()} />
           ) : (
             <div className="h-40 animate-pulse rounded-2xl bg-gray-100" />
           )
@@ -224,7 +227,9 @@ export default function MyReviews() {
         </div>
 
         {/* Reviews */}
-        {isLoading ? (
+        {reviewsError ? (
+          <LoadError what="your reviews" onRetry={() => refetchReviews()} />
+        ) : isLoading ? (
           <div className="grid gap-4 sm:grid-cols-2">{[0, 1, 2, 3].map((i) => <div key={i} className="h-64 animate-pulse rounded-2xl bg-gray-100" />)}</div>
         ) : reviews.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-gray-200 py-20 text-center">
