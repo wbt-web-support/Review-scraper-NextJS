@@ -80,10 +80,12 @@ export interface DashboardIssues {
   /** Errors the app recorded (server and browser) in the last 7 days, not marked fixed. */
   errors: { total: number; items: TrackedError[] };
   crawlFailures: DashboardCrawlFailure[];
-  /** Clients added more than once: each copy is crawled (and paid for) separately. */
+  /** Clients added more than once: each copy is crawled (and paid for) separately.
+   *  `examples` is every such client, most copies first; the card shows the first few. */
   duplicates: { extraEntries: number; examples: { name: string; entries: number; businessId: string; source: Source }[] };
-  /** Saved links that aren't a listing, so they are not crawled at all. */
-  invalidLinks: { businessId: string; name: string; source: Source; url: string; hasVideo: boolean }[];
+  /** Saved links that aren't a listing, so they are not crawled at all. Clients
+   *  that only use video reviews are not here: they need no listing (see video.videoOnly). */
+  invalidLinks: { businessId: string; name: string; source: Source; url: string }[];
   /** More than a day past their crawl, and not already counted as failing. */
   lateCrawls: { count: number; examples: { name: string; businessId: string; source: Source; lastCrawledAt: string | null }[] };
   pendingVideo: number;
@@ -110,6 +112,8 @@ export interface DashboardOverview {
     rejected: number;
     latest: DashboardVideoReview[];
     topBusinesses: { businessId: string | null; name: string; reviews: number; pending: number }[];
+    /** Clients with video reviews and no Google or Facebook listing: not crawled, by design. */
+    videoOnly: { businessId: string; name: string }[];
   };
   generatedAt: string;
 }
@@ -271,6 +275,7 @@ export async function getDashboardOverview(): Promise<DashboardOverview> {
   const businesses: DashboardBusiness[] = [];
   const listingOf = new Map<string, string>();
   const invalid: DashboardIssues['invalidLinks'] = [];
+  const videoOnly: DashboardOverview['video']['videoOnly'] = [];
   let crawlUpToDate = 0, crawlDue = 0, crawlFailing = 0, lastCrawl = 0;
   const addBusinesses = (rows: any[], source: Source, stats: Map<string, any>) => {
     for (const b of rows) {
@@ -278,7 +283,10 @@ export async function getDashboardOverview(): Promise<DashboardOverview> {
       const s = stats.get(b.urlHash);
       const crawledAt = b.lastScrapedAt ? new Date(b.lastScrapedAt).getTime() : 0;
       const crawlable = isCrawlableLink(source, b.url);
-      if (!crawlable) invalid.push({ businessId: String(b._id), name: b.name, source, url: b.url, hasVideo: !!b.video?.tenantId });
+      // No listing link: a problem for a review client, but a client that only
+      // collects video reviews has nothing to crawl, so it is kept apart.
+      if (!crawlable && b.video?.tenantId) videoOnly.push({ businessId: String(b._id), name: b.name });
+      else if (!crawlable) invalid.push({ businessId: String(b._id), name: b.name, source, url: b.url });
       const failing = crawlable && (b.crawl?.failures ?? 0) > 0;
       if (failing) crawlFailing++;
       if (crawlable) {
@@ -347,7 +355,7 @@ export async function getDashboardOverview(): Promise<DashboardOverview> {
   for (const v of [...scrapedVideoG, ...scrapedVideoF] as any[]) if (v.video?.tenantId && !tenantBusiness.has(v.video.tenantId)) tenantBusiness.set(v.video.tenantId, { id: String(v._id), name: v.name });
   const tenantIds = [...tenantBusiness.keys()];
 
-  const video: DashboardOverview['video'] = { businesses: tenantIds.length, reviews: 0, videos: 0, pending: 0, approved: 0, rejected: 0, latest: [], topBusinesses: [] };
+  const video: DashboardOverview['video'] = { businesses: tenantIds.length, reviews: 0, videos: 0, pending: 0, approved: 0, rejected: 0, latest: [], topBusinesses: [], videoOnly };
   if (tenantIds.length) {
     const { data, error } = await createAdminClient()
       .from('reviews')
@@ -417,13 +425,12 @@ export async function getDashboardOverview(): Promise<DashboardOverview> {
   const duplicateExamples = [...byListing.values()]
     .filter((entries) => entries.length > 1)
     .sort((a, b) => b.length - a.length || b[0].reviews - a[0].reviews)
-    .slice(0, 6)
     .map((entries) => {
       const best = [...entries].sort((a, b) => b.reviews - a.reviews)[0];
       return { name: best.name, entries: entries.length, businessId: best.id, source: best.source };
     });
 
-  const invalidIds = new Set(invalid.map((i) => i.businessId));
+  const invalidIds = new Set([...invalid, ...videoOnly].map((i) => i.businessId));
   const late = businesses.filter((b) => {
     if (b.failing || invalidIds.has(b.id)) return false;
     const due = (CRAWL_POLICY[b.source].everyDays + 1) * DAY_MS;

@@ -1759,6 +1759,14 @@ export const getWidgetsByBusinessUrlId = async (businessUrlId: string): Promise<
     .exec();
 };
 
+/** The widgets that show this business's reviews, live, on a client's website. */
+export const widgetsUsingBusiness = async (businessUrlId: string): Promise<{ id: string; name: string }[]> => {
+  await ensureDbConnected();
+  if (!Types.ObjectId.isValid(businessUrlId)) return [];
+  const widgets = await WidgetModel.find({ businessUrlId: new Types.ObjectId(businessUrlId) }, { name: 1 }).lean().exec();
+  return widgets.map((w) => ({ id: String(w._id), name: w.name }));
+};
+
 export const deleteBusinessUrl = async (businessUrlId: string): Promise<void> => {
   await ensureDbConnected();
   

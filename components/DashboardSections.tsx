@@ -235,6 +235,12 @@ export function VideoReviews({ video }: { video: DashboardOverview["video"] | un
             <VideoStat label="Approved and live" value={video.approved} tone="text-emerald-600" />
           </div>
 
+          {video.videoOnly?.length > 0 && (
+            <p className="text-xs text-gray-500" title={video.videoOnly.map((b) => b.name).join(", ")}>
+              {video.videoOnly.length} {video.videoOnly.length === 1 ? "client uses" : "clients use"} video reviews only, so {video.videoOnly.length === 1 ? "it has" : "they have"} no Google or Facebook reviews to crawl.
+            </p>
+          )}
+
           {video.reviews === 0 ? (
             <p className="text-sm text-gray-500">No video reviews collected yet.</p>
           ) : (
@@ -305,6 +311,30 @@ function IssueGroup({ icon: Icon, tone, title, children }: { icon: typeof Star; 
   );
 }
 
+/** The first few duplicated clients; "View all" shows every one, scrolling inside the same height. */
+function DuplicateList({ items }: { items: DashboardIssues["duplicates"]["examples"] }) {
+  const FIRST = 6;
+  const [all, setAll] = useState(false);
+  const shown = all ? items : items.slice(0, FIRST);
+  return (
+    <>
+      <ul className={`space-y-1 ${all ? "max-h-[7.5rem] overflow-y-auto pr-1" : ""}`}>
+        {shown.map((d) => (
+          <li key={d.businessId} className="flex items-center justify-between gap-2 text-xs">
+            <Link href={`/reviews/${d.businessId}`} className="truncate text-gray-900 hover:text-blue-600">{d.name}</Link>
+            <span className="shrink-0 text-gray-500">{d.entries} entries</span>
+          </li>
+        ))}
+      </ul>
+      {items.length > FIRST && (
+        <button type="button" onClick={() => setAll((v) => !v)} className="text-xs font-medium text-blue-600 hover:text-blue-700">
+          {all ? "Show less" : `View all ${items.length} clients`}
+        </button>
+      )}
+    </>
+  );
+}
+
 function TrackedErrorItem({ e, onResolve }: { e: DashboardIssues["errors"]["items"][number]; onResolve?: (id: string) => Promise<void> }) {
   const [busy, setBusy] = useState(false);
   return (
@@ -372,14 +402,11 @@ export function Issues({ issues, onResolveError }: { issues: DashboardIssues | u
 
             {issues.invalidLinks.length > 0 && (
               <IssueGroup icon={Link2Off} tone="text-amber-700" title={`${issues.invalidLinks.length} ${issues.invalidLinks.length === 1 ? "client has" : "clients have"} no crawlable link`}>
-                <p className="text-xs leading-relaxed text-gray-700">Their saved link isn&apos;t a listing, so their reviews aren&apos;t crawled. Paste the listing link to start. A client that only uses video reviews needs nothing.</p>
+                <p className="text-xs leading-relaxed text-gray-700">Their saved link isn&apos;t a listing, so their reviews aren&apos;t crawled. Paste the listing link to start.</p>
                 <ul className="space-y-1.5">
                   {issues.invalidLinks.map((l) => (
                     <li key={l.businessId} className="text-xs">
-                      <div className="flex items-center justify-between gap-2">
-                        <Link href={`/reviews/${l.businessId}`} className="truncate text-gray-900 hover:text-blue-600">{l.name}</Link>
-                        {l.hasVideo && <span className="shrink-0 text-[11px] text-violet-600">has video reviews</span>}
-                      </div>
+                      <Link href={`/reviews/${l.businessId}`} className="block truncate text-gray-900 hover:text-blue-600">{l.name}</Link>
                       <p className="truncate text-[11px] text-gray-400" title={l.url}>{l.url}</p>
                     </li>
                   ))}
@@ -392,14 +419,7 @@ export function Issues({ issues, onResolveError }: { issues: DashboardIssues | u
                 <p className="text-xs leading-relaxed text-gray-700">
                   The same listing added more than once. All of them keep working; the only cost is that each copy is crawled, and paid for, separately. The counts above include each listing once.
                 </p>
-                <ul className="space-y-1">
-                  {issues.duplicates.examples.map((d) => (
-                    <li key={d.businessId} className="flex items-center justify-between gap-2 text-xs">
-                      <Link href={`/reviews/${d.businessId}`} className="truncate text-gray-900 hover:text-blue-600">{d.name}</Link>
-                      <span className="shrink-0 text-gray-500">{d.entries} entries</span>
-                    </li>
-                  ))}
-                </ul>
+                <DuplicateList items={issues.duplicates.examples} />
               </IssueGroup>
             )}
 

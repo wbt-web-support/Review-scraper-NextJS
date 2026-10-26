@@ -113,8 +113,21 @@ export default async function handler(
       if (!businessUrl) {
         return res.status(404).json({ message: 'Not Found: Business URL not found.' });
       }
-      if (!businessUrl.userId || businessUrl.userId.toString() !== userId_string) {
+      // The owner may delete it, and so may any team member when it has no owner:
+      // entries added before the owner was recorded (Humber's spare copies) could
+      // otherwise never be removed by anyone.
+      if (businessUrl.userId && businessUrl.userId.toString() !== userId_string) {
         return res.status(403).json({ message: 'Forbidden: You do not have permission to delete this business.' });
+      }
+      // Never one a widget uses: that widget shows these reviews on a client's
+      // website, and deleting the business would leave it empty there.
+      const widgets = await storage.widgetsUsingBusiness(businessUrlId_param);
+      if (widgets.length > 0) {
+        const names = widgets.slice(0, 3).map((w) => `"${w.name}"`).join(', ');
+        const more = widgets.length > 3 ? ` and ${widgets.length - 3} more` : '';
+        return res.status(409).json({
+          message: `${widgets.length} ${widgets.length === 1 ? 'widget uses' : 'widgets use'} this business (${names}${more}), so its reviews show on the client's website. Move ${widgets.length === 1 ? 'that widget' : 'those widgets'} to another business, or delete ${widgets.length === 1 ? 'it' : 'them'}, first.`,
+        });
       }
       // If video reviews were enabled, the business owns a whole Supabase tenant: the
       // client's login, their recorded videos on Bunny, their reviews. Tear that down

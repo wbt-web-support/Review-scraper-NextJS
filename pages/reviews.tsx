@@ -110,7 +110,7 @@ const Reviews = () => {
       setDeleteTarget(null);
       toast({ title: "Business deleted" });
     },
-    onError: (e) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e) => toast({ title: "Could not delete the business", description: e.message, variant: "destructive" }),
   });
 
   return (
