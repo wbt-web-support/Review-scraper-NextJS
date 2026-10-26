@@ -3,7 +3,8 @@
  * with the real numbers filled in. Made for WordPress and page builders, where a
  * full widget does not fit: it goes inside a heading, a paragraph or a button.
  *
- *   <span data-reviewhub-text="WIDGET_ID" data-text="Over {count}+ {rating}★ Google Reviews">Over 300+ 4.9★ Google Reviews</span>
+ *   <span id="reviewhub-text-WIDGET_ID" class="reviewhub-text" data-reviewhub-text="WIDGET_ID"
+ *         data-text="Over {count}+ {rating}★ Google Reviews">Over 300+ 4.9<span class="reviewhub-text-star">★</span> Google Reviews</span>
  *   <script async src="https://reviews.kjgroup.uk/widget-text.js"></script>
  *
  * - {count} is the business's review count rounded DOWN to a tidy number, so it is
@@ -12,6 +13,9 @@
  * - {rating} is the real average to one decimal (4.9; a 5.0 reads 5). For Facebook
  *   it is the share who recommend (98%).
  * - It takes the page's own font, size and colour; only the ★ is gold.
+ * - Styling hooks: the span has the class reviewhub-text (and the id in the
+ *   snippet), each star the class reviewhub-text-star. The gold is a zero-weight
+ *   rule (:where), so any CSS on the site that targets those wins without !important.
  * - The text inside the span is shown until the numbers arrive, and stays if they
  *   cannot be fetched, so the spot is never blank or broken.
  *
@@ -31,7 +35,7 @@
   var BASE = (function () {
     try { return new URL(script && script.src ? script.src : '').origin; } catch (e) { return 'https://reviews.kjgroup.uk'; }
   })();
-  var GOLD = '#FBBC04';
+  var STAR_CLASS = 'reviewhub-text-star';
   var DEFAULTS = {
     google: 'Over {count}+ {rating}★ Google Reviews',
     facebook: 'Over {count}+ Facebook reviews, {rating} recommend',
@@ -67,7 +71,17 @@
     return feeds[id];
   }
 
-  /** Text nodes and a gold span per star: no HTML is parsed, so nothing typed can run. */
+  // The default gold, at zero specificity: a site's own rule for .reviewhub-text-star
+  // (or #its-id .reviewhub-text-star) always beats it, whichever loads first.
+  function addDefaultStyle() {
+    if (document.getElementById('reviewhub-text-style')) return;
+    var style = document.createElement('style');
+    style.id = 'reviewhub-text-style';
+    style.textContent = ':where(.' + STAR_CLASS + '){color:#FBBC04}';
+    (document.head || document.documentElement).appendChild(style);
+  }
+
+  /** Text nodes and a span per star: no HTML is parsed, so nothing typed can run. */
   function paint(el, text) {
     while (el.firstChild) el.removeChild(el.firstChild);
     var parts = text.split('★');
@@ -75,8 +89,8 @@
       if (parts[i]) el.appendChild(document.createTextNode(parts[i]));
       if (i < parts.length - 1) {
         var star = document.createElement('span');
+        star.className = STAR_CLASS;
         star.textContent = '★';
-        star.style.color = GOLD;
         el.appendChild(star);
       }
     }
@@ -86,6 +100,8 @@
     var id = el.getAttribute('data-reviewhub-text');
     if (!id) return;
     el.setAttribute('data-reviewhub-done', '1');
+    // The class is the styling hook, so it is there even on a snippet pasted without it.
+    if (el.classList && !el.classList.contains('reviewhub-text')) el.classList.add('reviewhub-text');
     load(id).then(function (data) {
       var count = typeof data.totalReviewCount === 'number' ? data.totalReviewCount : null;
       var source = data.widgetSettings && data.widgetSettings.businessUrl && data.widgetSettings.businessUrl.source === 'facebook' ? 'facebook' : 'google';
@@ -108,6 +124,7 @@
   }
 
   window.ReviewHubText = { scan: scan, tidyCount: tidyCount, formatRating: formatRating };
+  addDefaultStyle();
   scan();
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', scan);
   // Page builders sometimes add their blocks after the page has loaded.

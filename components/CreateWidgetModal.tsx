@@ -637,7 +637,10 @@ const CreateWidgetModal = ({
     if (layout === 'text') {
       const template = textTemplate.trim() || DEFAULT_TEXT[textSource];
       const now = textStats ? renderText(template, textStats) : null;
-      return `<span data-reviewhub-text="${widgetId}" data-text="${escapeHtml(template)}">${escapeHtml(now ?? '')}</span>
+      // An id and classes to style it by: #reviewhub-text-<id> / .reviewhub-text, and
+      // .reviewhub-text-star on each star, here and in what the script paints.
+      const shown = escapeHtml(now ?? '').replace(/★/g, '<span class="reviewhub-text-star">★</span>');
+      return `<span id="reviewhub-text-${widgetId}" class="reviewhub-text" data-reviewhub-text="${widgetId}" data-text="${escapeHtml(template)}">${shown}</span>
 <script async src="${domain}/${widgetFileFor(layout)}?v=${WIDGET_VERSION}"></script>`;
     }
 
@@ -1453,8 +1456,14 @@ const CreateWidgetModal = ({
                       <li>Paste the code into a <strong>Custom HTML</strong> block, or any HTML box in your page builder (Elementor, Divi, WPBakery).</li>
                       <li>Put it inside a heading or a sentence: it takes that spot&apos;s font, size and colour. Only the star is gold.</li>
                       <li>It already reads correctly before the numbers load, and keeps itself up to date as new reviews come in.</li>
-                      <li>Use it as many times as you like on one page, each with its own wording.</li>
+                      <li>Use it as many times as you like on one page, each with its own wording. Using it twice on one page? Change the second one&apos;s <code className="bg-blue-100 px-1 rounded">id</code> so each stays unique.</li>
                     </ul>
+                    <p className="text-blue-900 text-sm font-medium mt-4 mb-1.5">Styling it with CSS</p>
+                    <p className="text-blue-800 text-sm mb-2">
+                      Target the whole line with <code className="bg-blue-100 px-1 rounded">#reviewhub-text-{widgetId}</code> or <code className="bg-blue-100 px-1 rounded">.reviewhub-text</code>, and the star with <code className="bg-blue-100 px-1 rounded">.reviewhub-text-star</code>. Your CSS always wins, no <code className="bg-blue-100 px-1 rounded">!important</code> needed.
+                    </p>
+                    <pre className="bg-white text-gray-800 rounded-lg p-3 text-xs overflow-x-auto border border-blue-200"><code>{`#reviewhub-text-${widgetId} { font-weight: 700; }
+.reviewhub-text-star { color: #e11d48; }`}</code></pre>
                   </div>
                 )}
 
