@@ -53,8 +53,15 @@ export type ApiReview = {
   status: "pending" | "approved" | "rejected";
   text_review: string | null;
   video: ApiVideo | null;
+  /**
+   * "collected": a customer sent it through the collection page.
+   * "uploaded": the business added a video it already had (POST /uploads).
+   */
+  source: ReviewSource;
   created_at: string;
 };
+
+export type ReviewSource = "collected" | "uploaded";
 
 function toVideo(row: {
   video_guid: string | null;
@@ -90,8 +97,20 @@ function toVideo(row: {
 }
 
 /** One list, so a field can never appear on the list route and go missing on the single one. */
-const REVIEW_COLUMNS =
+const BASE_COLUMNS =
   "id, reviewer_name, reviewer_email, rating, type, status, text_review, video_guid, video_url, thumbnail_url, created_at";
+const REVIEW_COLUMNS = `${BASE_COLUMNS}, source`;
+
+/**
+ * Postgres "undefined column": reviews.source before migration 20261026130000
+ * has been run. Migrations here are applied by hand and a deploy does not wait
+ * for them, so for that window the read routes fall back to the columns they had
+ * and report every review as "collected" -- which is what every row then is --
+ * rather than answering 500 to every integration at once.
+ */
+export function isMissingSourceColumn(error: { code?: string } | null): boolean {
+  return error?.code === "42703";
+}
 
 type ReviewRow = {
   id: string;
@@ -104,6 +123,7 @@ type ReviewRow = {
   video_guid: string | null;
   video_url: string | null;
   thumbnail_url: string | null;
+  source?: string | null;
   created_at: string;
 };
 
@@ -117,6 +137,7 @@ function toApiReview(row: ReviewRow): ApiReview {
     status: row.status,
     text_review: row.text_review,
     video: toVideo(row),
+    source: row.source === "uploaded" ? "uploaded" : "collected",
     created_at: row.created_at,
   };
 }
@@ -134,21 +155,25 @@ export async function listApiReviews(
 ): Promise<{ reviews: ApiReview[]; total: number }> {
   const admin = createAdminClient();
 
-  let query = admin
-    .from("reviews")
-    .select(REVIEW_COLUMNS, { count: "exact" })
-    // The only thing standing between one client and another's testimonials.
-    .eq("tenant_id", tenantId)
-    .order("created_at", { ascending: false })
-    .range(params.offset, params.offset + params.limit - 1);
+  const run = (columns: string) => {
+    let query = admin
+      .from("reviews")
+      .select(columns, { count: "exact" })
+      // The only thing standing between one client and another's testimonials.
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .range(params.offset, params.offset + params.limit - 1);
 
-  if (params.status) query = query.eq("status", params.status);
-  if (params.type) query = query.eq("type", params.type);
+    if (params.status) query = query.eq("status", params.status);
+    if (params.type) query = query.eq("type", params.type);
+    return query;
+  };
 
-  const { data, error, count } = await query;
+  let { data, error, count } = await run(REVIEW_COLUMNS);
+  if (isMissingSourceColumn(error)) ({ data, error, count } = await run(BASE_COLUMNS));
   if (error) throw new Error(error.message);
 
-  const reviews = ((data ?? []) as ReviewRow[]).map(toApiReview);
+  const reviews = ((data ?? []) as unknown as ReviewRow[]).map(toApiReview);
   return { reviews, total: count ?? reviews.length };
 }
 
@@ -163,13 +188,16 @@ export async function getApiReview(
   tenantId: string,
   reviewId: string,
 ): Promise<ApiReview | null> {
-  const { data, error } = await createAdminClient()
-    .from("reviews")
-    .select(REVIEW_COLUMNS)
-    .eq("id", reviewId)
-    .eq("tenant_id", tenantId)
-    .maybeSingle();
+  const run = (columns: string) =>
+    createAdminClient()
+      .from("reviews")
+      .select(columns)
+      .eq("id", reviewId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
 
+  let { data, error } = await run(REVIEW_COLUMNS);
+  if (isMissingSourceColumn(error)) ({ data, error } = await run(BASE_COLUMNS));
   if (error) throw new Error(error.message);
-  return data ? toApiReview(data as ReviewRow) : null;
+  return data ? toApiReview(data as unknown as ReviewRow) : null;
 }

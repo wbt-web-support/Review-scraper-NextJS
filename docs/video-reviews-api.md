@@ -37,6 +37,8 @@ browser safe: approved reviews only, no personal data.
 | PATCH | `/reviews/{id}` | Approve, reject, or set back to pending |
 | DELETE | `/reviews/{id}` | Delete the review and its video |
 | GET | `/reviews/{id}/download` | Download the video file |
+| GET | `/uploads` | The account's video length limit |
+| POST | `/uploads` | Add a video the business already has |
 | GET | `/settings` | Branding, collection page, widget together |
 | PATCH | `/settings` | Change any of those |
 | GET PUT PATCH DELETE | `/collection` | The collection page, on its own |
@@ -89,6 +91,7 @@ curl -H "Authorization: Bearer $KEY" \
         "thumbnail_url": "https://.../thumbnail.jpg",
         "ready": true
       },
+      "source": "collected",
       "created_at": "2026-08-01T09:14:22.000Z"
     }
   ]
@@ -99,6 +102,9 @@ On the video object: `play_url` is the one to open or send to someone.
 `embed_url` goes in an iframe. `url` is a machine URL, an HLS playlist for your
 own player, and it 403s if a human opens it. `ready` is false while the video is
 still encoding, and `url` and `thumbnail_url` are null until it flips true.
+
+`source` is `collected` when a customer sent the review through the collection
+page, and `uploaded` when the business added it themselves through `POST /uploads`.
 
 ### GET /reviews/{id}
 
@@ -161,6 +167,62 @@ stream, so large files don't sit in memory at either end.
 
 The 409 is worth handling. A video uploaded moments ago has no downloadable MP4
 until the encode finishes. Poll `ready` on the review, or just retry.
+
+### /uploads
+
+For testimonial videos the business already has, from before they had a
+collection page. Three steps, because the file goes straight from your user's
+browser to the video host rather than through this API:
+
+1. `POST /uploads` creates the review, **hidden** and marked `"source": "uploaded"`,
+   and returns a credential that can upload to that one video and nothing else.
+2. Your browser sends the file with that credential.
+3. Once the file is fully sent, `PATCH /reviews/{id}` with `{"status":"approved"}`
+   puts it live. If the upload fails, `DELETE /reviews/{id}` removes it.
+
+It starts hidden so that a half-finished upload never puts an empty player on the
+business's website, and never counts as a review waiting for approval.
+
+```bash
+# the account's length limit, to check a file before uploading it
+curl -H "Authorization: Bearer $KEY" "$BASE/uploads"
+# {"max_video_seconds":180}
+
+curl -X POST -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
+  -d '{"reviewer_name":"Molly Leopold","rating":5,"consent":true,"content_type":"video/mp4","duration_seconds":74}' \
+  "$BASE/uploads"
+```
+
+| Field | Rules |
+|---|---|
+| `reviewer_name` | 1 to 120 chars. Required. |
+| `reviewer_email` | An email, or null/`""`. Optional. |
+| `rating` | Whole number, 1 to 5. Required. |
+| `consent` | Must be `true`: the business holds the customer's permission to show it. |
+| `content_type` | The file's type, like `video/mp4`. |
+| `duration_seconds` | The file's length. Over the account's limit is a 400, before anything is created. |
+
+The reply is `201` with `review`, `max_video_seconds`, and `upload`, one of:
+
+```json
+{ "provider": "bunny", "endpoint": "https://video.bunnycdn.com/tusupload",
+  "library_id": "…", "video_id": "…", "signature": "…", "expire": 1793000000 }
+```
+
+Bunny takes a resumable (TUS) upload to `endpoint`, sending `AuthorizationSignature`,
+`AuthorizationExpire`, `VideoId` and `LibraryId` as headers. The signature lasts
+at least an hour.
+
+```json
+{ "provider": "supabase", "signed_url": "https://…", "path": "…" }
+```
+
+Supabase takes a single `PUT` of the file to `signed_url` with its `Content-Type`,
+up to 50MB.
+
+The length limit is still enforced after encoding: a video that turns out longer
+than the limit is hidden and its file deleted. You cannot set the status, date or
+source of an upload; it is always hidden, today, and `uploaded`.
 
 ### GET /settings
 
@@ -276,7 +338,7 @@ DELETE clears the logo and contact details and puts the colour back to the
 default. **The name survives**, because a business with no name has no page
 heading, no widget attribution and nothing to show in a list.
 
-**Not exposed anywhere here:** custom domain, video length limit, review open mode, and API
+**Not exposed anywhere here:** custom domain, changing the video length limit (`GET /uploads` reads it), review open mode, and API
 key rotation. The first three provision DNS or change what a recording costs, and
 rotation would cut off the key making the request. Those stay in the dashboard
 where a human confirms them.
@@ -291,6 +353,7 @@ Every error is JSON: `{ "error": "a sentence explaining it" }`.
 | 401 | Missing, malformed, or unknown API key |
 | 404 | No such review, **or** it belongs to another business |
 | 409 | Download only: the video is still encoding |
+| 503 | Uploads only: uploading has not been switched on for this service yet |
 | 500 | Something failed our side |
 
 A review belonging to another business returns 404 rather than 403, on read,
