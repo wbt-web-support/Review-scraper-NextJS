@@ -68,7 +68,7 @@ const WidgetSchema: Schema<IWidget> = new Schema({
   businessUrlId: { type: Schema.Types.ObjectId, refPath: 'businessUrlSource', required: requiredUnlessVideo, index: true },
   urlHash: { type: String, required: false, index: true },
   name: { type: String, required: true },
-  type: { type: String, enum: ['list', 'grid', 'carousel', 'badge', 'masonry', 'bar', 'wall', 'video'], default: 'list' },
+  type: { type: String, enum: ['list', 'grid', 'carousel', 'badge', 'masonry', 'bar', 'wall', 'text', 'video'], default: 'list' },
   video: {
     type: new Schema<IWidgetVideoTenant>({
       tenantId: { type: String, required: true },

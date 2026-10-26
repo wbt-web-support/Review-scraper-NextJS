@@ -415,9 +415,9 @@ export function Issues({ issues, onResolveError }: { issues: DashboardIssues | u
             )}
 
             {issues.duplicates.extraEntries > 0 && (
-              <IssueGroup icon={Copy} tone="text-amber-700" title={`${fmt(issues.duplicates.extraEntries)} duplicate client entries`}>
+              <IssueGroup icon={Copy} tone="text-amber-700" title={`${fmt(issues.duplicates.examples.length)} ${issues.duplicates.examples.length === 1 ? "client has" : "clients have"} duplicate entries`}>
                 <p className="text-xs leading-relaxed text-gray-700">
-                  The same listing added more than once. All of them keep working; the only cost is that each copy is crawled, and paid for, separately. The counts above include each listing once.
+                  {issues.duplicates.examples.length === 1 ? "This client was" : "Each of these clients was"} added more than once: {fmt(issues.duplicates.extraEntries)} extra {issues.duplicates.extraEntries === 1 ? "entry" : "entries"} in all. All of them keep working; the only cost is that each copy is crawled, and paid for, separately. The counts above include each listing once.
                 </p>
                 <DuplicateList items={issues.duplicates.examples} />
               </IssueGroup>

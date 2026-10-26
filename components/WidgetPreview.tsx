@@ -26,7 +26,7 @@ export interface IReviewItemFromAPI {
 export interface IWidgetSettingsFromForm {
   name?: string;
   themeColor: string;
-  layout: "grid" | "carousel" | "list" | "masonry" | "badge" | "bar" | "wall";
+  layout: "grid" | "carousel" | "list" | "masonry" | "badge" | "bar" | "wall" | "text";
   minRating?: number;
   initialReviewCount?: number;
   showRatings: boolean;

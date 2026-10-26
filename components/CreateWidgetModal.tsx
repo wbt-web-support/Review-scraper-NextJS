@@ -49,8 +49,10 @@ import {
   GalleryVertical,
   MoveVertical,
   MoveHorizontal,
+  Type,
   type LucideIcon
 } from "lucide-react";
+import { DEFAULT_TEXT, renderText, type TextSource } from "@/lib/textLayout";
 import { slugify } from "@vrm/lib/tenants/slug";
 import { normalizeRootDomain, reviewHostFor } from "@vrm/lib/domains/domain";
 import { suggestPassword } from "@vrm/lib/tenants/password";
@@ -74,6 +76,7 @@ export type WidgetLayout =
   | "badge"
   | "bar"
   | "wall"
+  | "text"
   | "video";
 
 export interface FormValues {
@@ -135,6 +138,8 @@ const widgetFileFor = (layout: string) => {
       return 'widget-badge.js';
     case 'wall':
       return 'widget-wall.js';
+    case 'text':
+      return 'widget-text.js';
     case 'carousel':
     default:
       return 'widget.js';
@@ -281,6 +286,84 @@ const WallLayoutControls = ({
   );
 };
 
+/** For the Text layout's snippet: its wording sits inside an HTML attribute and a span. */
+const escapeHtml = (text: string) =>
+  text.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
+
+/** What the Text layout needs to show its real line: from the widget's own public feed. */
+interface TextStats {
+  count: number | null;
+  rating: unknown;
+  source: TextSource;
+}
+
+// Outside CreateWidgetModal, like WallLayoutControls, so it keeps its identity. It
+// holds its own draft and reports a pause in typing, not every key: each report
+// redraws the preview, and the preview reloads its frame when it redraws.
+const TextLayoutControls = ({
+  value,
+  onChange,
+  source,
+  stats,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  source: TextSource;
+  stats: TextStats | null;
+}) => {
+  const [draft, setDraft] = useState(value);
+  useEffect(() => { setDraft(value); }, [value]);
+  useEffect(() => {
+    if (draft === value) return;
+    const t = setTimeout(() => onChange(draft), 500);
+    return () => clearTimeout(t);
+  }, [draft, value, onChange]);
+
+  const fallback = DEFAULT_TEXT[source];
+  const sample = stats ? renderText(draft.trim() || fallback, stats) : null;
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-4">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-3">
+        <h4 className="font-semibold text-gray-900">Text Settings</h4>
+        <p className="text-sm text-gray-500">
+          {"{count} and {rating} are filled in with the real numbers. The text takes the page's own font and colour."}
+        </p>
+      </div>
+      <Label htmlFor="textTemplate" className="text-sm font-medium text-gray-700">Wording</Label>
+      <div className="mt-1.5 flex gap-2">
+        <Input
+          id="textTemplate"
+          value={draft}
+          maxLength={160}
+          placeholder={fallback}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => { if (draft !== value) onChange(draft); }}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-10 shrink-0"
+          disabled={!draft.trim() || draft.trim() === fallback}
+          onClick={() => { setDraft(""); onChange(""); }}
+        >
+          Use default
+        </Button>
+      </div>
+      <p className="mt-2 text-sm text-gray-600">
+        Reads now:{" "}
+        <span className="font-medium text-gray-900">
+          {sample ?? (stats ? "shown once this business has reviews" : "save the widget to see its real numbers")}
+        </span>
+      </p>
+      <p className="mt-1 text-xs text-gray-500">
+        The count is rounded down so it is never overstated: 326 reviews reads 300+, 161 reads 150+.
+      </p>
+    </div>
+  );
+};
+
 const CreateWidgetModal = ({
   isOpen,
   onClose,
@@ -296,6 +379,11 @@ const CreateWidgetModal = ({
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [videoForm, setVideoForm] = useState<VideoFormValues>(emptyVideoForm);
   const [wallSettings, setWallSettings] = useState<WallSettings>(DEFAULT_WALL_SETTINGS);
+  // The Text layout's wording. Empty means the default for the business's platform.
+  // Like the wall's settings it travels in the snippet (data-text), so every pasted
+  // spot keeps its own wording.
+  const [textTemplate, setTextTemplate] = useState("");
+  const [textStats, setTextStats] = useState<TextStats | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState<FormValues>({
@@ -350,9 +438,30 @@ const CreateWidgetModal = ({
         setVideoForm(emptyVideoForm());
       }
       setWallSettings(DEFAULT_WALL_SETTINGS);
+      setTextTemplate("");
       setActiveTab(initialTab);
     }
   }, [isOpen, mode, widget, initialTab]);
+
+  // The Text layout quotes the real numbers, so fetch them once it is picked: the
+  // same public feed, and the same count and rating, the widget itself will use.
+  const textWidgetId = isOpen && mode === 'edit' && widget && widget.type !== 'video' && selectedLayout === 'text' ? String(widget._id) : null;
+  useEffect(() => {
+    if (!textWidgetId) return;
+    let live = true;
+    fetch(`/api/public/widget-data/${textWidgetId}?limit=1`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!live || !data) return;
+        setTextStats({
+          count: typeof data.totalReviewCount === 'number' ? data.totalReviewCount : null,
+          rating: data.averageRating,
+          source: data.widgetSettings?.businessUrl?.source === 'facebook' ? 'facebook' : 'google',
+        });
+      })
+      .catch(() => {});
+    return () => { live = false; };
+  }, [textWidgetId]);
 
   const createMutation = useMutation<IWidget, Error, any>({
     mutationFn: async (data) => {
@@ -518,7 +627,20 @@ const CreateWidgetModal = ({
 
   const widgetId = mode === 'edit' && widget ? widget._id : "YOUR_WIDGET_ID";
 
+  const textSource: TextSource = textStats?.source
+    ?? (businessUrls.find((url) => url._id === formData.businessUrlId)?.source === 'facebook' ? 'facebook' : 'google');
+
   const generateEmbedCode = (layout: string) => {
+    // One line of text for WordPress and page builders: a span (it sits inside a
+    // heading or a sentence) that already reads correctly, and a script that keeps
+    // its numbers current. See public/widget-text.js.
+    if (layout === 'text') {
+      const template = textTemplate.trim() || DEFAULT_TEXT[textSource];
+      const now = textStats ? renderText(template, textStats) : null;
+      return `<span data-reviewhub-text="${widgetId}" data-text="${escapeHtml(template)}">${escapeHtml(now ?? '')}</span>
+<script async src="${domain}/${widgetFileFor(layout)}?v=${WIDGET_VERSION}"></script>`;
+    }
+
     // A video widget is served by the Video Review Manager's own bundle, keyed by the
     // tenant's embed key rather than by a Mongo widget id. See public/w.js -- the
     // attribute is data-tenant, and it renders everything inside a shadow root.
@@ -578,6 +700,7 @@ const CreateWidgetModal = ({
     { value: "badge", label: "Badge", icon: Star, description: "Compact rating badge" },
     { value: "bar", label: "Bar", icon: RectangleEllipsis, description: "Horizontal rating bar" },
     { value: "wall", label: "Wall", icon: GalleryVertical, description: "Auto-scrolling columns" },
+    { value: "text", label: "Text", icon: Type, description: "One line of text for any page" },
     // Video reviews are set up under Businesses (/reviews), not as a widget here.
   ];
 
@@ -879,6 +1002,17 @@ const CreateWidgetModal = ({
     // Dark wall cards are made for dark sites, so preview them on one.
     const previewBackground = selectedLayout === 'wall' && wallSettings.theme === 'dark' ? '#0B0D12' : '#f9fafb';
 
+    // The Text layout is shown where it will live: inside a heading and inside a
+    // sentence, taking each one's font and colour.
+    const [textSpan, ...textScript] = embedCode.split('\n');
+    const previewBody = selectedLayout === 'text'
+      ? `<p style="margin:0 0 6px;font-size:12px;color:#6b7280">In a heading</p>
+         <h2 style="margin:0 0 24px;font-size:28px;color:#111827">${textSpan}</h2>
+         <p style="margin:0 0 6px;font-size:12px;color:#6b7280">In a sentence</p>
+         <p style="margin:0;font-size:16px;color:#374151">Local homeowners trust us: ${textSpan} and counting.</p>
+         ${textScript.join('\n')}`
+      : embedCode;
+
     // For edit mode, show actual preview using embed code
     const previewHtml = `
       <!DOCTYPE html>
@@ -899,7 +1033,7 @@ const CreateWidgetModal = ({
       </head>
       <body>
         <div class="preview-container">
-          ${embedCode}
+          ${previewBody}
         </div>
       </body>
       </html>
@@ -919,7 +1053,7 @@ const CreateWidgetModal = ({
           <iframe
             srcDoc={previewHtml}
             // A vertical wall is WALL_HEIGHT tall, plus the preview page's padding.
-            className={`w-full border-0 ${selectedLayout === 'wall' ? 'h-[640px]' : 'h-[400px]'}`}
+            className={`w-full border-0 ${selectedLayout === 'wall' ? 'h-[640px]' : selectedLayout === 'text' ? 'h-[240px]' : 'h-[400px]'}`}
             title={`Widget Preview - ${selectedLayout}`}
             sandbox="allow-scripts allow-same-origin"
           />
@@ -1246,6 +1380,9 @@ const CreateWidgetModal = ({
                 {selectedLayout === 'wall' && (
                   <WallLayoutControls value={wallSettings} onChange={setWallSettings} />
                 )}
+                {selectedLayout === 'text' && (
+                  <TextLayoutControls value={textTemplate} onChange={setTextTemplate} source={textSource} stats={textStats} />
+                )}
                 <PreviewFrame />
               </TabsContent>
 
@@ -1253,6 +1390,9 @@ const CreateWidgetModal = ({
                 <LayoutSelector />
                 {selectedLayout === 'wall' && (
                   <WallLayoutControls value={wallSettings} onChange={setWallSettings} />
+                )}
+                {selectedLayout === 'text' && (
+                  <TextLayoutControls value={textTemplate} onChange={setTextTemplate} source={textSource} stats={textStats} />
                 )}
 
                 <div className="bg-white border border-gray-200 rounded-xl p-6">
@@ -1306,7 +1446,20 @@ const CreateWidgetModal = ({
                   />
                 )}
 
+                {selectedLayout === 'text' && (
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
+                    <h4 className="font-semibold text-blue-900 mb-2">Using it in WordPress</h4>
+                    <ul className="text-blue-800 text-sm space-y-1.5 list-disc list-inside">
+                      <li>Paste the code into a <strong>Custom HTML</strong> block, or any HTML box in your page builder (Elementor, Divi, WPBakery).</li>
+                      <li>Put it inside a heading or a sentence: it takes that spot&apos;s font, size and colour. Only the star is gold.</li>
+                      <li>It already reads correctly before the numbers load, and keeps itself up to date as new reviews come in.</li>
+                      <li>Use it as many times as you like on one page, each with its own wording.</li>
+                    </ul>
+                  </div>
+                )}
+
                 {/* Multiple Widgets Instructions */}
+                {selectedLayout !== 'text' && (
                 <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
                   <div className="flex items-start gap-4">
                     <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
@@ -1369,6 +1522,7 @@ const CreateWidgetModal = ({
                     </div>
                   </div>
                 </div>
+                )}
 
                 {mode === 'create' && (
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-6">
