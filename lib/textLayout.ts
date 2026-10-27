@@ -12,11 +12,9 @@ export const DEFAULT_TEXT: Record<TextSource, string> = {
   facebook: 'Over {count}+ Facebook reviews, {rating} recommend',
 };
 
-/** Rounded DOWN, so it is never overstated: under 100 to tens, under 1,000 to fifties, then hundreds. */
-export function tidyCount(n: number): number {
-  if (n < 10) return n;
-  const step = n < 100 ? 10 : n < 1000 ? 50 : 100;
-  return Math.floor(n / step) * step;
+/** The real review count, as the Badge and Bar show it: 326, or 1,240 with a comma. Not rounded. */
+export function formatCount(n: number): string {
+  return n.toLocaleString('en-GB');
 }
 
 /** The real average to one decimal (a 5.0 reads 5); Facebook's is the share who recommend. */
@@ -39,7 +37,7 @@ export function renderText(
 ): string | null {
   if (!count) return null;
   return template
-    .replace(/\{count\}/g, tidyCount(count).toLocaleString('en-GB'))
+    .replace(/\{count\}/g, formatCount(count))
     .replace(/\{rating\}/g, formatRating(rating, source) ?? '')
     .replace(/\s{2,}/g, ' ')
     .trim();

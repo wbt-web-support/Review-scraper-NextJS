@@ -358,7 +358,7 @@ const TextLayoutControls = ({
         </span>
       </p>
       <p className="mt-1 text-xs text-gray-500">
-        The count is rounded down so it is never overstated: 326 reviews reads 300+, 161 reads 150+.
+        The count is the business&apos;s real review count, the same number the Badge and Bar layouts show.
       </p>
     </div>
   );

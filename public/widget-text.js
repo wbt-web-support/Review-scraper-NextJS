@@ -1,15 +1,14 @@
 /**
- * ReviewHub Text layout: one line of text, such as "Over 300+ 4.9★ Google Reviews",
+ * ReviewHub Text layout: one line of text, such as "Over 326+ 4.9★ Google Reviews",
  * with the real numbers filled in. Made for WordPress and page builders, where a
  * full widget does not fit: it goes inside a heading, a paragraph or a button.
  *
  *   <span id="reviewhub-text-WIDGET_ID" class="reviewhub-text" data-reviewhub-text="WIDGET_ID"
- *         data-text="Over {count}+ {rating}★ Google Reviews">Over 300+ 4.9<span class="reviewhub-text-star">★</span> Google Reviews</span>
+ *         data-text="Over {count}+ {rating}★ Google Reviews">Over 326+ 4.9<span class="reviewhub-text-star">★</span> Google Reviews</span>
  *   <script async src="https://reviews.kjgroup.uk/widget-text.js"></script>
  *
- * - {count} is the business's review count rounded DOWN to a tidy number, so it is
- *   never overstated: under 100 to tens, under 1,000 to fifties, then hundreds
- *   (326 reads 300, 161 reads 150, 1,240 reads 1,200).
+ * - {count} is the business's real review count, the same number the Badge and Bar
+ *   layouts show (326; 1,240 with a comma). Not rounded (Rahul, 27 Oct 2026).
  * - {rating} is the real average to one decimal (4.9; a 5.0 reads 5). For Facebook
  *   it is the share who recommend (98%).
  * - It takes the page's own font, size and colour; only the ★ is gold.
@@ -42,10 +41,8 @@
   };
   var feeds = {};
 
-  function tidyCount(n) {
-    if (n < 10) return n;
-    var step = n < 100 ? 10 : n < 1000 ? 50 : 100;
-    return Math.floor(n / step) * step;
+  function formatCount(n) {
+    return n.toLocaleString('en-GB');
   }
 
   function formatRating(value, source) {
@@ -110,7 +107,7 @@
       if (!count) return;
       var template = el.getAttribute('data-text') || DEFAULTS[source];
       var text = template
-        .replace(/\{count\}/g, tidyCount(count).toLocaleString('en-GB'))
+        .replace(/\{count\}/g, formatCount(count))
         .replace(/\{rating\}/g, rating || '');
       paint(el, text.replace(/\s{2,}/g, ' ').trim());
     }).catch(function () {
@@ -123,7 +120,7 @@
     for (var i = 0; i < spans.length; i++) fill(spans[i]);
   }
 
-  window.ReviewHubText = { scan: scan, tidyCount: tidyCount, formatRating: formatRating };
+  window.ReviewHubText = { scan: scan, formatCount: formatCount, formatRating: formatRating };
   addDefaultStyle();
   scan();
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', scan);
