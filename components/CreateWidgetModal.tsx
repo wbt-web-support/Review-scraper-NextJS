@@ -50,6 +50,7 @@ import {
   MoveVertical,
   MoveHorizontal,
   Type,
+  BadgeCheck,
   type LucideIcon
 } from "lucide-react";
 import { DEFAULT_TEXT, renderText, type TextSource } from "@/lib/textLayout";
@@ -77,6 +78,7 @@ export type WidgetLayout =
   | "bar"
   | "wall"
   | "text"
+  | "summary"
   | "video";
 
 export interface FormValues {
@@ -140,6 +142,8 @@ const widgetFileFor = (layout: string) => {
       return 'widget-wall.js';
     case 'text':
       return 'widget-text.js';
+    case 'summary':
+      return 'widget-summary.js';
     case 'carousel':
     default:
       return 'widget.js';
@@ -364,6 +368,75 @@ const TextLayoutControls = ({
   );
 };
 
+/** The Summary layout's settings. Like the wall's, they travel in the snippet. */
+export interface SummarySettings {
+  size: "small" | "medium" | "large";
+  caption: string;
+}
+
+const DEFAULT_SUMMARY_SETTINGS: SummarySettings = { size: "medium", caption: "" };
+
+// Outside CreateWidgetModal so it keeps its identity (see WallLayoutControls). The
+// caption keeps its own draft and reports a pause in typing, not every key.
+const SummaryLayoutControls = ({
+  value,
+  onChange,
+}: {
+  value: SummarySettings;
+  onChange: (value: SummarySettings) => void;
+}) => {
+  const [caption, setCaption] = useState(value.caption);
+  useEffect(() => { setCaption(value.caption); }, [value.caption]);
+  useEffect(() => {
+    if (caption === value.caption) return;
+    const t = setTimeout(() => onChange({ ...value, caption }), 500);
+    return () => clearTimeout(t);
+  }, [caption, value, onChange]);
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-4">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-4">
+        <h4 className="font-semibold text-gray-900">Summary Settings</h4>
+        <p className="text-sm text-gray-500">
+          The real review count and rating. Google shows its stars; Facebook, the share who recommend.
+        </p>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Segmented
+          label="Size"
+          value={value.size}
+          options={[
+            { value: "small", label: "Small" },
+            { value: "medium", label: "Medium" },
+            { value: "large", label: "Large" },
+          ]}
+          onChange={(size) => onChange({ ...value, size })}
+        />
+        <div>
+          <Label htmlFor="summaryCaption" className="text-sm font-medium text-gray-700">Line underneath (optional)</Label>
+          <Input
+            id="summaryCaption"
+            className="mt-1.5"
+            value={caption}
+            maxLength={80}
+            placeholder="Local heating experts"
+            onChange={(e) => setCaption(e.target.value)}
+            onBlur={() => { if (caption !== value.caption) onChange({ ...value, caption }); }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/** What the preview can be seen on: a phone, a tablet, and the editor's full width. */
+const PREVIEW_DEVICES = [
+  { value: "desktop", label: "Desktop", icon: Monitor, width: null },
+  { value: "tablet", label: "Tablet", icon: Tablet, width: 768 },
+  { value: "mobile", label: "Mobile", icon: Smartphone, width: 375 },
+] as const;
+type PreviewDevice = (typeof PREVIEW_DEVICES)[number]["value"];
+
 const CreateWidgetModal = ({
   isOpen,
   onClose,
@@ -379,6 +452,8 @@ const CreateWidgetModal = ({
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [videoForm, setVideoForm] = useState<VideoFormValues>(emptyVideoForm);
   const [wallSettings, setWallSettings] = useState<WallSettings>(DEFAULT_WALL_SETTINGS);
+  const [previewDevice, setPreviewDevice] = useState<PreviewDevice>("desktop");
+  const [summarySettings, setSummarySettings] = useState<SummarySettings>(DEFAULT_SUMMARY_SETTINGS);
   // The Text layout's wording. Empty means the default for the business's platform.
   // Like the wall's settings it travels in the snippet (data-text), so every pasted
   // spot keeps its own wording.
@@ -438,6 +513,8 @@ const CreateWidgetModal = ({
         setVideoForm(emptyVideoForm());
       }
       setWallSettings(DEFAULT_WALL_SETTINGS);
+      setPreviewDevice("desktop");
+      setSummarySettings(DEFAULT_SUMMARY_SETTINGS);
       setTextTemplate("");
       setActiveTab(initialTab);
     }
@@ -635,6 +712,14 @@ const CreateWidgetModal = ({
     // One line of text for WordPress and page builders: a span (it sits inside a
     // heading or a sentence) that already reads correctly, and a script that keeps
     // its numbers current. See public/widget-text.js.
+    // One compact block: logo, stars, count, label. Its box carries the settings;
+    // the script fills it in. See public/widget-summary.js.
+    if (layout === 'summary') {
+      const caption = summarySettings.caption.trim();
+      return `<div id="reviewhub-summary-${widgetId}" class="reviewhub-summary" data-reviewhub-summary="${widgetId}" data-size="${summarySettings.size}"${caption ? ` data-caption="${escapeHtml(caption)}"` : ''}></div>
+<script async src="${domain}/${widgetFileFor(layout)}?v=${WIDGET_VERSION}"></script>`;
+    }
+
     if (layout === 'text') {
       const template = textTemplate.trim() || DEFAULT_TEXT[textSource];
       const now = textStats ? renderText(template, textStats) : null;
@@ -705,6 +790,7 @@ const CreateWidgetModal = ({
     { value: "bar", label: "Bar", icon: RectangleEllipsis, description: "Horizontal rating bar" },
     { value: "wall", label: "Wall", icon: GalleryVertical, description: "Auto-scrolling columns" },
     { value: "text", label: "Text", icon: Type, description: "One line of text for any page" },
+    { value: "summary", label: "Summary", icon: BadgeCheck, description: "Logo, stars and count, compact" },
     // Video reviews are set up under Businesses (/reviews), not as a widget here.
   ];
 
@@ -1043,24 +1129,64 @@ const CreateWidgetModal = ({
       </html>
     `;
 
+    // A phone or tablet preview is the frame at that device's width, so the widget's
+    // own responsive rules (columns, card sizes) apply exactly as they would there.
+    const device = PREVIEW_DEVICES.find((d) => d.value === previewDevice) ?? PREVIEW_DEVICES[0];
+    const frameHeight = selectedLayout === 'wall' ? 'h-[640px]' : selectedLayout === 'text' || selectedLayout === 'summary' ? 'h-[240px]' : device.width ? 'h-[560px]' : 'h-[400px]';
+    const frame = (
+      <iframe
+        srcDoc={previewHtml}
+        // A vertical wall is WALL_HEIGHT tall, plus the preview page's padding.
+        className={`block w-full border-0 ${frameHeight}`}
+        title={`Widget Preview - ${selectedLayout} on ${device.label}`}
+        sandbox="allow-scripts allow-same-origin"
+      />
+    );
+
     return (
       <div className="">
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          <div className="bg-gray-100 px-4 py-2 border-b border-gray-200 flex items-center gap-2 text-sm text-gray-600">
+          <div className="bg-gray-100 px-4 py-2 border-b border-gray-200 flex flex-wrap items-center gap-2 text-sm text-gray-600">
             <div className="flex gap-1">
               <div className="w-3 h-3 rounded-full bg-red-400"></div>
               <div className="w-3 h-3 rounded-full bg-yellow-400"></div>
               <div className="w-3 h-3 rounded-full bg-green-400"></div>
             </div>
             <span className="ml-2">Widget Preview - {layoutOptions.find(opt => opt.value === selectedLayout)?.label}</span>
+            <div className="ml-auto flex items-center gap-2">
+              {device.width && <span className="text-xs text-gray-500">{device.width}px wide</span>}
+              <div className="flex rounded-lg border border-gray-200 bg-white p-0.5" role="group" aria-label="Preview on">
+                {PREVIEW_DEVICES.map((d) => {
+                  const Icon = d.icon;
+                  const active = d.value === previewDevice;
+                  return (
+                    <button
+                      key={d.value}
+                      type="button"
+                      onClick={() => setPreviewDevice(d.value)}
+                      aria-pressed={active}
+                      title={d.width ? `${d.label}, ${d.width}px` : d.label}
+                      className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${active ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-200' : 'text-gray-600 hover:text-gray-900'}`}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      {d.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
-          <iframe
-            srcDoc={previewHtml}
-            // A vertical wall is WALL_HEIGHT tall, plus the preview page's padding.
-            className={`w-full border-0 ${selectedLayout === 'wall' ? 'h-[640px]' : selectedLayout === 'text' ? 'h-[240px]' : 'h-[400px]'}`}
-            title={`Widget Preview - ${selectedLayout}`}
-            sandbox="allow-scripts allow-same-origin"
-          />
+          {device.width ? (
+            <div className="flex justify-center bg-gray-100 px-4 py-6">
+              {/* box-content: the border sits outside, so the page inside is exactly the device width. */}
+              <div
+                className={`box-content max-w-full overflow-hidden border-gray-800 bg-white shadow-lg ${device.value === 'mobile' ? 'rounded-[28px] border-[10px]' : 'rounded-[20px] border-[12px]'}`}
+                style={{ width: device.width }}
+              >
+                {frame}
+              </div>
+            </div>
+          ) : frame}
         </div>
       </div>
     );
@@ -1387,6 +1513,9 @@ const CreateWidgetModal = ({
                 {selectedLayout === 'text' && (
                   <TextLayoutControls value={textTemplate} onChange={setTextTemplate} source={textSource} stats={textStats} />
                 )}
+                {selectedLayout === 'summary' && (
+                  <SummaryLayoutControls value={summarySettings} onChange={setSummarySettings} />
+                )}
                 <PreviewFrame />
               </TabsContent>
 
@@ -1397,6 +1526,9 @@ const CreateWidgetModal = ({
                 )}
                 {selectedLayout === 'text' && (
                   <TextLayoutControls value={textTemplate} onChange={setTextTemplate} source={textSource} stats={textStats} />
+                )}
+                {selectedLayout === 'summary' && (
+                  <SummaryLayoutControls value={summarySettings} onChange={setSummarySettings} />
                 )}
 
                 <div className="bg-white border border-gray-200 rounded-xl p-6">
@@ -1450,6 +1582,24 @@ const CreateWidgetModal = ({
                   />
                 )}
 
+                {selectedLayout === 'summary' && (
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
+                    <h4 className="font-semibold text-blue-900 mb-2">Using it in WordPress</h4>
+                    <ul className="text-blue-800 text-sm space-y-1.5 list-disc list-inside">
+                      <li>Paste the code into a <strong>Custom HTML</strong> block, or any HTML box in your page builder.</li>
+                      <li>Google and Facebook side by side: paste this client&apos;s Google Summary and Facebook Summary codes together, inside one row: <code className="bg-blue-100 px-1 rounded">{'<div style="display:flex;gap:40px;justify-content:center;align-items:center">'}</code> … <code className="bg-blue-100 px-1 rounded">{'</div>'}</code></li>
+                      <li>It takes the page&apos;s font and keeps itself up to date as new reviews come in.</li>
+                    </ul>
+                    <p className="text-blue-900 text-sm font-medium mt-4 mb-1.5">Styling it with CSS</p>
+                    <p className="text-blue-800 text-sm mb-2">
+                      Target <code className="bg-blue-100 px-1 rounded">#reviewhub-summary-{widgetId}</code> or <code className="bg-blue-100 px-1 rounded">.reviewhub-summary</code>; the parts are <code className="bg-blue-100 px-1 rounded">.rh-summary-logo</code>, <code className="bg-blue-100 px-1 rounded">.rh-summary-stars</code>, <code className="bg-blue-100 px-1 rounded">.rh-summary-count</code>, <code className="bg-blue-100 px-1 rounded">.rh-summary-label</code> and <code className="bg-blue-100 px-1 rounded">.rh-summary-caption</code>, and each also has its own id such as <code className="bg-blue-100 px-1 rounded">#reviewhub-summary-{widgetId}-count</code>. Your CSS always wins, no <code className="bg-blue-100 px-1 rounded">!important</code> needed.
+                    </p>
+                    <pre className="bg-white text-gray-800 rounded-lg p-3 text-xs overflow-x-auto border border-blue-200"><code>{`#reviewhub-summary-${widgetId}-count { font-size: 30px; }
+.reviewhub-summary .rh-summary-label { color: #1f2937; }
+@media (max-width: 640px) { .reviewhub-summary { font-size: 12px; } }`}</code></pre>
+                  </div>
+                )}
+
                 {selectedLayout === 'text' && (
                   <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
                     <h4 className="font-semibold text-blue-900 mb-2">Using it in WordPress</h4>
@@ -1469,7 +1619,7 @@ const CreateWidgetModal = ({
                 )}
 
                 {/* Multiple Widgets Instructions */}
-                {selectedLayout !== 'text' && (
+                {selectedLayout !== 'text' && selectedLayout !== 'summary' && (
                 <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
                   <div className="flex items-start gap-4">
                     <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">

@@ -100,7 +100,7 @@ export default async function handler(
   }
 }
 
-const LAYOUTS = ['grid', 'carousel', 'list', 'masonry', 'badge', 'bar', 'wall', 'text'] as const;
+const LAYOUTS = ['grid', 'carousel', 'list', 'masonry', 'badge', 'bar', 'wall', 'text', 'summary'] as const;
 
 /**
  * Only the fields the widget editor actually sets, each checked. The old handler

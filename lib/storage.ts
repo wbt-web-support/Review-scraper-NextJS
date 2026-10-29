@@ -1450,7 +1450,7 @@ export interface CreateWidgetArgs {
   /** Required for type 'video', ignored otherwise. */
   video?: IWidgetVideoTenant;
   name: string;
-  type?: "grid" | "carousel" | "list" | "masonry" | "badge" | "bar" | "wall" | "text" | "video";
+  type?: "grid" | "carousel" | "list" | "masonry" | "badge" | "bar" | "wall" | "text" | "summary" | "video";
   minRating?: number;
   themeColor?: string;
   showRatings?: boolean;
@@ -1501,7 +1501,7 @@ interface UpdateWidgetArgs {
   urlHash?: string;
   isActive?: boolean;
   name?: string;
-  type?: "grid" | "carousel" | "list" | "masonry" | "badge" | "bar" | "wall" | "text" | "video";
+  type?: "grid" | "carousel" | "list" | "masonry" | "badge" | "bar" | "wall" | "text" | "summary" | "video";
   maxReviews?: number;
   minRating?: number;
   businessUrlId?: string;
