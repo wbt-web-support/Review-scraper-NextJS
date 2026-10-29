@@ -186,6 +186,10 @@ export function captureConsoleErrors(): void {
       // Node prints its own warnings (ExperimentalWarning, DeprecationWarning) through
       // console.error as "(node:8) ...Warning: ...". They are not app errors.
       if (/^\(node:\d+\) \w*Warning\b/.test(first)) return;
+      // A page left open across a deploy; the browser now reloads it onto the new
+      // deployment (components/ErrorReporter.tsx), so it is handled, not a fault.
+      const text = args.map((a) => (a instanceof Error ? a.message : typeof a === 'string' ? a : '')).join(' ');
+      if (/Failed to find Server Action/.test(text)) return;
       const error = args.find((a) => a instanceof Error);
       const context = args.filter((a) => typeof a === 'string').join(' ').slice(0, 300);
       const other = error ? undefined : args.find((a) => a !== undefined && typeof a !== 'string');

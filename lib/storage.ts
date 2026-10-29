@@ -1783,6 +1783,18 @@ export const getWidgetsByBusinessUrlId = async (businessUrlId: string): Promise<
     .exec();
 };
 
+/** How many reviews we hold for a business (each stored row; cheap, no review bodies loaded). */
+export const countStoredReviews = async (urlHash: string, source: 'google' | 'facebook'): Promise<number> => {
+  await ensureDbConnected();
+  const Model = source === 'google' ? GoogleReviewBatchModel : FacebookReviewBatchModel;
+  const [row] = await Model.aggregate([
+    { $match: { urlHash } },
+    { $project: { n: { $size: { $ifNull: ['$reviews', []] } } } },
+    { $group: { _id: null, n: { $sum: '$n' } } },
+  ]).exec();
+  return row?.n ?? 0;
+};
+
 /** The widgets that show this business's reviews, live, on a client's website. */
 export const widgetsUsingBusiness = async (businessUrlId: string): Promise<{ id: string; name: string }[]> => {
   await ensureDbConnected();

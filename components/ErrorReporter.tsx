@@ -8,6 +8,12 @@ import { useEffect } from "react";
  *
  * Quiet by design: at most 10 reports per page load, each distinct error once,
  * and nothing from browser extensions or other sites' scripts.
+ *
+ * Also recovers a page left open across a deploy. Its buttons call server
+ * actions by ids the new deployment no longer has; Next answers with the header
+ * x-nextjs-action-not-found and the click silently fails ("Failed to find Server
+ * Action"). Seeing that header, the page reloads onto the new deployment, at
+ * most once a minute so it can never loop.
  */
 export default function ErrorReporter() {
   useEffect(() => {
@@ -42,6 +48,27 @@ export default function ErrorReporter() {
     };
     window.addEventListener("error", onError);
     window.addEventListener("unhandledrejection", onRejection);
+
+    const w = window as typeof window & { __rhFetchWatched?: boolean };
+    const originalFetch = window.fetch;
+    if (!w.__rhFetchWatched) {
+      w.__rhFetchWatched = true;
+      window.fetch = async (...args: Parameters<typeof fetch>) => {
+        const res = await originalFetch(...args);
+        try {
+          if (res.headers.get("x-nextjs-action-not-found") === "1") {
+            const last = Number(sessionStorage.getItem("rh-stale-reload") || 0);
+            if (Date.now() - last > 60_000) {
+              sessionStorage.setItem("rh-stale-reload", String(Date.now()));
+              window.location.reload();
+            }
+          }
+        } catch {
+          // storage blocked: leave the page as it is rather than risk a loop
+        }
+        return res;
+      };
+    }
     return () => {
       window.removeEventListener("error", onError);
       window.removeEventListener("unhandledrejection", onRejection);

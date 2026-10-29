@@ -86,6 +86,9 @@ export interface DashboardIssues {
   /** Saved links that aren't a listing, so they are not crawled at all. Clients
    *  that only use video reviews are not here: they need no listing (see video.videoOnly). */
   invalidLinks: { businessId: string; name: string; source: Source; url: string }[];
+  /** Links that crawl "successfully" but give us nothing to read (crawl.notice):
+   *  a private Facebook page, or a Google listing that has moved. */
+  noReviews: { businessId: string; name: string; source: Source; url: string; notice: string; since: string | null }[];
   /** More than a day past their crawl, and not already counted as failing. */
   lateCrawls: { count: number; examples: { name: string; businessId: string; source: Source; lastCrawledAt: string | null }[] };
   pendingVideo: number;
@@ -98,7 +101,7 @@ export interface DashboardOverview {
     reviews: { total: number; google: number; facebook: number; last30Days: number };
     averageRating: number | null;
     widgets: { total: number; views: number };
-    crawl: { upToDate: number; due: number; failing: number; lastCrawlAt: string | null };
+    crawl: { upToDate: number; due: number; failing: number; noReviews: number; lastCrawlAt: string | null };
   };
   topBusinesses: DashboardBusiness[];
   latestReviews: DashboardReview[];
@@ -276,6 +279,7 @@ export async function getDashboardOverview(): Promise<DashboardOverview> {
   const listingOf = new Map<string, string>();
   const invalid: DashboardIssues['invalidLinks'] = [];
   const videoOnly: DashboardOverview['video']['videoOnly'] = [];
+  const noReviews: DashboardIssues['noReviews'] = [];
   let crawlUpToDate = 0, crawlDue = 0, crawlFailing = 0, lastCrawl = 0;
   const addBusinesses = (rows: any[], source: Source, stats: Map<string, any>) => {
     for (const b of rows) {
@@ -289,7 +293,10 @@ export async function getDashboardOverview(): Promise<DashboardOverview> {
       else if (!crawlable) invalid.push({ businessId: String(b._id), name: b.name, source, url: b.url });
       const failing = crawlable && (b.crawl?.failures ?? 0) > 0;
       if (failing) crawlFailing++;
-      if (crawlable) {
+      // Crawled on time but nothing to read: not "up to date", its own warning.
+      const silent = crawlable && !failing && !!b.crawl?.notice;
+      if (silent) noReviews.push({ businessId: String(b._id), name: b.name, source, url: b.url, notice: b.crawl.notice, since: b.crawl.noticeAt ? new Date(b.crawl.noticeAt).toISOString() : null });
+      if (crawlable && !silent) {
         if (crawledAt && now - crawledAt < CRAWL_POLICY[source].everyDays * DAY_MS) crawlUpToDate++; else crawlDue++;
       }
       lastCrawl = Math.max(lastCrawl, crawledAt);
@@ -443,6 +450,7 @@ export async function getDashboardOverview(): Promise<DashboardOverview> {
     errors: { total: tracked.total, items: tracked.errors },
     crawlFailures,
     invalidLinks: invalid,
+    noReviews,
     duplicates: { extraEntries: businesses.length - listings.length, examples: duplicateExamples },
     lateCrawls: {
       count: late.length,
@@ -469,7 +477,7 @@ export async function getDashboardOverview(): Promise<DashboardOverview> {
       },
       averageRating: rated ? Math.round((ratingSum / rated) * 100) / 100 : null,
       widgets: { total: widgetAgg[0]?.n ?? 0, views: widgetAgg[0]?.views ?? 0 },
-      crawl: { upToDate: crawlUpToDate, due: crawlDue, failing: crawlFailing, lastCrawlAt: lastCrawl ? new Date(lastCrawl).toISOString() : null },
+      crawl: { upToDate: crawlUpToDate, due: crawlDue, failing: crawlFailing, noReviews: noReviews.length, lastCrawlAt: lastCrawl ? new Date(lastCrawl).toISOString() : null },
     },
     topBusinesses: [...listings].sort((a, b) => b.reviews - a.reviews).slice(0, 10),
     latestReviews,

@@ -40,7 +40,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       case 'saved':
         return res.status(200).json({
           ...outcome,
-          message: outcome.added
+          message: outcome.notice
+            ? outcome.notice
+            : outcome.added
             ? `Found ${outcome.added} new review${outcome.added === 1 ? '' : 's'}.`
             : 'No new reviews. Everything is up to date.',
         });

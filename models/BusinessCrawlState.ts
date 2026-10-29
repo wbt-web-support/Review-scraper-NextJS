@@ -34,6 +34,11 @@ export interface IBusinessCrawlState {
   runFinished?: boolean | null;
   /** Failed attempts to save the current run; after a few, the run is given up and re-crawled. */
   saveAttempts?: number;
+  /** The crawl "succeeded" but the link gave us nothing to read: Facebook said the
+   *  page is private, or a full Google crawl came back empty while we hold reviews.
+   *  Shown on the dashboard; cleared the next time the link returns reviews. */
+  notice?: string | null;
+  noticeAt?: Date | null;
 }
 
 export const BusinessCrawlStateSchema = new Schema<IBusinessCrawlState>({
@@ -50,4 +55,6 @@ export const BusinessCrawlStateSchema = new Schema<IBusinessCrawlState>({
   lastAdded: { type: Number, default: undefined },
   runFinished: { type: Boolean, default: undefined },
   saveAttempts: { type: Number, default: undefined },
+  notice: { type: String, default: undefined },
+  noticeAt: { type: Date, default: undefined },
 }, { _id: false });

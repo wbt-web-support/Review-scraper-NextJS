@@ -2,7 +2,7 @@ import type { Model, Types } from 'mongoose';
 import dbConnect from './mongodb';
 import * as apify from './apify';
 import type { ReviewSource, CrawlRunStatus } from './apify';
-import { mergeNewReviews, getLatestStoredReviewDate } from './storage';
+import { mergeNewReviews, getLatestStoredReviewDate, countStoredReviews } from './storage';
 import GoogleBusinessUrlModel from '../models/GoogleBusinessUrl.model';
 import FacebookBusinessUrlModel from '../models/FacebookBusinessUrl.model';
 import type { IBusinessCrawlState } from '../models/BusinessCrawlState';
@@ -87,6 +87,42 @@ export interface CrawlOutcome {
   added?: number;
   checked?: number;
   error?: string;
+  /** The crawl worked but the link gave us nothing to read (see crawl.notice). */
+  notice?: string;
+}
+
+/**
+ * Why a crawl that "succeeded" still gave us nothing usable, or null if it was fine.
+ *
+ * Found 29 Oct 2026: 13 links had returned nothing for weeks while showing as up to
+ * date. Facebook says so outright (a private page). For Google only a FULL crawl
+ * can tell, because an empty incremental is the normal "nothing new":
+ *  - it returned no reviews at all, though we hold some (the listing has moved), or
+ *  - it returned fewer than the listing shows AND we hold fewer too, so reviews
+ *    may really be missing (Thermwise's full crawl once gave 5 of 150).
+ */
+export async function crawlNotice(
+  source: ReviewSource,
+  urlHash: string,
+  mode: 'incremental' | 'full' | null | undefined,
+  result: { reviews: unknown[]; problem: string | null; listingCount: number | null },
+): Promise<string | null> {
+  if (result.problem) return result.problem;
+  if (source !== 'google' || mode !== 'full') return null;
+  const got = result.reviews.length;
+  if (got === 0) {
+    const held = await countStoredReviews(urlHash, source);
+    return held > 0
+      ? `Google returned no reviews for this link, though we hold ${held}. The listing has probably moved or been renamed: open the link, then paste the current listing link.`
+      : null;
+  }
+  if (result.listingCount != null && got < result.listingCount) {
+    const held = await countStoredReviews(urlHash, source);
+    if (held < result.listingCount - 2) {
+      return `Google's listing shows ${result.listingCount} reviews but gave us only ${got}, and we hold ${held}. Press Recrawl to try again; if it keeps happening, check the link.`;
+    }
+  }
+  return null;
 }
 
 /** Takes the lock on a business, or returns null if someone else holds it. */
@@ -191,7 +227,8 @@ async function collect(source: ReviewSource, business: CrawlBusiness, run: Crawl
   }
 
   try {
-    const reviews = await apify.fetchCrawlReviews(source, run.datasetId);
+    const result = await apify.fetchCrawlResult(source, run.datasetId);
+    const { reviews } = result;
     const { added, checked } = reviews.length
       ? await mergeNewReviews({ businessUrlId: String(business._id), url: business.url, urlHash: business.urlHash, source, reviews })
       : { added: 0, checked: 0 };
@@ -200,6 +237,12 @@ async function collect(source: ReviewSource, business: CrawlBusiness, run: Crawl
       const reason = run.statusMessage ? `: ${run.statusMessage}` : '';
       return recordFailure(source, business, `Apify run ${runId} ended ${run.status}${reason}. Saved the ${added} new reviews it found; will retry.`);
     }
+
+    // A run that "succeeded" but gave us nothing usable must not pass as "up to date".
+    const notice = await crawlNotice(source, business.urlHash, business.crawl?.runMode, result);
+    // Cleared only by a run that actually returned reviews (or, for Facebook, no
+    // error): an empty incremental proves nothing either way.
+    const clear = !notice && (reviews.length > 0 || source === 'facebook');
 
     await modelFor(source).updateOne(
       { _id: business._id },
@@ -210,12 +253,13 @@ async function collect(source: ReviewSource, business: CrawlBusiness, run: Crawl
           'crawl.lastAdded': added,
           'crawl.failures': 0,
           ...(business.crawl?.runMode === 'full' ? { 'crawl.lastFullAt': run.startedAt } : {}),
+          ...(notice ? { 'crawl.notice': notice, 'crawl.noticeAt': run.startedAt } : {}),
         },
-        $unset: { ...RUN_FIELDS, 'crawl.lastError': 1, 'crawl.retryAt': 1 },
+        $unset: { ...RUN_FIELDS, 'crawl.lastError': 1, 'crawl.retryAt': 1, ...(clear ? { 'crawl.notice': 1, 'crawl.noticeAt': 1 } : {}) },
       },
     );
-    console.log(`[crawler] ${source} "${business.name}": saved, ${added} new of ${checked} fetched`);
-    return { ...base, status: 'saved', added, checked };
+    console.log(`[crawler] ${source} "${business.name}": saved, ${added} new of ${checked} fetched${notice ? ` (notice: ${notice})` : ''}`);
+    return { ...base, status: 'saved', added, checked, ...(notice ? { notice } : {}) };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     // Apify no longer has the results (datasets expire): crawl again.

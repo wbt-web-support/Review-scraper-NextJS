@@ -179,6 +179,27 @@ function isRealReview(r: IReviewItem): boolean {
 
 /** Every review a finished run produced, parsed. Paged, so a big business is not truncated. */
 export async function fetchCrawlReviews(source: ReviewSource, datasetId: string): Promise<IReviewItem[]> {
+  return (await fetchCrawlResult(source, datasetId)).reviews;
+}
+
+/**
+ * Facebook's answer when it will not show a page's reviews. The run still
+ * "succeeds", with a single item like { error: 'not_available', errorDescription }.
+ * Worded for whoever reads the dashboard.
+ */
+function explainScraperError(source: ReviewSource, code: string, description: string): string {
+  if (source === 'facebook' && code === 'not_available') {
+    return "Facebook says this page's reviews are not public, so they cannot be read. The client needs to make the page and its reviews public.";
+  }
+  if (source === 'facebook' && code === 'no_items') {
+    return 'Facebook returned no reviews for this page: it is empty, private, or has reviews switched off.';
+  }
+  return `${source === 'facebook' ? 'Facebook' : 'Google'} said: ${description || code}`;
+}
+
+/** A finished run's reviews, the scraper's own error if it returned one instead, and
+ *  (Google) how many reviews the listing itself says it has. */
+export async function fetchCrawlResult(source: ReviewSource, datasetId: string): Promise<{ reviews: IReviewItem[]; problem: string | null; listingCount: number | null }> {
   const dataset = clientFor(source).dataset(datasetId);
   const items: unknown[] = [];
   const PAGE = 1000;
@@ -190,5 +211,11 @@ export async function fetchCrawlReviews(source: ReviewSource, datasetId: string)
   const parse = source === 'google'
     ? (i: unknown) => parseGoogleReviewFromApify(i as ApifyGoogleReviewItem)
     : (i: unknown) => parseFacebookReviewFromApify(i as ApifyFacebookReviewItem);
-  return items.map(parse).filter(isRealReview);
+  const reviews = items.map(parse).filter(isRealReview);
+  const failed = reviews.length === 0
+    ? (items as { error?: unknown; errorDescription?: unknown }[]).find((i) => i && typeof i.error === 'string')
+    : undefined;
+  const problem = failed ? explainScraperError(source, String(failed.error), String(failed.errorDescription ?? '')) : null;
+  const counted = (items as { reviewsCount?: unknown }[]).find((i) => i && typeof i.reviewsCount === 'number');
+  return { reviews, problem, listingCount: counted ? (counted.reviewsCount as number) : null };
 }

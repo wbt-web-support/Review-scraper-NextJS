@@ -102,9 +102,9 @@ export function Briefing({ data }: { data: DashboardOverview["briefing"] | undef
         <BriefingCard icon={TrendingUp} tint="bg-emerald-50 text-emerald-600" label="New in the last 30 days" value={fmt(reviews.last30Days)} sub="Reviews posted across all clients" />
         <BriefingCard icon={Star} tint="bg-amber-50 text-amber-600" label="Average rating" value={averageRating ? averageRating.toFixed(2) : "–"} sub={<span className="inline-flex items-center gap-1.5">{averageRating ? <Stars rating={averageRating} size={12} /> : null} Google reviews</span>} />
       </div>
-      <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border px-4 py-2.5 text-sm ${crawl.failing || crawl.due ? "border-amber-200 bg-amber-50 text-amber-900" : "border-emerald-200 bg-emerald-50 text-emerald-900"}`}>
+      <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border px-4 py-2.5 text-sm ${crawl.failing || crawl.due || crawl.noReviews ? "border-amber-200 bg-amber-50 text-amber-900" : "border-emerald-200 bg-emerald-50 text-emerald-900"}`}>
         <span className="inline-flex items-center gap-1.5 font-medium">
-          {crawl.failing || crawl.due ? <Clock className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+          {crawl.failing || crawl.due || crawl.noReviews ? <Clock className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
           Review crawling
         </span>
         <span>{fmt(crawl.upToDate)} clients up to date</span>
@@ -112,6 +112,11 @@ export function Briefing({ data }: { data: DashboardOverview["briefing"] | undef
         {crawl.failing > 0 && (
           <a href="#issues" className="inline-flex items-center gap-1 underline decoration-dotted underline-offset-2 hover:text-amber-950">
             <AlertTriangle className="h-3.5 w-3.5" />{fmt(crawl.failing)} failing, see why
+          </a>
+        )}
+        {crawl.noReviews > 0 && (
+          <a href="#issues" className="inline-flex items-center gap-1 underline decoration-dotted underline-offset-2 hover:text-amber-950">
+            <AlertTriangle className="h-3.5 w-3.5" />{fmt(crawl.noReviews)} {crawl.noReviews === 1 ? "link returns" : "links return"} no reviews, see why
           </a>
         )}
         <span className="text-xs opacity-75">Last crawl {timeAgo(crawl.lastCrawlAt)}</span>
@@ -364,7 +369,7 @@ function TrackedErrorItem({ e, onResolve }: { e: DashboardIssues["errors"]["item
 }
 
 export function Issues({ issues, onResolveError }: { issues: DashboardIssues | undefined; onResolveError?: (id: string) => Promise<void> }) {
-  const total = issues ? issues.errors.total + issues.crawlFailures.length + issues.invalidLinks.length + (issues.duplicates.extraEntries > 0 ? 1 : 0) + (issues.lateCrawls.count > 0 ? 1 : 0) + (issues.pendingVideo > 0 ? 1 : 0) : 0;
+  const total = issues ? issues.errors.total + issues.crawlFailures.length + issues.invalidLinks.length + (issues.noReviews?.length ?? 0) + (issues.duplicates.extraEntries > 0 ? 1 : 0) + (issues.lateCrawls.count > 0 ? 1 : 0) + (issues.pendingVideo > 0 ? 1 : 0) : 0;
   return (
     <div id="issues" className="scroll-mt-6">
       <Section title="Errors and issues" hint={issues && total === 0 ? undefined : "What needs attention, and what to do"}>
@@ -397,6 +402,24 @@ export function Issues({ issues, onResolveError }: { issues: DashboardIssues | u
                     </p>
                   </div>
                 ))}
+              </IssueGroup>
+            )}
+
+            {issues.noReviews?.length > 0 && (
+              <IssueGroup icon={AlertTriangle} tone="text-amber-700" title={`${issues.noReviews.length} ${issues.noReviews.length === 1 ? "link returns" : "links return"} no reviews`}>
+                <p className="text-xs leading-relaxed text-gray-700">The crawl runs on time but there is nothing to read, so new reviews for these clients are being missed. Nothing stored is lost. Fix the link (or ask the client to make their reviews public), then press Recrawl.</p>
+                <ul className="max-h-[16rem] space-y-2 overflow-y-auto pr-1">
+                  {issues.noReviews.map((l) => (
+                    <li key={l.businessId} className="rounded-lg bg-amber-50/60 p-2.5 text-xs">
+                      <div className="flex items-center justify-between gap-2">
+                        <Link href={`/reviews/${l.businessId}`} className="truncate font-medium text-gray-900 hover:text-blue-600">{l.name}</Link>
+                        <span className="shrink-0 text-[11px] text-gray-500">{l.source === "facebook" ? "Facebook" : "Google"}</span>
+                      </div>
+                      <p className="mt-1 leading-relaxed text-gray-700">{l.notice}</p>
+                      <p className="mt-0.5 truncate text-[11px] text-gray-400" title={l.url}>{l.url}</p>
+                    </li>
+                  ))}
+                </ul>
               </IssueGroup>
             )}
 
