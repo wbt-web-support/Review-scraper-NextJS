@@ -17,7 +17,8 @@
  *   Facebook has no star rating, so it shows the share who recommend (98%).
  * - data-size: small, medium (default) or large. data-caption: an optional line
  *   underneath.
- * - A white box by default (background, padding, rounded corners); change it with
+ * - A white box like the Badge's (white, a thin #E5E7EB border, 12px corners and
+ *   the same soft shadow); change it with
  *   site CSS on .reviewhub-summary, e.g. background: transparent.
  * - Takes the page's font. Every style is a zero-weight rule (:where), so a site's
  *   own CSS for these classes wins without !important. Classes: reviewhub-summary,
@@ -51,7 +52,7 @@
 
   // Zero specificity throughout, so any rule on the site beats it.
   var CSS = [
-    ':where(.reviewhub-summary){display:inline-flex;flex-direction:column;align-items:center;gap:.35em;line-height:1.15;font-size:16px;background:#fff;padding:.8em 1.2em;border-radius:.75em;box-sizing:border-box}',
+    ':where(.reviewhub-summary){display:inline-flex;flex-direction:column;align-items:center;gap:.35em;line-height:1.15;font-size:16px;background:#fff;border:1px solid #E5E7EB;border-radius:12px;box-shadow:0 2px 5px rgba(0,0,0,.06),0 1px 3px rgba(0,0,0,.04);padding:1em 1.25em;box-sizing:border-box}',
     ':where(.reviewhub-summary) :where(.rh-summary-row){display:flex;align-items:center;gap:.7em}',
     ':where(.reviewhub-summary) :where(.rh-summary-logo){flex:none;width:2.5em;height:2.5em}',
     ':where(.reviewhub-summary) :where(.rh-summary-logo svg){display:block;width:100%;height:100%}',
