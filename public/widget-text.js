@@ -10,7 +10,11 @@
  * - {count} is the business's real review count, the same number the Badge and Bar
  *   layouts show (326; 1,240 with a comma). Not rounded (Rahul, 27 Oct 2026).
  * - {rating} is the real average to one decimal (4.9; a 5.0 reads 5). For Facebook
- *   it is the share who recommend (98%).
+ *   it is the share of ALL reviews that recommend (98%). Both come from the feed's
+ *   allReviews figures, which ignore the widget's star filter: the raw numbers.
+ * - Fresh: the feed is asked under a key that changes each minute, so the numbers
+ *   are never more than about a minute behind, while one popular page still costs
+ *   the database one read a minute, not one per visitor.
  * - It takes the page's own font, size and colour; only the ★ is gold.
  * - Styling hooks: the span has the class reviewhub-text (and the id in the
  *   snippet), each star the class reviewhub-text-star. The gold is a zero-weight
@@ -59,7 +63,7 @@
 
   function load(id) {
     if (!feeds[id]) {
-      feeds[id] = fetch(BASE + '/api/public/widget-data/' + encodeURIComponent(id) + '?limit=1')
+      feeds[id] = fetch(BASE + '/api/public/widget-data/' + encodeURIComponent(id) + '?limit=1&m=' + Math.floor(Date.now() / 60000))
         .then(function (res) {
           if (!res.ok) throw new Error('HTTP ' + res.status);
           return res.json();
@@ -100,9 +104,10 @@
     // The class is the styling hook, so it is there even on a snippet pasted without it.
     if (el.classList && !el.classList.contains('reviewhub-text')) el.classList.add('reviewhub-text');
     load(id).then(function (data) {
-      var count = typeof data.totalReviewCount === 'number' ? data.totalReviewCount : null;
+      var all = data.allReviews || {};
+      var count = typeof all.count === 'number' ? all.count : typeof data.totalReviewCount === 'number' ? data.totalReviewCount : null;
       var source = data.widgetSettings && data.widgetSettings.businessUrl && data.widgetSettings.businessUrl.source === 'facebook' ? 'facebook' : 'google';
-      var rating = formatRating(data.averageRating, source);
+      var rating = formatRating(all.rating !== undefined && all.rating !== null ? all.rating : data.averageRating, source);
       // No reviews yet: keep whatever the span already says rather than "Over 0+".
       if (!count) return;
       var template = el.getAttribute('data-text') || DEFAULTS[source];

@@ -12,6 +12,8 @@ export interface PublicWidgetDataResponse {
   totalReviewCount?: number;
   totalFilteredReviewCount?: number;
   averageRating?: number | string;
+  /** Every review, no widget filter: for the Text layout. Added, never replacing. */
+  allReviews?: { count: number; rating: number | string | null };
 }
 
 // CORS headers for widget embedding
@@ -87,6 +89,7 @@ export default async function handler(
     let totalReviewCount = 0;
     let totalFilteredReviewCount = 0;
     let averageRating: number | string | undefined;
+    let rawAverage: number | string | null = null;
 
     const reviewSource: 'google' | 'facebook' = widgetDoc.businessUrlSource === 'FacebookBusinessUrl' ? 'facebook' : 'google';
     const offset = offsetQuery ? parseInt(offsetQuery as string) : 0;
@@ -120,6 +123,7 @@ export default async function handler(
       totalReviewCount = stats.totalCount;
       totalFilteredReviewCount = stats.filteredCount || stats.totalCount;
       if (stats.averageRating !== undefined && stats.averageRating !== null) averageRating = stats.averageRating;
+      rawAverage = stats.rawAverage ?? null;
     }
 
     // Determine the source for the widget settings
@@ -189,6 +193,9 @@ export default async function handler(
       totalReviewCount,
       totalFilteredReviewCount,
       averageRating,
+      // The raw figures, no widget filter, for the Text layout. A new field, so no
+      // existing widget reads anything different.
+      allReviews: { count: totalReviewCount, rating: rawAverage },
     });
 
   } catch (error) {

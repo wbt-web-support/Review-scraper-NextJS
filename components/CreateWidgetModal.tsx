@@ -449,13 +449,14 @@ const CreateWidgetModal = ({
   useEffect(() => {
     if (!textWidgetId) return;
     let live = true;
-    fetch(`/api/public/widget-data/${textWidgetId}?limit=1`)
+    // nocache: the editor reads the database itself, never a saved copy.
+    fetch(`/api/public/widget-data/${textWidgetId}?limit=1&nocache=true`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (!live || !data) return;
         setTextStats({
-          count: typeof data.totalReviewCount === 'number' ? data.totalReviewCount : null,
-          rating: data.averageRating,
+          count: typeof data.allReviews?.count === 'number' ? data.allReviews.count : typeof data.totalReviewCount === 'number' ? data.totalReviewCount : null,
+          rating: data.allReviews?.rating ?? data.averageRating,
           source: data.widgetSettings?.businessUrl?.source === 'facebook' ? 'facebook' : 'google',
         });
       })

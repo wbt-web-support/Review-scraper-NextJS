@@ -882,6 +882,10 @@ export const getReviewStatsAndReviews = async (
   totalCount: number;
   filteredCount?: number;
   averageRating: number | string;
+  /** Over EVERY review, no widget filter: Google's average, or the share of all
+   *  Facebook reviews that recommend. For the Text layout; the other layouts keep
+   *  using averageRating exactly as before. */
+  rawAverage?: number | string | null;
   reviews: IReviewItem[];
   source: 'google' | 'facebook';
 } | null> => {
@@ -1044,6 +1048,20 @@ export const getReviewStatsAndReviews = async (
                 },
               ]
             : [],
+
+          // A3. Facebook's share who recommend, over ALL reviews (no minRating), for
+          // the Text layout's raw figure. averageRating below stays filtered as before.
+          "globalRecommendStats": source === 'facebook'
+            ? [
+                {
+                  $group: {
+                    _id: null,
+                    all: { $sum: 1 },
+                    recommended: { $sum: { $cond: [{ $eq: ["$reviews.recommendationStatus", "recommended"] }, 1, 0] } },
+                  },
+                },
+              ]
+            : [],
           
           // B. Calculate stats for FILTERED reviews
           "filteredStats": [
@@ -1139,10 +1157,16 @@ export const getReviewStatsAndReviews = async (
     // We can also return a new field `filteredCount` if the widget needs to limit "Load More" (pagination).
     
 
+    const allRecommend = result[0].globalRecommendStats?.[0];
+    const rawAverage: number | string | null = source === 'facebook'
+      ? (allRecommend?.all ? `${Math.round((allRecommend.recommended / allRecommend.all) * 100)}%` : null)
+      : (globalRatingStats?.avgRating != null ? parseFloat(Number(globalRatingStats.avgRating).toFixed(1)) : null);
+
     return {
       totalCount: absoluteTotalCount, // THIS FIXES THE VISIBLE COUNT
       filteredCount: stats.count,     // THIS IS FOR PAGINATION LIMITS
       averageRating: formattedAvgRating,
+      rawAverage,
       reviews: reviewsWithSource,
       source: source
     };
