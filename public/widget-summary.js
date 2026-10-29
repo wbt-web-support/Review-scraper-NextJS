@@ -27,6 +27,9 @@
  *   (reviewhub-summary-ID-count and so on), to style one exact element.
  * - Fresh within about a minute; if the numbers cannot be fetched, the box stays
  *   empty rather than showing anything wrong.
+ * - Clicking it (or Enter/Space) opens the reviews panel, the Badge's own: the
+ *   Badge script is loaded on the first click and its showReviewsModal is used, so
+ *   the two panels look and behave the same and there is one copy of that code.
  *
  * Its own attribute (data-reviewhub-summary), so the other widget scripts on the
  * page never mistake it for theirs. Pasted twice, it runs once and fills every box.
@@ -66,6 +69,9 @@
     // Nothing to show yet (loading, or the numbers could not be fetched): take no space,
     // rather than an empty white box.
     ':where(.reviewhub-summary:empty){display:none}',
+    ':where(.reviewhub-summary[role=button]){cursor:pointer;transition:transform .2s ease,box-shadow .2s ease}',
+    ':where(.reviewhub-summary[role=button]:hover){transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.15),0 2px 6px rgba(0,0,0,.08)}',
+    ':where(.reviewhub-summary[aria-busy=true]){opacity:.7}',
     ':where(.reviewhub-summary.rh-summary--small){font-size:12px}',
     ':where(.reviewhub-summary.rh-summary--large){font-size:21px}',
   ].join('');
@@ -94,6 +100,44 @@
     if (cls) node.className = cls;
     if (text !== undefined) node.textContent = text;
     return node;
+  }
+
+  // The Badge's reviews panel, borrowed rather than copied. Loaded once, on the first
+  // click. Safe to load: the Badge only starts widgets for <script data-widget-id>
+  // tags, and this tag has none.
+  var badgeLoading = null;
+  function loadBadge() {
+    if (window.ReviewHubBadge && window.ReviewHubBadge.showReviewsModal) return Promise.resolve(window.ReviewHubBadge);
+    if (!badgeLoading) {
+      badgeLoading = new Promise(function (resolve, reject) {
+        var tag = document.createElement('script');
+        tag.src = BASE + '/widget-badge.js?v=1';
+        tag.async = true;
+        tag.onload = function () { window.ReviewHubBadge ? resolve(window.ReviewHubBadge) : reject(new Error('no badge')); };
+        tag.onerror = function () { badgeLoading = null; reject(new Error('badge did not load')); };
+        (document.head || document.documentElement).appendChild(tag);
+      });
+    }
+    return badgeLoading;
+  }
+
+  function openReviews(box, id) {
+    if (box.getAttribute('aria-busy') === 'true') return;
+    box.setAttribute('aria-busy', 'true');
+    // The first page of reviews, the widget's own number of them, as the Badge does.
+    var page = fetch(BASE + '/api/public/widget-data/' + encodeURIComponent(id) + '?m=' + Math.floor(Date.now() / 60000))
+      .then(function (res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); });
+    Promise.all([loadBadge(), page])
+      .then(function (both) {
+        var badge = both[0], data = both[1];
+        if (badge.injectStyles) badge.injectStyles();
+        var theme = data.widgetSettings && data.widgetSettings.themeColor;
+        return badge.showReviewsModal(data, { widgetId: id, containerId: box.id || null, themeColor: theme || undefined });
+      })
+      .catch(function () {
+        // Nothing to open; the box itself stays as it is.
+      })
+      .then(function () { box.removeAttribute('aria-busy'); });
   }
 
   /** Five grey stars with gold laid over them, cut to the real rating (4.3 fills 86%). */
@@ -141,6 +185,18 @@
       box.appendChild(row);
       var caption = box.getAttribute('data-caption');
       if (caption && caption.trim()) box.appendChild(el('div', 'rh-summary-caption', caption.trim()));
+      // Opens the reviews panel, by mouse or keyboard. Wired once per box.
+      box.setAttribute('role', 'button');
+      box.setAttribute('tabindex', '0');
+      box.setAttribute('aria-label', 'View ' + count.toLocaleString('en-GB') + ' ' + (source === 'facebook' ? 'Facebook' : 'Google') + ' reviews');
+      if (!box.getAttribute('data-reviewhub-open')) {
+        box.setAttribute('data-reviewhub-open', '1');
+        box.addEventListener('click', function (e) { e.preventDefault(); openReviews(box, id); });
+        box.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openReviews(box, id); }
+        });
+      }
+
       // An id on every part, made from the box's own id, for styling one exact element.
       if (box.id) {
         var parts = ['logo', 'stars', 'recommend', 'count', 'label', 'caption'];

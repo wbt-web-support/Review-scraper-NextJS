@@ -1132,7 +1132,8 @@ const CreateWidgetModal = ({
     // A phone or tablet preview is the frame at that device's width, so the widget's
     // own responsive rules (columns, card sizes) apply exactly as they would there.
     const device = PREVIEW_DEVICES.find((d) => d.value === previewDevice) ?? PREVIEW_DEVICES[0];
-    const frameHeight = selectedLayout === 'wall' ? 'h-[640px]' : selectedLayout === 'text' || selectedLayout === 'summary' ? 'h-[240px]' : device.width ? 'h-[560px]' : 'h-[400px]';
+    // The Summary opens the Badge's reviews sidebar when clicked, so it gets the Badge's room.
+    const frameHeight = selectedLayout === 'wall' ? 'h-[640px]' : selectedLayout === 'text' ? 'h-[240px]' : device.width ? 'h-[560px]' : 'h-[400px]';
     const frame = (
       <iframe
         srcDoc={previewHtml}
@@ -1589,6 +1590,7 @@ const CreateWidgetModal = ({
                       <li>Paste the code into a <strong>Custom HTML</strong> block, or any HTML box in your page builder.</li>
                       <li>Google and Facebook side by side: paste this client&apos;s Google Summary and Facebook Summary codes together, inside one row: <code className="bg-blue-100 px-1 rounded">{'<div style="display:flex;gap:40px;justify-content:center;align-items:center">'}</code> … <code className="bg-blue-100 px-1 rounded">{'</div>'}</code></li>
                       <li>It takes the page&apos;s font and keeps itself up to date as new reviews come in.</li>
+                      <li>Clicking it opens the reviews sidebar, the same one the Badge opens.</li>
                     </ul>
                     <p className="text-blue-900 text-sm font-medium mt-4 mb-1.5">Styling it with CSS</p>
                     <p className="text-blue-800 text-sm mb-2">
