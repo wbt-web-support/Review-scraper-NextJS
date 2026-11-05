@@ -15,7 +15,7 @@ import {
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "./ui/form";
-import { CATEGORY_KEY, DEFAULT_SERVICES, servicesFor, type ServiceCategory } from "../lib/reviewCategories";
+import { CATEGORY_KEY, DEFAULT_SERVICES, SERVICE_FILTER_UI, servicesFor, type ServiceCategory } from "../lib/reviewCategories";
 
 export interface EditableBusiness {
   _id: string;
@@ -176,7 +176,8 @@ export function EditBusinessDialog({
   const brandColor = form.watch("brandColor") || "#8A9A5B";
   // Services tag scraped reviews. A video business has none, so its dialog keeps
   // to the details and sends nothing new to its own endpoint.
-  const hasServices = endpoint === "/api/business-urls";
+  // Hidden behind SERVICE_FILTER_UI until the filter is ready for clients.
+  const hasServices = SERVICE_FILTER_UI && endpoint === "/api/business-urls";
 
   const updateRow = (key: string, patch: Partial<ServiceRow>) =>
     setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));

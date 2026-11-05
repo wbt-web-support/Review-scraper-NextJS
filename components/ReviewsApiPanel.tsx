@@ -4,6 +4,7 @@ import { Braces, Check, Copy, Eye, EyeOff, KeyRound, Loader, RefreshCw, ShieldCh
 import { Button } from "./ui/button";
 import { apiRequest } from "../lib/queryClient";
 import { useToast } from "../hooks/use-toast";
+import { SERVICE_FILTER_UI } from "../lib/reviewCategories";
 
 type Lang = "curl" | "node" | "php";
 const LANGS: { key: Lang; label: string }[] = [
@@ -44,16 +45,13 @@ const SAMPLE_RESPONSE = `{
   "averageRating": 4.8,
   "recommendedPercentage": null,
   "range": null,
-  "category": null,
-  "categories": [{ "key": "boiler", "label": "Boilers & heating", "count": 140 }],
-  "total": 219, "limit": 2000, "offset": 0, "hasMore": false,
+${SERVICE_FILTER_UI ? '  "category": null,\n  "categories": [{ "key": "boiler", "label": "Boilers & heating", "count": 140 }],\n' : ''}  "total": 219, "limit": 2000, "offset": 0, "hasMore": false,
   "reviews": [
     {
       "id": "…", "author": "Jane Smith", "rating": 5,
       "content": "Great service…", "postedAt": "2 weeks ago",
       "profilePicture": "https://…", "profileUrl": null,
-      "recommendationStatus": null, "source": "google",
-      "categories": ["boiler"]
+      "recommendationStatus": null, "source": "google"${SERVICE_FILTER_UI ? ',\n      "categories": ["boiler"]' : ''}
     }
   ]
 }`;
@@ -201,8 +199,11 @@ export function ReviewsApiPanel({ businessId, businessName, domain }: { business
                 <li><code className="rounded bg-gray-100 px-1">?limit=50&amp;offset=0</code> pages through the reviews, up to 2000 per request.</li>
                 <li><code className="rounded bg-gray-100 px-1">?from=2026-01-01&amp;to=2026-03-31</code> returns only reviews posted in that range, both days included. Either date can be left out.</li>
                 <li><code className="rounded bg-gray-100 px-1">?minRating=4</code> keeps only 4 and 5 star reviews. On Facebook, 2 or more keeps recommended reviews only.</li>
-                <li><code className="rounded bg-gray-100 px-1">?category=boiler</code> returns reviews about that service, plus general feedback that names no service. <code className="rounded bg-gray-100 px-1">categories</code> lists the business&apos;s services with counts.</li>
-                <li><code className="rounded bg-gray-100 px-1">?category=boiler,ev&amp;general=exclude</code> returns those two services only, without the general feedback.</li>
+                {/* Hidden behind SERVICE_FILTER_UI until the filter is ready for clients. */}
+                {SERVICE_FILTER_UI && (<>
+                  <li><code className="rounded bg-gray-100 px-1">?category=boiler</code> returns reviews about that service, plus general feedback that names no service. <code className="rounded bg-gray-100 px-1">categories</code> lists the business&apos;s services with counts.</li>
+                  <li><code className="rounded bg-gray-100 px-1">?category=boiler,ev&amp;general=exclude</code> returns those two services only, without the general feedback.</li>
+                </>)}
               </ul>
             </div>
           </details>

@@ -13,7 +13,7 @@ import { EditBusinessDialog } from "../../components/EditBusinessDialog";
 import { titleCaseName } from "@vrm/lib/tenants/display-name";
 import { apiRequest } from "../../lib/queryClient";
 import { useToast } from "../../hooks/use-toast";
-import { servicesFor, type ServiceCategory } from "../../lib/reviewCategories";
+import { SERVICE_FILTER_UI, servicesFor, type ServiceCategory } from "../../lib/reviewCategories";
 import { describeRetag } from "../../components/EditBusinessDialog";
 
 /**
@@ -240,15 +240,18 @@ export default function BusinessProfile() {
               <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">{reviews.length}</span>
             </h2>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => retagMutation.mutate()} disabled={retagMutation.isPending || reviews.length === 0} title="Run the service rules over the stored reviews again">
-                {retagMutation.isPending ? <Loader className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Tag className="mr-2 h-3.5 w-3.5" />} Re-tag reviews
-              </Button>
+              {/* Hidden behind SERVICE_FILTER_UI until the filter is ready for clients. */}
+              {SERVICE_FILTER_UI && (
+                <Button variant="outline" size="sm" onClick={() => retagMutation.mutate()} disabled={retagMutation.isPending || reviews.length === 0} title="Run the service rules over the stored reviews again">
+                  {retagMutation.isPending ? <Loader className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Tag className="mr-2 h-3.5 w-3.5" />} Re-tag reviews
+                </Button>
+              )}
               <Button variant="outline" size="sm" onClick={() => scrapeMutation.mutate()} disabled={scrapeMutation.isPending}>
                 <RefreshCcw className="mr-2 h-3.5 w-3.5" /> Recrawl
               </Button>
             </div>
           </div>
-          {reviews.length > 0 && (
+          {SERVICE_FILTER_UI && reviews.length > 0 && (
             <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label="Filter reviews by service">
               {[
                 { key: "all", label: "All", count: reviews.length },
@@ -289,7 +292,7 @@ export default function BusinessProfile() {
               reviews={filteredReviews}
               isLoading={reviewsLoading}
               urlHash={business.urlHash}
-              services={services}
+              services={SERVICE_FILTER_UI ? services : undefined}
               onReviewDeleted={() => queryClient.invalidateQueries({ queryKey: ["reviews", id] })}
               onReviewTagged={() => queryClient.invalidateQueries({ queryKey: ["reviews", id] })}
               emptyState={<div className="py-8 text-center text-gray-500">{serviceFilter === "all" ? "No reviews scraped yet." : "No reviews under this service."}</div>}

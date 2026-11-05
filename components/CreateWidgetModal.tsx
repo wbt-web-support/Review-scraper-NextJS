@@ -54,7 +54,7 @@ import {
   type LucideIcon
 } from "lucide-react";
 import { DEFAULT_TEXT, renderText, type TextSource } from "@/lib/textLayout";
-import { servicesFor, type ServiceCategory } from "@/lib/reviewCategories";
+import { servicesFor, type ServiceCategory, SERVICE_FILTER_UI } from "@/lib/reviewCategories";
 import { slugify } from "@vrm/lib/tenants/slug";
 import { normalizeRootDomain, reviewHostFor } from "@vrm/lib/domains/domain";
 import { suggestPassword } from "@vrm/lib/tenants/password";
@@ -386,7 +386,8 @@ const DEFAULT_SERVICE_FILTER: ServiceFilterSettings = { category: "", visitorFil
 
 /** The layouts that list reviews, and so can be filtered by service. */
 const FILTERABLE_LAYOUTS: readonly string[] = ["grid", "list", "carousel", "masonry", "wall"];
-const isFilterableLayout = (layout: string) => FILTERABLE_LAYOUTS.includes(layout);
+// Hidden behind SERVICE_FILTER_UI until the filter is ready for clients.
+const isFilterableLayout = (layout: string) => SERVICE_FILTER_UI && FILTERABLE_LAYOUTS.includes(layout);
 
 /** The filter's data-* attributes, one per line, lined up under data-layout in the snippet. */
 const serviceFilterEmbedAttributes = (filter: ServiceFilterSettings) => {

@@ -206,3 +206,12 @@ export function parseCategoryParam(raw: unknown): string[] {
   const keys = value.split(',').map((k) => k.trim().toLowerCase()).filter((k) => CATEGORY_KEY.test(k));
   return [...new Set(keys)].slice(0, 10);
 }
+
+/**
+ * Whether the service filter shows in the operator UI (widget editor controls,
+ * the Services section, the Service column, the re-tag button, the API notes).
+ * Off until it is ready for clients. The tagging itself, the feed parameter and
+ * the widget attributes keep working either way, so switching it on later shows
+ * reviews already tagged. Set NEXT_PUBLIC_SERVICE_FILTER_UI=true to turn it on.
+ */
+export const SERVICE_FILTER_UI = process.env.NEXT_PUBLIC_SERVICE_FILTER_UI === 'true';
