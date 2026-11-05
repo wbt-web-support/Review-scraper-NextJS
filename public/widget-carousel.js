@@ -481,7 +481,7 @@
         .rh-carousel-track-container { 
             overflow: hidden;
             width: 100%;
-            padding: 20px 0px;
+            padding: 0px 0px;
         }
         .rh-carousel-track {
           display: flex;
@@ -654,14 +654,21 @@
           color: #374151;
           margin-top: 0 !important;
           margin-bottom: 12px !important;
-          display: -webkit-box;
+          /* Four lines, then an ellipsis. The box must never be taller than
+             those lines: as a growing flex item it stretched to fill the card on
+             pages with bigger fonts, and the lines the clamp "hid" showed inside
+             it. The max-height is the same four lines as a hard stop, and the
+             !important keeps the page's own CSS from undoing the clamp. */
+          display: -webkit-box !important;
           -webkit-line-clamp: 4;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
-          flex-grow: 1;
+          -webkit-box-orient: vertical !important;
+          overflow: hidden !important;
+          max-height: calc(1.6em * 4);
+          flex: 0 0 auto;
           word-wrap: break-word;
           hyphens: auto;
         }
+        .rh-read-more.rh-hidden { display: none !important; }
         .rh-read-more {
           font-size: 0.85rem;
           font-weight: 500;
@@ -949,7 +956,7 @@
         }
 
         @media (max-width: ${CONFIG.CAROUSEL_SETTINGS.TABLET_BREAKPOINT}px) {
-          .rh-card-content { -webkit-line-clamp: 3; }
+          .rh-card-content { -webkit-line-clamp: 3; max-height: calc(1.6em * 3); }
           .rh-review-card { 
             padding: 20px;
             min-height: 310px; /* Intermediate height for tablet */
@@ -962,7 +969,7 @@
             padding: 18px;
             min-height: 300px; /* Intermediate height for foldable */
           }
-          .rh-card-content { -webkit-line-clamp: 3; }
+          .rh-card-content { -webkit-line-clamp: 3; max-height: calc(1.6em * 3); }
         }
 
         @media (max-width: ${CONFIG.CAROUSEL_SETTINGS.MOBILE_BREAKPOINT}px) {
@@ -984,7 +991,7 @@
           .rh-card-avatar { width: 40px; height: 40px; }
           .rh-card-author-name { font-size: 0.9rem; letter-spacing: normal; }
           .rh-card-review-meta { font-size: 0.75rem; }
-          .rh-card-content { font-size: 0.85rem; -webkit-line-clamp: 3; }
+          .rh-card-content { font-size: 0.85rem; -webkit-line-clamp: 3; max-height: calc(1.6em * 3); }
           .rh-read-more { font-size: 0.8rem; }
           .reviewhub-v2-widget-container ul.rh-carousel-dots,
           .single-content .reviewhub-v2-widget-container ul.rh-carousel-dots,
@@ -1135,7 +1142,7 @@
 
     // Pagination functions
     fetchReviewsWithPagination: async function (config, offset, limit) {
-      const cacheKey = `${config.widgetId}-${offset}-${limit || 'default'}-${config.t || 'live'}`;
+      const cacheKey = `${config.widgetId}-${offset}-${limit || 'default'}-${config.t || 'live'}${config.category ? '-' + config.category : ''}`;
 
       // Check cache first (only if not nocache)
       if (!config.nocache && this.reviewCache.has(cacheKey)) {
@@ -1151,6 +1158,8 @@
       if (limit) params.append('limit', limit.toString());
       if (config.nocache) params.append('nocache', 'true');
       if (config.t) params.append('t', config.t);
+      // One service's reviews (plus general feedback). Absent: every review, as before.
+      if (config.category) params.append('category', config.category);
 
       const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${config.widgetId}?${params.toString()}`;
 
@@ -1225,6 +1234,11 @@
       const carouselWrapper = container.querySelector('.rh-carousel-wrapper');
       if (!carouselWrapper) return;
 
+      // A fetch still in flight when the visitor switched service belongs to a
+      // carousel that is gone: its state object is no longer the one on record.
+      const liveState = this.widgetStates.get(carouselWrapper.getAttribute('data-widget-instance-key') || carouselWrapper.getAttribute('data-widget-id'));
+      if (liveState && liveState !== widgetState) return;
+
       const track = carouselWrapper.querySelector('.rh-carousel-track');
       if (!track) return;
 
@@ -1243,9 +1257,37 @@
       newSlides.forEach((slide) => {
         track.appendChild(slide);
       });
+      this.syncReadMoreButtons(container);
 
       // Update the carousel logic to handle new slides
       this.updateCarouselAfterNewReviews(carouselWrapper, newSlides.length);
+    },
+
+    /**
+     * Shows "Read More" only on reviews whose text the clamp actually cut. Whether
+     * four lines hold the text depends on the card's width and the page's font,
+     * so it is measured rather than guessed from the character count, and
+     * measured again when the page resizes or its fonts finish loading.
+     */
+    syncReadMoreButtons: function (root) {
+      (root || document).querySelectorAll('.rh-card-content').forEach((text) => {
+        const button = text.parentElement ? text.parentElement.querySelector('.rh-read-more') : null;
+        if (!button) return;
+        button.classList.toggle('rh-hidden', text.scrollHeight <= text.clientHeight + 1);
+      });
+      this.watchReadMoreButtons();
+    },
+
+    watchReadMoreButtons: function () {
+      if (this._readMoreWatched) return;
+      this._readMoreWatched = true;
+      let timer = null;
+      const resync = () => {
+        clearTimeout(timer);
+        timer = setTimeout(() => this.syncReadMoreButtons(document), 150);
+      };
+      window.addEventListener('resize', resync);
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(resync);
     },
 
     // New function to create a review slide element
@@ -1298,7 +1340,7 @@
           ${ratingDisplay}
           <div class="rh-card-content-wrapper">
               <p class="rh-card-content">${content}</p>
-              ${content.length > 120 ? `<button class="rh-read-more" data-review-index="${index}">Read More</button>` : ''} 
+              <button class="rh-read-more${content.length > 120 ? '' : ' rh-hidden'}" data-review-index="${index}">Read More</button> 
           </div>
         </div>
       `;
@@ -1427,7 +1469,9 @@
 
 
       if (!filteredReviews || filteredReviews.length === 0) {
-        container.innerHTML = '<div class="reviewhub-v2-error"><div class="reviewhub-v2-error-title">No reviews to display.</div><div class="reviewhub-v2-error-message">Check back later or add some reviews!</div></div>';
+        // The service buttons still show, so the visitor can pick another service.
+        container.innerHTML = this.renderCategoryFilter(data, config) + '<div class="reviewhub-v2-error"><div class="reviewhub-v2-error-title">No reviews to display.</div><div class="reviewhub-v2-error-message">Check back later or add some reviews!</div></div>';
+        this.attachCategoryFilterListeners(container, config);
         return;
       }
 
@@ -1451,6 +1495,12 @@
       const carouselId = `rh-carousel-${config.widgetId}-${Date.now()}`;
 
       // Get or create widget state for pagination
+      // How many reviews there are to page through. With a service chosen, that
+      // is the service's count, so the carousel stops asking once it has them all.
+      const knownTotal = (config.category && typeof data.totalFilteredReviewCount === 'number')
+        ? data.totalFilteredReviewCount
+        : ((typeof totalReviewCount === 'number' && totalReviewCount > 0) ? totalReviewCount : filteredReviews.length);
+
       const widgetStateKey = config._instanceId || `${config.widgetId}-${config.containerId || 'script'}`;
       if (!this.widgetStates.has(widgetStateKey)) {
        
@@ -1458,7 +1508,7 @@
           widgetId: config.widgetId,
           loadedReviews: filteredReviews,
           currentOffset: filteredReviews.length,
-          totalReviews: (typeof totalReviewCount === 'number' && totalReviewCount > 0) ? totalReviewCount : filteredReviews.length,
+          totalReviews: knownTotal,
           widgetSettings: widgetSettings,
           isFetching: false
         });
@@ -1468,7 +1518,7 @@
       // Update widget state with latest deduplicated data
       widgetState.widgetId = config.widgetId;
       widgetState.loadedReviews = filteredReviews;
-      widgetState.totalReviews = (typeof totalReviewCount === 'number' && totalReviewCount > 0) ? totalReviewCount : filteredReviews.length;
+      widgetState.totalReviews = knownTotal;
       widgetState.widgetSettings = widgetSettings;
       const reviewsToShow = widgetState.loadedReviews;
       const totalReviews = widgetState.totalReviews;
@@ -1524,7 +1574,7 @@
               ${ratingDisplay}
               <div class="rh-card-content-wrapper">
                   <p class="rh-card-content">${content}</p>
-                  ${content.length > 120 ? `<button class="rh-read-more" data-review-index="${index}">Read More</button>` : ''} 
+                  <button class="rh-read-more${content.length > 120 ? '' : ' rh-hidden'}" data-review-index="${index}">Read More</button> 
               </div>
             </div>
           </div>
@@ -1547,9 +1597,78 @@
 
       // Clear previous interaction listeners/timers for this instance before re-render
       this.cleanupInteractions(config._instanceId);
-      container.innerHTML = carouselHtml;
+      container.innerHTML = this.renderCategoryFilter(data, config) + carouselHtml;
+      this.syncReadMoreButtons(container);
       this.initCarouselLogic(carouselId, container, reviewsToShow, config, widgetSettings, widgetState);
       this.attachModalEventListeners(container, reviewsToShow, data, config);
+      this.attachCategoryFilterListeners(container, config);
+    },
+
+    /**
+     * The service buttons: "All", then one per service that has reviews, each
+     * with its count. Only when the snippet asks for them (data-category-filter).
+     * Reviews that name no service count under every button, so each number is
+     * what the visitor sees after pressing it.
+     */
+    renderCategoryFilter: function (data, config) {
+      if (!config.categoryFilter || config.categoryFilter === 'false') return '';
+      const categories = Array.isArray(data.categories) ? data.categories : [];
+      if (categories.length === 0) return '';
+      if (!document.getElementById('rh-carousel-filter-styles')) {
+        const style = document.createElement('style');
+        style.id = 'rh-carousel-filter-styles';
+        style.textContent = `
+          .rh-carousel-filter { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
+          .rh-carousel-chip { appearance: none; border: 1px solid #E5E7EB; background: #fff; color: #374151; border-radius: 999px; padding: 6px 14px; font: inherit; font-size: 14px; line-height: 1.3; cursor: pointer; transition: background .15s, color .15s, border-color .15s; }
+          .rh-carousel-chip:hover { border-color: #D1D5DB; background: #F9FAFB; }
+          .rh-carousel-chip-count { margin-left: 6px; font-size: 12px; color: #6B7280; }
+          .rh-carousel-chip.is-active { background: var(--rh-theme-color, #007bff); border-color: var(--rh-theme-color, #007bff); color: #fff; }
+          .rh-carousel-chip.is-active:hover { background: var(--rh-theme-color-dark, #0062cc); }
+          .rh-carousel-chip.is-active .rh-carousel-chip-count { color: rgba(255,255,255,.85); }
+        `;
+        document.head.appendChild(style);
+      }
+      const current = config.category || '';
+      const chip = (key, label, count) => {
+        const active = current === key;
+        const n = typeof count === 'number' ? `<span class="rh-carousel-chip-count">${count}</span>` : '';
+        return `<button type="button" class="rh-carousel-chip${active ? ' is-active' : ''}" data-category="${this.escapeHtml(key)}" aria-pressed="${active}">${this.escapeHtml(label)}${n}</button>`;
+      };
+      const allCount = typeof data.allCount === 'number' ? data.allCount : data.totalFilteredReviewCount;
+      return `
+        <div class="rh-carousel-filter" role="group" aria-label="Filter reviews by service">
+          ${chip('', 'All', allCount)}
+          ${categories.map((c) => chip(c.key, c.label, c.count)).join('')}
+        </div>
+      `;
+    },
+
+    markActiveCategory: function (bar, category) {
+      const current = category || '';
+      bar.querySelectorAll('.rh-carousel-chip').forEach((chip) => {
+        const active = (chip.getAttribute('data-category') || '') === current;
+        chip.classList.toggle('is-active', active);
+        chip.setAttribute('aria-pressed', String(active));
+      });
+    },
+
+    attachCategoryFilterListeners: function (container, config) {
+      const bar = container.querySelector('.rh-carousel-filter');
+      if (!bar) return;
+      bar.addEventListener('click', (event) => {
+        const chip = event.target.closest('.rh-carousel-chip');
+        if (!chip || !bar.contains(chip)) return;
+        const key = chip.getAttribute('data-category') || undefined;
+        if ((config.category || '') === (key || '')) return;
+        config.category = key;
+        // Tear the old carousel down: its autoplay timer and drag/resize listeners,
+        // its loaded slides, and the "already initialised" mark, then build it
+        // again in the same box for the chosen service.
+        this.cleanupInteractions(config._instanceId);
+        this.widgetStates.delete(config._instanceId || `${config.widgetId}-${config.containerId || 'script'}`);
+        if (this._initializedWidgets) this._initializedWidgets.delete(config._instanceId);
+        this.initWidget(config);
+      });
     },
 
     initCarouselLogic: function (carouselId, containerElem, reviews, globalConfig, widgetSettings, widgetState) {
@@ -2211,10 +2330,11 @@
         ...userConfig
       };
 
-      // Prevent duplicate initializations - create a unique identifier for this widget instance
-      const widgetInstanceId = config.containerId ?
+      // Prevent duplicate initializations - create a unique identifier for this widget instance.
+      // A reload in place (the visitor chose a service) keeps the instance it had.
+      const widgetInstanceId = (config._container && config._instanceId) ? config._instanceId : (config.containerId ?
         `${config.widgetId}-${config.containerId}` :
-        `${config.widgetId}-script-${config._scriptTag ? Array.from(document.scripts).indexOf(config._scriptTag) : Date.now()}`;
+        `${config.widgetId}-script-${config._scriptTag ? Array.from(document.scripts).indexOf(config._scriptTag) : Date.now()}`);
       config._instanceId = widgetInstanceId;
 
       // Check if this widget instance has already been initialized
@@ -2227,7 +2347,10 @@
       
       this.injectStyles();
 
-      if (config.containerId) {
+      if (config._container) {
+        // A reload in place (the visitor chose a service): the same box, not a new one.
+        container = config._container;
+      } else if (config.containerId) {
         container = document.getElementById(config.containerId);
         if (!container) {
           // Remove from initialized set since we failed
@@ -2248,12 +2371,23 @@
       container.setAttribute('data-reviewhub-instance-id', widgetInstanceId);
 
       container.className = 'reviewhub-v2-widget-container'; // Base class for all widgets
-      container.innerHTML = `
+      config._container = container;
+      const loadingHtml = `
         <div class="reviewhub-v2-loading">
           <div class="reviewhub-v2-spinner"></div>
           <div>Loading reviews...</div>
         </div>
       `;
+      // On a reload the service buttons stay where they are, with the chosen one
+      // highlighted, and only the carousel below them shows the spinner.
+      const filterBar = container.querySelector('.rh-carousel-filter');
+      if (filterBar) {
+        this.markActiveCategory(filterBar, config.category);
+        Array.from(container.children).forEach((child) => { if (child !== filterBar) child.remove(); });
+        container.insertAdjacentHTML('beforeend', loadingHtml);
+      } else {
+        container.innerHTML = loadingHtml;
+      }
       // Set theme color variables on the container early for spinner
       container.style.setProperty('--rh-theme-color', config.themeColor);
       container.style.setProperty('--rh-theme-color-dark', this.darkenColor(config.themeColor, 15));
@@ -2278,7 +2412,9 @@
         const widgetId = config.widgetId;
 
         // Check for pre-fetched data from widget.js
-        if (window.ReviewHubMain && window.ReviewHubMain.dataCache && window.ReviewHubMain.dataCache.has(widgetId)) {
+        // The loader's pre-fetched copy is unfiltered, so a widget pinned to one
+        // service fetches its own.
+        if (!config.category && window.ReviewHubMain && window.ReviewHubMain.dataCache && window.ReviewHubMain.dataCache.has(widgetId)) {
           try {
            
             data = await window.ReviewHubMain.dataCache.get(widgetId);
@@ -2366,6 +2502,10 @@
         showProfilePictures: script.getAttribute('data-show-avatars') || undefined,
         nocache: script.getAttribute('data-nocache') === 'true',
         t: script.getAttribute('data-t') || undefined,
+        // Service filter: data-category="boiler" shows one service's reviews;
+        // data-category-filter="true" adds buttons for the visitor to choose.
+        category: script.getAttribute('data-category') || undefined,
+        categoryFilter: script.getAttribute('data-category-filter') || undefined,
         _scriptTag: script
       };
       // Filter out undefined values from config

@@ -598,7 +598,16 @@
           margin-bottom: 12px;
           word-wrap: break-word;
           hyphens: auto;
+          /* Six lines, then an ellipsis; "Read More" opens the whole review.
+             The max-height is the same six lines as a hard stop, and the
+             !important keeps the page's own CSS from undoing the clamp. */
+          display: -webkit-box !important;
+          -webkit-line-clamp: 6;
+          -webkit-box-orient: vertical !important;
+          overflow: hidden !important;
+          max-height: calc(1.6em * 6);
         }
+        .rh-masonry-read-more.rh-hidden { display: none !important; }
 
         .rh-masonry-read-more {
           font-size: 0.85rem;
@@ -975,13 +984,15 @@
     },
 
     // New function to fetch reviews with pagination
-    fetchReviewsWithPagination: async function (widgetId, offset = 0, limit = null, nocache = false, t = null) {
+    fetchReviewsWithPagination: async function (widgetId, offset = 0, limit = null, nocache = false, t = null, category = null) {
       const params = new URLSearchParams();
       if (limit) params.append('limit', limit.toString());
       params.append('offset', offset.toString());
       params.append('layout', 'masonry');
       if (nocache) params.append('nocache', 'true');
       if (t) params.append('t', t);
+      // One service's reviews (plus general feedback). Absent: every review, as before.
+      if (category) params.append('category', category);
 
       const queryString = params.toString();
       const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${widgetId}?${queryString}`;
@@ -1112,13 +1123,19 @@
       container.style.setProperty('--masonry-theme-color-dark', this.darkenColor(themeColor, 15));
       container.style.setProperty('--masonry-theme-color-light', this.lightenColor(themeColor, 90));
 
+      const filterHtml = this.renderCategoryFilter(data, config);
+
       if (!filteredReviews || filteredReviews.length === 0) {
-        container.innerHTML = '<div class="reviewhub-masonry-error"><div class="reviewhub-masonry-error-title">No reviews to display.</div><div class="reviewhub-masonry-error-message">Check back later or add some reviews!</div></div>';
+        container.innerHTML = filterHtml + '<div class="reviewhub-masonry-error"><div class="reviewhub-masonry-error-title">No reviews to display.</div><div class="reviewhub-masonry-error-message">Check back later or add some reviews!</div></div>';
+        this.attachCategoryFilterListeners(container, config);
         return;
       }
 
-      // Determine how many reviews to show
-      const totalReviews = totalReviewCount || filteredReviews.length;
+      // Determine how many reviews to show. With a service chosen, "more" means
+      // more of that service, not of the whole business.
+      const totalReviews = (config.category && typeof data.totalFilteredReviewCount === 'number')
+        ? data.totalFilteredReviewCount
+        : (totalReviewCount || filteredReviews.length);
       const currentDisplayCount = Math.min(widgetState.displayCount, filteredReviews.length);
       const reviewsToShow = filteredReviews.slice(0, currentDisplayCount);
       const hasMoreReviews = totalReviews > widgetState.currentOffset;
@@ -1181,7 +1198,7 @@
             ${ratingDisplay}
             
             <div class="rh-masonry-card-content">${content}</div>
-            ${isLongText ? `<button class="rh-masonry-read-more" data-review-index="${index}">Read More</button>` : ''}
+            <button class="rh-masonry-read-more${isLongText ? '' : ' rh-hidden'}" data-review-index="${index}">Read More</button>
           </div>
         `;
       }).join('');
@@ -1274,6 +1291,7 @@
       const masonryHtml = `
         <div class="reviewhub-masonry-widget">
           ${headerHtml}
+          ${filterHtml}
           <div class="reviewhub-masonry-container">
             ${reviewCardsHtml}
           </div>
@@ -1282,8 +1300,100 @@
       `;
 
       container.innerHTML = masonryHtml;
+      this.syncReadMoreButtons(container);
       this.attachModalEventListeners(container, filteredReviews, data, config);
       this.attachLoadMoreEventListeners(container, data, config);
+      this.attachCategoryFilterListeners(container, config);
+    },
+
+    /**
+     * The service buttons: "All", then one per service that has reviews, each
+     * with its count. Only when the snippet asks for them (data-category-filter).
+     * Reviews that name no service count under every button, so each number is
+     * what the visitor sees after pressing it.
+     */
+    renderCategoryFilter: function (data, config) {
+      if (!config.categoryFilter || config.categoryFilter === 'false') return '';
+      const categories = Array.isArray(data.categories) ? data.categories : [];
+      if (categories.length === 0) return '';
+      if (!document.getElementById('rh-masonry-filter-styles')) {
+        const style = document.createElement('style');
+        style.id = 'rh-masonry-filter-styles';
+        style.textContent = `
+          .reviewhub-masonry-filter { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 20px; }
+          .reviewhub-masonry-chip { appearance: none; border: 1px solid #E5E7EB; background: #fff; color: #374151; border-radius: 999px; padding: 6px 14px; font: inherit; font-size: 14px; line-height: 1.3; cursor: pointer; transition: background .15s, color .15s, border-color .15s; }
+          .reviewhub-masonry-chip:hover { border-color: #D1D5DB; background: #F9FAFB; }
+          .reviewhub-masonry-chip-count { margin-left: 6px; font-size: 12px; color: #6B7280; }
+          .reviewhub-masonry-chip.is-active { background: var(--masonry-theme-color, #3B82F6); border-color: var(--masonry-theme-color, #3B82F6); color: #fff; }
+          .reviewhub-masonry-chip.is-active:hover { background: var(--masonry-theme-color-dark, #2563EB); }
+          .reviewhub-masonry-chip.is-active .reviewhub-masonry-chip-count { color: rgba(255,255,255,.85); }
+        `;
+        document.head.appendChild(style);
+      }
+      const current = config.category || '';
+      const chip = (key, label, count) => {
+        const active = current === key;
+        const n = typeof count === 'number' ? `<span class="reviewhub-masonry-chip-count">${count}</span>` : '';
+        return `<button type="button" class="reviewhub-masonry-chip${active ? ' is-active' : ''}" data-category="${this.escapeHtml(key)}" aria-pressed="${active}">${this.escapeHtml(label)}${n}</button>`;
+      };
+      const allCount = typeof data.allCount === 'number' ? data.allCount : data.totalFilteredReviewCount;
+      return `
+        <div class="reviewhub-masonry-filter" role="group" aria-label="Filter reviews by service">
+          ${chip('', 'All', allCount)}
+          ${categories.map((c) => chip(c.key, c.label, c.count)).join('')}
+        </div>
+      `;
+    },
+
+    markActiveCategory: function (bar, category) {
+      const current = category || '';
+      bar.querySelectorAll('.reviewhub-masonry-chip').forEach((chip) => {
+        const active = (chip.getAttribute('data-category') || '') === current;
+        chip.classList.toggle('is-active', active);
+        chip.setAttribute('aria-pressed', String(active));
+      });
+    },
+
+    attachCategoryFilterListeners: function (container, config) {
+      const bar = container.querySelector('.reviewhub-masonry-filter');
+      if (!bar) return;
+      bar.addEventListener('click', (event) => {
+        const chip = event.target.closest('.reviewhub-masonry-chip');
+        if (!chip || !bar.contains(chip)) return;
+        const key = chip.getAttribute('data-category') || undefined;
+        if ((config.category || '') === (key || '')) return;
+        config.category = key;
+        // Fresh state: the reviews loaded so far were the previous service's.
+        this.widgetStates.delete(config.widgetId);
+        this.initWidget(config);
+      });
+    },
+
+    /**
+     * Shows "Read More" only on reviews whose text the clamp actually cut. Whether
+     * six lines hold the text depends on the column's width and the page's font,
+     * so it is measured rather than guessed from the character count, and
+     * measured again when the page resizes or its fonts finish loading.
+     */
+    syncReadMoreButtons: function (root) {
+      (root || document).querySelectorAll('.rh-masonry-card-content').forEach((text) => {
+        const button = text.parentElement ? text.parentElement.querySelector('.rh-masonry-read-more') : null;
+        if (!button) return;
+        button.classList.toggle('rh-hidden', text.scrollHeight <= text.clientHeight + 1);
+      });
+      this.watchReadMoreButtons();
+    },
+
+    watchReadMoreButtons: function () {
+      if (this._readMoreWatched) return;
+      this._readMoreWatched = true;
+      let timer = null;
+      const resync = () => {
+        clearTimeout(timer);
+        timer = setTimeout(() => this.syncReadMoreButtons(document), 150);
+      };
+      window.addEventListener('resize', resync);
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(resync);
     },
 
     attachModalEventListeners: function (container, reviews, allData, config) {
@@ -1315,7 +1425,10 @@
             const newData = await this.fetchReviewsWithPagination(
               config.widgetId,
               widgetState.currentOffset,
-              CONFIG.MASONRY_SETTINGS.LOAD_MORE_INCREMENT
+              CONFIG.MASONRY_SETTINGS.LOAD_MORE_INCREMENT,
+              undefined,
+              undefined,
+              config.category
             );
 
             if (newData && newData.reviews && newData.reviews.length > 0) {
@@ -1457,7 +1570,10 @@
 
       this.injectStyles();
 
-      if (config.containerId) {
+      if (config._container) {
+        // A reload in place (the visitor chose a service): the same box, not a new one.
+        container = config._container;
+      } else if (config.containerId) {
         container = document.getElementById(config.containerId);
         if (!container) {
           const errDiv = document.createElement('div');
@@ -1474,12 +1590,26 @@
       }
 
       container.className = 'reviewhub-masonry-widget-container';
-      container.innerHTML = `
+      config._container = container;
+      const loadingHtml = `
         <div class="reviewhub-masonry-loading">
           <div class="reviewhub-masonry-spinner"></div>
           <div>Loading reviews...</div>
         </div>
       `;
+      // On a reload the service buttons stay where they are, with the chosen one
+      // highlighted, and only the reviews below them show the spinner.
+      const filterBar = container.querySelector('.reviewhub-masonry-filter');
+      const reviewsBox = container.querySelector('.reviewhub-masonry-container');
+      if (filterBar && reviewsBox) {
+        this.markActiveCategory(filterBar, config.category);
+        reviewsBox.style.display = 'block';
+        reviewsBox.innerHTML = loadingHtml;
+        const loadMore = container.querySelector('.rh-masonry-load-more-container');
+        if (loadMore) loadMore.remove();
+      } else {
+        container.innerHTML = loadingHtml;
+      }
 
       container.style.setProperty('--masonry-theme-color', config.themeColor);
       container.style.setProperty('--masonry-theme-color-dark', this.darkenColor(config.themeColor, 15));
@@ -1501,7 +1631,9 @@
         const widgetId = config.widgetId;
 
         // Check for pre-fetched data from widget.js
-        if (window.ReviewHubMain && window.ReviewHubMain.dataCache && window.ReviewHubMain.dataCache.has(widgetId)) {
+        // The loader's pre-fetched copy is unfiltered, so a widget pinned to one
+        // service fetches its own.
+        if (!config.category && window.ReviewHubMain && window.ReviewHubMain.dataCache && window.ReviewHubMain.dataCache.has(widgetId)) {
           try {
            
             data = await window.ReviewHubMain.dataCache.get(widgetId);
@@ -1513,7 +1645,7 @@
         if (!data) {
           if (config.layout === 'masonry') {
             try {
-              data = await this.fetchReviewsWithPagination(config.widgetId, 0, CONFIG.MASONRY_SETTINGS.INITIAL_REVIEW_COUNT, config.nocache, config.t);
+              data = await this.fetchReviewsWithPagination(config.widgetId, 0, CONFIG.MASONRY_SETTINGS.INITIAL_REVIEW_COUNT, config.nocache, config.t, config.category);
             } catch (error) {
               // Fallback to old method if pagination fails
               const params = new URLSearchParams();
@@ -1578,6 +1710,10 @@
         layout: script.getAttribute('data-layout') || 'masonry',
         nocache: script.getAttribute('data-nocache') === 'true',
         t: script.getAttribute('data-t') || undefined,
+        // Service filter: data-category="boiler" shows one service's reviews;
+        // data-category-filter="true" adds buttons for the visitor to choose.
+        category: script.getAttribute('data-category') || undefined,
+        categoryFilter: script.getAttribute('data-category-filter') || undefined,
         _scriptTag: script
       };
 

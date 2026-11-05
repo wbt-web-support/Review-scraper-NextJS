@@ -8,6 +8,8 @@
  *   data-speed      "slow", "normal", "fast", or a number of pixels per second
  *   data-height     height of a vertical wall in pixels (default 600)
  *   data-theme      "light" or "dark" cards
+ *   data-category   one service's reviews only (plus general feedback), e.g. "boiler"
+ *   data-category-filter  "true" adds buttons so the visitor can pick a service
  *
  * The scrolling is a CSS transform animation rather than anything driven from script,
  * so it runs on the compositor and keeps going smoothly while the host page is busy.
@@ -560,10 +562,14 @@
           color: #DC2626;
         }
         .rh-wall-card-text {
-          display: -webkit-box;
-          -webkit-box-orient: vertical;
+          /* The max-height is the same lines as a hard stop, and the !important
+             keeps the page's own CSS from undoing the clamp. */
+          display: -webkit-box !important;
+          -webkit-box-orient: vertical !important;
           -webkit-line-clamp: 7;
-          overflow: hidden;
+          max-height: calc(1.6em * 7);
+          overflow: hidden !important;
+          flex: 0 0 auto;
           font-size: 0.95rem;
           line-height: 1.6;
           color: #1F2937;
@@ -571,6 +577,7 @@
         }
         .rh-wall-horizontal .rh-wall-card-text {
           -webkit-line-clamp: 4;
+          max-height: calc(1.6em * 4);
         }
         .reviewhub-wall-widget-container .rh-wall-read-more {
           all: unset;
@@ -852,6 +859,8 @@
       params.append('layout', 'wall');
       if (config.nocache) params.append('nocache', 'true');
       if (config.t) params.append('t', config.t);
+      // One service's reviews (plus general feedback). Absent: every review, as before.
+      if (config.category) params.append('category', config.category);
 
       const apiUrl = `${CONFIG.API_DOMAIN}/api/public/widget-data/${config.widgetId}?${params.toString()}`;
       return await this.fetchWithRetry(apiUrl);
@@ -1018,13 +1027,17 @@
       container.style.setProperty('--wall-theme-color', themeColor);
       container.style.setProperty('--wall-theme-ink', this.isLightColor(themeColor) ? '#111827' : '#FFFFFF');
 
+      // The service buttons sit above the wall, outside the scrolling area.
+      const filterHtml = this.renderCategoryFilter(data, config);
+
       if (reviews.length === 0) {
-        container.innerHTML = '<div class="reviewhub-wall-error"><div class="reviewhub-wall-error-title">No reviews to display.</div><div class="reviewhub-wall-error-message">Check back later or add some reviews!</div></div>';
+        container.innerHTML = filterHtml + '<div class="reviewhub-wall-error"><div class="reviewhub-wall-error-title">No reviews to display.</div><div class="reviewhub-wall-error-message">Check back later or add some reviews!</div></div>';
+        this.attachCategoryFilterListeners(container, config);
         return;
       }
 
       const vertical = settings.direction === 'vertical';
-      container.innerHTML = `
+      container.innerHTML = filterHtml + `
         <div class="rh-wall rh-wall-${settings.direction}" role="region" aria-label="Customer reviews">
           <div class="rh-wall-viewport"${vertical ? ` style="height: ${settings.height}px"` : ''}></div>
         </div>
@@ -1051,9 +1064,12 @@
           }
         }, 150);
       };
+      // Kept on the state so a reload (the visitor picked a service) can let them go.
       if (typeof ResizeObserver === 'function') {
-        new ResizeObserver(relayout).observe(state.viewport);
+        state.observer = new ResizeObserver(relayout);
+        state.observer.observe(state.viewport);
       } else {
+        state.onResize = relayout;
         window.addEventListener('resize', relayout);
       }
 
@@ -1063,6 +1079,91 @@
           if (state.viewport.isConnected) this.layoutWall(state);
         });
       }
+
+      this.attachCategoryFilterListeners(container, config);
+    },
+
+    /**
+     * The service buttons: "All", then one per service that has reviews, each
+     * with its count. Only when the snippet asks for them (data-category-filter).
+     * Reviews that name no service count under every button, so each number is
+     * what the visitor sees after pressing it. Styled for both card themes: the
+     * container carries rh-wall-dark, the same switch the cards use.
+     */
+    renderCategoryFilter: function (data, config) {
+      if (!config.categoryFilter || config.categoryFilter === 'false') return '';
+      const categories = Array.isArray(data.categories) ? data.categories : [];
+      if (categories.length === 0) return '';
+      if (!document.getElementById('rh-wall-filter-styles')) {
+        const style = document.createElement('style');
+        style.id = 'rh-wall-filter-styles';
+        style.textContent = `
+          .reviewhub-wall-filter { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
+          .reviewhub-wall-chip { appearance: none; border: 1px solid #E5E7EB; background: #fff; color: #374151; border-radius: 999px; padding: 6px 14px; font: inherit; font-size: 14px; line-height: 1.3; cursor: pointer; transition: background .15s, color .15s, border-color .15s; }
+          .reviewhub-wall-chip:hover { border-color: #D1D5DB; background: #F9FAFB; }
+          .reviewhub-wall-chip-count { margin-left: 6px; font-size: 12px; color: #6B7280; }
+          .reviewhub-wall-chip.is-active,
+          .reviewhub-wall-chip.is-active:hover { background: var(--wall-theme-color, #3B82F6); border-color: var(--wall-theme-color, #3B82F6); color: var(--wall-theme-ink, #FFFFFF); }
+          .reviewhub-wall-chip.is-active .reviewhub-wall-chip-count { color: inherit; opacity: .85; }
+          .rh-wall-dark .reviewhub-wall-chip { border-color: rgba(255,255,255,.14); background: rgba(255,255,255,.06); color: #E5E7EB; }
+          .rh-wall-dark .reviewhub-wall-chip:hover { border-color: rgba(255,255,255,.28); background: rgba(255,255,255,.12); }
+          .rh-wall-dark .reviewhub-wall-chip-count { color: #9CA3AF; }
+          .rh-wall-dark .reviewhub-wall-chip.is-active,
+          .rh-wall-dark .reviewhub-wall-chip.is-active:hover { background: var(--wall-theme-color, #3B82F6); border-color: var(--wall-theme-color, #3B82F6); color: var(--wall-theme-ink, #FFFFFF); }
+          .rh-wall-dark .reviewhub-wall-chip.is-active .reviewhub-wall-chip-count { color: inherit; }
+        `;
+        document.head.appendChild(style);
+      }
+      const current = config.category || '';
+      const chip = (key, label, count) => {
+        const active = current === key;
+        const n = typeof count === 'number' ? `<span class="reviewhub-wall-chip-count">${count}</span>` : '';
+        return `<button type="button" class="reviewhub-wall-chip${active ? ' is-active' : ''}" data-category="${this.escapeHtml(key)}" aria-pressed="${active}">${this.escapeHtml(label)}${n}</button>`;
+      };
+      const allCount = typeof data.allCount === 'number' ? data.allCount : data.totalFilteredReviewCount;
+      return `
+        <div class="reviewhub-wall-filter" role="group" aria-label="Filter reviews by service">
+          ${chip('', 'All', allCount)}
+          ${categories.map((c) => chip(c.key, c.label, c.count)).join('')}
+        </div>
+      `;
+    },
+
+    markActiveCategory: function (bar, category) {
+      const current = category || '';
+      bar.querySelectorAll('.reviewhub-wall-chip').forEach((chip) => {
+        const active = (chip.getAttribute('data-category') || '') === current;
+        chip.classList.toggle('is-active', active);
+        chip.setAttribute('aria-pressed', String(active));
+      });
+    },
+
+    attachCategoryFilterListeners: function (container, config) {
+      const bar = container.querySelector('.reviewhub-wall-filter');
+      if (!bar) return;
+      bar.addEventListener('click', (event) => {
+        const chip = event.target.closest('.reviewhub-wall-chip');
+        if (!chip || !bar.contains(chip)) return;
+        const key = chip.getAttribute('data-category') || undefined;
+        if ((config.category || '') === (key || '')) return;
+        config.category = key;
+        this.reloadWall(container, config);
+      });
+    },
+
+    /**
+     * Rebuilds the wall in the same box for a new service. The scrolling is a CSS
+     * animation on the lanes, so replacing them is what stops it; what has to be
+     * let go by hand is the instance's resize watcher and its state.
+     */
+    reloadWall: function (container, config) {
+      const state = this.instances.get(container);
+      if (state) {
+        if (state.observer) state.observer.disconnect();
+        if (state.onResize) window.removeEventListener('resize', state.onResize);
+        this.instances.delete(container);
+      }
+      this.initWidget(config);
     },
 
     /** "Read more" lives on cards that get re-rendered on every relayout, so listen once, higher up. */
@@ -1151,19 +1252,30 @@
     },
 
     loadWall: async function (container, config, settings) {
-      container.innerHTML = `
+      const loadingHtml = `
         <div class="reviewhub-wall-loading"${settings.direction === 'vertical' ? ` style="min-height: ${settings.height}px"` : ''}>
           <div class="reviewhub-wall-spinner"></div>
           <div>Loading reviews...</div>
         </div>
       `;
+      // On a reload the service buttons stay where they are, with the chosen one
+      // highlighted, and only the wall below them shows the spinner.
+      const filterBar = container.querySelector('.reviewhub-wall-filter');
+      const wall = container.querySelector('.rh-wall, .reviewhub-wall-error, .reviewhub-wall-loading');
+      if (filterBar && wall) {
+        this.markActiveCategory(filterBar, config.category);
+        wall.outerHTML = loadingHtml;
+      } else {
+        container.innerHTML = loadingHtml;
+      }
 
       try {
         let data;
 
-        // Check for pre-fetched data from widget.js
+        // Check for pre-fetched data from widget.js. The loader's copy is
+        // unfiltered, so a wall pinned to one service fetches its own.
         const cache = window.ReviewHubMain && window.ReviewHubMain.dataCache;
-        if (cache && cache.has(config.widgetId)) {
+        if (!config.category && cache && cache.has(config.widgetId)) {
           try {
             data = await cache.get(config.widgetId);
           } catch (e) {
@@ -1197,7 +1309,10 @@
       this.injectStyles();
 
       let container;
-      if (config.containerId) {
+      if (config._container) {
+        // A reload in place (the visitor chose a service): the same box, not a new one.
+        container = config._container;
+      } else if (config.containerId) {
         container = document.getElementById(config.containerId);
         if (!container) {
           const errDiv = document.createElement('div');
@@ -1212,6 +1327,7 @@
       } else {
         return;
       }
+      config._container = container;
 
       container.classList.add('reviewhub-wall-widget-container');
       container.classList.toggle('rh-wall-dark', settings.theme === 'dark');
@@ -1262,6 +1378,10 @@
         theme: script.getAttribute('data-theme') || undefined,
         nocache: script.getAttribute('data-nocache') === 'true',
         t: script.getAttribute('data-t') || undefined,
+        // Service filter: data-category="boiler" shows one service's reviews;
+        // data-category-filter="true" adds buttons for the visitor to choose.
+        category: script.getAttribute('data-category') || undefined,
+        categoryFilter: script.getAttribute('data-category-filter') || undefined,
         _scriptTag: script
       };
 
