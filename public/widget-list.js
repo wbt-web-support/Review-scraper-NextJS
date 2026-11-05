@@ -553,7 +553,7 @@
 
         .rh-list-item-text {
           font-size: 0.95rem;
-          line-height: 1.6;
+          line-height: 1.6 !important; /* the max-height below counts on this */
           color: #374151;
           margin-bottom: 12px;
           /* Five lines, then an ellipsis; "Read More" opens the whole review.

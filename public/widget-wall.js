@@ -571,7 +571,7 @@
           overflow: hidden !important;
           flex: 0 0 auto;
           font-size: 0.95rem;
-          line-height: 1.6;
+          line-height: 1.6 !important; /* the max-height below counts on this */
           color: #1F2937;
           overflow-wrap: break-word;
         }
