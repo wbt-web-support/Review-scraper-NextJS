@@ -1,5 +1,6 @@
 import mongoose, { Schema, Document, Model, Types } from 'mongoose';
 import { BusinessCrawlStateSchema, type IBusinessCrawlState } from './BusinessCrawlState';
+import type { ServiceCategory } from '../lib/reviewCategories';
 
 /**
  * The link a scraped business keeps to its Video Review Manager tenant in Supabase.
@@ -37,9 +38,20 @@ export interface IBusinessUrl extends Document {
   /** Secret key for the JSON reviews API. See GoogleBusinessUrl.model for the note. */
   apiKey?: string;
   crawl?: IBusinessCrawlState;
+  /**
+   * The business's own service categories for its reviews (see lib/reviewCategories).
+   * Absent means the default trades list; an empty list switches categories off.
+   */
+  services?: ServiceCategory[];
   addedAt?: Date;
   lastScrapedAt?: Date;
 }
+const ServiceCategorySchema = new Schema<ServiceCategory>({
+  key: { type: String, required: true },
+  label: { type: String, required: true },
+  keywords: { type: [String], default: [] },
+}, { _id: false });
+
 const BusinessUrlSchema: Schema<IBusinessUrl> = new Schema({
   userId: { type: Schema.Types.ObjectId, ref: 'User', index: true, sparse: true },
   name: { type: String, required: true },
@@ -70,6 +82,7 @@ const BusinessUrlSchema: Schema<IBusinessUrl> = new Schema({
   // so whichever loads first owns the schema; without it here, writes are dropped.
   apiKey: { type: String, select: false, unique: true, sparse: true },
   crawl: { type: BusinessCrawlStateSchema, required: false },
+  services: { type: [ServiceCategorySchema], required: false, default: undefined },
   addedAt: { type: Date, default: Date.now },
   lastScrapedAt: { type: Date },
 });

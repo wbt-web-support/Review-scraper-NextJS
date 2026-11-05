@@ -3,6 +3,7 @@ import dbConnect from './mongodb';
 import * as apify from './apify';
 import type { ReviewSource, CrawlRunStatus } from './apify';
 import { mergeNewReviews, getLatestStoredReviewDate, countStoredReviews } from './storage';
+import { servicesFor, type ServiceCategory } from './reviewCategories';
 import GoogleBusinessUrlModel from '../models/GoogleBusinessUrl.model';
 import FacebookBusinessUrlModel from '../models/FacebookBusinessUrl.model';
 import type { IBusinessCrawlState } from '../models/BusinessCrawlState';
@@ -53,6 +54,8 @@ interface CrawlBusiness {
   urlHash: string;
   lastScrapedAt?: Date | null;
   crawl?: IBusinessCrawlState;
+  /** The business's own service categories; absent means the default list. */
+  services?: ServiceCategory[] | null;
 }
 
 const SOURCES: ReviewSource[] = ['google', 'facebook'];
@@ -218,7 +221,7 @@ async function collect(source: ReviewSource, business: CrawlBusiness, run: Crawl
       let kept = 0;
       try {
         const partial = await apify.fetchCrawlReviews(source, run.datasetId);
-        if (partial.length) kept = (await mergeNewReviews({ businessUrlId: String(business._id), url: business.url, urlHash: business.urlHash, source, reviews: partial })).added;
+        if (partial.length) kept = (await mergeNewReviews({ businessUrlId: String(business._id), url: business.url, urlHash: business.urlHash, source, reviews: partial, services: servicesFor(business) })).added;
       } catch { /* nothing to keep */ }
       return recordFailure(source, business, `Apify run ${runId} ran for over 3 hours and was aborted; kept ${kept} new reviews it had found.`);
     }
@@ -230,7 +233,7 @@ async function collect(source: ReviewSource, business: CrawlBusiness, run: Crawl
     const result = await apify.fetchCrawlResult(source, run.datasetId);
     const { reviews } = result;
     const { added, checked } = reviews.length
-      ? await mergeNewReviews({ businessUrlId: String(business._id), url: business.url, urlHash: business.urlHash, source, reviews })
+      ? await mergeNewReviews({ businessUrlId: String(business._id), url: business.url, urlHash: business.urlHash, source, reviews, services: servicesFor(business), place: result.place })
       : { added: 0, checked: 0 };
 
     if (!run.succeeded) {

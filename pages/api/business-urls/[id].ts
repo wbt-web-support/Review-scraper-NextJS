@@ -9,6 +9,7 @@ import { IBusinessUrl } from '@/models/BusinessUrl.model';
 import { purgeTenant } from '@vrm/lib/tenants/purge';
 import { updateTenantDetails } from '@/lib/videoTenant';
 import { z } from 'zod';
+import { parseServices } from '@/lib/reviewCategories';
 
 /**
  * Editable business details. All optional -- an edit sends only what changed. Mirrors
@@ -22,6 +23,12 @@ const editBusinessSchema = z.object({
   phone: z.string().trim().max(40).optional(),
   brandColor: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Brand colour must be a hex value like #8A9A5B.').optional(),
   logoUrl: z.union([z.string().url('Enter a valid URL.'), z.literal('')]).optional(),
+  // The business's service categories for its reviews. Checked by parseServices.
+  services: z.array(z.object({
+    key: z.string(),
+    label: z.string(),
+    keywords: z.union([z.array(z.string()), z.string()]),
+  })).max(20).optional(),
 });
 
 interface DetailErrorItem {
@@ -77,10 +84,15 @@ export default async function handler(
         return res.status(400).json({ message: parsed.error.issues[0]?.message ?? 'Invalid details.' });
       }
       const d = parsed.data;
+      const services = d.services !== undefined ? parseServices(d.services) : undefined;
+      if (services && 'error' in services) {
+        return res.status(400).json({ message: services.error });
+      }
 
       // Write the edit to Mongo (the source of truth the operator sees).
       await storage.updateBusinessUrlDetails(businessUrlId_param, {
         name: d.name,
+        services: services?.services,
         details: {
           firstName: d.firstName,
           lastName: d.lastName,
@@ -105,6 +117,13 @@ export default async function handler(
         if (!synced.ok) {
           console.error(`[business-urls PUT] tenant sync failed for ${business.video.tenantId}: ${synced.error}`);
         }
+      }
+
+      // New categories mean new tags: re-run the rules over the stored reviews
+      // now, so the widgets and the reviews page show the change at once.
+      if (services && business.urlHash && (business.source === 'google' || business.source === 'facebook')) {
+        const retagged = await storage.recategorizeBusiness(business.urlHash, business.source, services.services);
+        return res.status(200).json({ message: 'Business updated.', categories: retagged } as { message: string });
       }
 
       return res.status(200).json({ message: 'Business updated.' });

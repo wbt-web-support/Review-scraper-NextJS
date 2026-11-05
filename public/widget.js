@@ -350,7 +350,9 @@
       }
 
       // Start early data fetch in parallel with script loading
-      if (config.widgetId) {
+      // Not for a widget pinned to one service: the early copy is unfiltered and
+      // the layout script would ignore it anyway.
+      if (config.widgetId && !config.category) {
         this.prefetchWidgetData(config.widgetId, layout);
       }
 
@@ -400,7 +402,7 @@
     initWidgetsParallel: async function (configs) {
       // Start prefetching data for all widgets immediately, before scripts load
       configs.forEach(config => {
-        if (config.widgetId) {
+        if (config.widgetId && !config.category) {
           this.prefetchWidgetData(config.widgetId, config.layout || CONFIG.DEFAULT_LAYOUT);
         }
       });
@@ -616,6 +618,9 @@
         columns: script.getAttribute('data-columns') || undefined,
         rows: script.getAttribute('data-rows') || undefined,
         speed: script.getAttribute('data-speed') || undefined,
+        // Service filter, passed through to the layout script (see widget-grid.js).
+        category: script.getAttribute('data-category') || undefined,
+        categoryFilter: script.getAttribute('data-category-filter') || undefined,
         height: script.getAttribute('data-height') || undefined,
         theme: script.getAttribute('data-theme') || undefined,
 

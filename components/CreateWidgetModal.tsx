@@ -54,6 +54,7 @@ import {
   type LucideIcon
 } from "lucide-react";
 import { DEFAULT_TEXT, renderText, type TextSource } from "@/lib/textLayout";
+import { servicesFor, type ServiceCategory } from "@/lib/reviewCategories";
 import { slugify } from "@vrm/lib/tenants/slug";
 import { normalizeRootDomain, reviewHostFor } from "@vrm/lib/domains/domain";
 import { suggestPassword } from "@vrm/lib/tenants/password";
@@ -123,7 +124,7 @@ const emptyVideoForm = (): VideoFormValues => ({
 // Version query used in widget bundle URLs so browsers/CDNs can cache between deployments.
 // Bump NEXT_PUBLIC_WIDGET_VERSION (or this default) when you need to invalidate caches.
 const WIDGET_VERSION =
-  process.env.NEXT_PUBLIC_WIDGET_VERSION ?? "1";
+  process.env.NEXT_PUBLIC_WIDGET_VERSION ?? "2";
 
 // Map layout to the correct widget file
 const widgetFileFor = (layout: string) => {
@@ -368,6 +369,91 @@ const TextLayoutControls = ({
   );
 };
 
+/**
+ * The service filter for the layouts that list reviews. Like the wall's settings
+ * it travels in the snippet as data-* attributes (public/widget-*.js read them),
+ * so nothing is saved: one widget can be pinned to the boiler reviews on the
+ * boiler page and offer every service on the home page.
+ */
+export interface ServiceFilterSettings {
+  /** A service key to pin the embed to, or "" for every service. */
+  category: string;
+  /** Adds the All / service buttons above the reviews. */
+  visitorFilter: boolean;
+}
+
+const DEFAULT_SERVICE_FILTER: ServiceFilterSettings = { category: "", visitorFilter: false };
+
+/** The layouts that list reviews, and so can be filtered by service. */
+const FILTERABLE_LAYOUTS: readonly string[] = ["grid", "list", "carousel", "masonry", "wall"];
+const isFilterableLayout = (layout: string) => FILTERABLE_LAYOUTS.includes(layout);
+
+/** The filter's data-* attributes, one per line, lined up under data-layout in the snippet. */
+const serviceFilterEmbedAttributes = (filter: ServiceFilterSettings) => {
+  const attributes: [string, string][] = [];
+  if (filter.category) attributes.push(["category", filter.category]);
+  if (filter.visitorFilter) attributes.push(["category-filter", "true"]);
+  return attributes.map(([name, value]) => `\n        data-${name}="${escapeHtml(value)}"`).join("");
+};
+
+// Outside CreateWidgetModal so it keeps its identity (see WallLayoutControls).
+const ServiceFilterControls = ({
+  value,
+  services,
+  onChange,
+}: {
+  value: ServiceFilterSettings;
+  services: ServiceCategory[];
+  onChange: (value: ServiceFilterSettings) => void;
+}) => (
+  <div className="bg-white border border-gray-200 rounded-xl p-4">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-4">
+      <h4 className="font-semibold text-gray-900">Service Filter</h4>
+      <p className="text-sm text-gray-500">
+        Show one service&apos;s reviews, or let visitors pick. It lives in the snippet, so the same widget can differ per page.
+      </p>
+    </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <Label htmlFor="serviceFilterCategory" className="text-sm font-medium text-gray-700">Show reviews for</Label>
+        <Select
+          value={value.category || "all"}
+          onValueChange={(category) => onChange({ ...value, category: category === "all" ? "" : category })}
+        >
+          <SelectTrigger id="serviceFilterCategory" className="mt-1.5">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All services</SelectItem>
+            {services.map((service) => (
+              <SelectItem key={service.key} value={service.key}>{service.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="mt-1.5 text-xs text-gray-500">
+          {services.length === 0
+            ? "This business has no services set up. Edit the business to add them."
+            : "Reviews that mention no service are shown with every service."}
+        </p>
+      </div>
+      <div>
+        <Label htmlFor="serviceFilterVisitor" className="text-sm font-medium text-gray-700">Let visitors filter by service</Label>
+        <div className="mt-1.5 flex h-10 items-center gap-3">
+          <Switch
+            id="serviceFilterVisitor"
+            checked={value.visitorFilter}
+            onCheckedChange={(visitorFilter) => onChange({ ...value, visitorFilter })}
+          />
+          <span className="text-sm text-gray-600">{value.visitorFilter ? "On" : "Off"}</span>
+        </div>
+        <p className="mt-1.5 text-xs text-gray-500">
+          Adds All / service buttons above the reviews. Reviews that mention no service show under every button.
+        </p>
+      </div>
+    </div>
+  </div>
+);
+
 /** The Summary layout's settings. Like the wall's, they travel in the snippet. */
 export interface SummarySettings {
   size: "small" | "medium" | "large";
@@ -452,6 +538,7 @@ const CreateWidgetModal = ({
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [videoForm, setVideoForm] = useState<VideoFormValues>(emptyVideoForm);
   const [wallSettings, setWallSettings] = useState<WallSettings>(DEFAULT_WALL_SETTINGS);
+  const [serviceFilter, setServiceFilter] = useState<ServiceFilterSettings>(DEFAULT_SERVICE_FILTER);
   const [previewDevice, setPreviewDevice] = useState<PreviewDevice>("desktop");
   const [summarySettings, setSummarySettings] = useState<SummarySettings>(DEFAULT_SUMMARY_SETTINGS);
   // The Text layout's wording. Empty means the default for the business's platform.
@@ -513,12 +600,30 @@ const CreateWidgetModal = ({
         setVideoForm(emptyVideoForm());
       }
       setWallSettings(DEFAULT_WALL_SETTINGS);
+      setServiceFilter(DEFAULT_SERVICE_FILTER);
       setPreviewDevice("desktop");
       setSummarySettings(DEFAULT_SUMMARY_SETTINGS);
       setTextTemplate("");
       setActiveTab(initialTab);
     }
   }, [isOpen, mode, widget, initialTab]);
+
+  // The services the filter can offer: the chosen business's own list, else the defaults.
+  const selectedBusinessServices = servicesFor(businessUrls.find((url) => url._id === formData.businessUrlId));
+  const selectedBusinessServiceKeys = selectedBusinessServices.map((service) => service.key).join(",");
+
+  // The filter belongs to the list-style layouts and to the chosen business: a
+  // service picked for one business means nothing on another.
+  useEffect(() => {
+    if (!isFilterableLayout(selectedLayout)) {
+      setServiceFilter(DEFAULT_SERVICE_FILTER);
+      return;
+    }
+    const keys = selectedBusinessServiceKeys.split(",");
+    setServiceFilter((current) =>
+      current.category && !keys.includes(current.category) ? { ...current, category: "" } : current,
+    );
+  }, [selectedLayout, selectedBusinessServiceKeys]);
 
   // The Text layout quotes the real numbers, so fetch them once it is picked: the
   // same public feed, and the same count and rating, the widget itself will use.
@@ -754,7 +859,7 @@ const CreateWidgetModal = ({
 <script async fetchpriority="high"
         src="${domain}/${widgetFileFor(layout)}?v=${WIDGET_VERSION}"
         ${widgetIdAttribute}="${widgetId}"
-        data-layout="${layout}"${layout === 'wall' ? wallEmbedAttributes(wallSettings) : ''}
+        data-layout="${layout}"${layout === 'wall' ? wallEmbedAttributes(wallSettings) : ''}${isFilterableLayout(layout) ? serviceFilterEmbedAttributes(serviceFilter) : ''}
         data-container-id="${containerId}">
 </script>`;
   };
@@ -1511,6 +1616,9 @@ const CreateWidgetModal = ({
                 {selectedLayout === 'wall' && (
                   <WallLayoutControls value={wallSettings} onChange={setWallSettings} />
                 )}
+                {isFilterableLayout(selectedLayout) && (
+                  <ServiceFilterControls value={serviceFilter} services={selectedBusinessServices} onChange={setServiceFilter} />
+                )}
                 {selectedLayout === 'text' && (
                   <TextLayoutControls value={textTemplate} onChange={setTextTemplate} source={textSource} stats={textStats} />
                 )}
@@ -1524,6 +1632,9 @@ const CreateWidgetModal = ({
                 <LayoutSelector />
                 {selectedLayout === 'wall' && (
                   <WallLayoutControls value={wallSettings} onChange={setWallSettings} />
+                )}
+                {isFilterableLayout(selectedLayout) && (
+                  <ServiceFilterControls value={serviceFilter} services={selectedBusinessServices} onChange={setServiceFilter} />
                 )}
                 {selectedLayout === 'text' && (
                   <TextLayoutControls value={textTemplate} onChange={setTextTemplate} source={textSource} stats={textStats} />
@@ -1644,7 +1755,7 @@ const CreateWidgetModal = ({
                             <code>{`<div id="homepage-reviews"></div>
 <script src="${domain}/${widgetFileFor(selectedLayout)}"
         ${selectedLayout === 'carousel' ? 'data-reviewhub-widget-id' : 'data-widget-id'}="${widgetId}"
-        data-layout="${selectedLayout}"${selectedLayout === 'wall' ? wallEmbedAttributes(wallSettings) : ''}
+        data-layout="${selectedLayout}"${selectedLayout === 'wall' ? wallEmbedAttributes(wallSettings) : ''}${isFilterableLayout(selectedLayout) ? serviceFilterEmbedAttributes(serviceFilter) : ''}
         data-container-id="homepage-reviews">
 </script>`}</code>
                           </pre>

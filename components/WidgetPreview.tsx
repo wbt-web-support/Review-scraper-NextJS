@@ -21,6 +21,8 @@ export interface IReviewItemFromAPI {
   postedAt: string;
   profilePicture?: string;
   recommendationStatus?: 'recommended' | 'not_recommended' | string;
+  /** Service categories the review is about (keys). Empty or absent: general feedback. */
+  categories?: string[];
 }
 
 export interface IWidgetSettingsFromForm {

@@ -27,8 +27,11 @@ import {
   AlertDialogTitle,
 } from "./ui/alert-dialog";
 import { Button } from "./ui/button";
+import { Checkbox } from "./ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { formatTimeAgo } from "../lib/utils";
 import Image from "next/image";
+import type { ServiceCategory } from "../lib/reviewCategories";
 
 export interface IReviewItem {
   _id?: string;       
@@ -45,6 +48,9 @@ export interface IReviewItem {
   scrapedAt?: string | Date; 
   profilePicture?: string; 
   userProfile?: string;
+  /** Service categories (keys of the business's services). Absent or empty: general feedback. */
+  categories?: string[];
+  categorySource?: 'rule' | 'manual';
 }
 interface ReviewTableProps {
   reviews: IReviewItem[];
@@ -53,14 +59,50 @@ interface ReviewTableProps {
   error?: Error | null;
   onReviewDeleted?: (reviewId: string) => void;
   urlHash?: string;
+  /** The business's service categories. With these, each row shows its tags and can be re-tagged by hand. */
+  services?: ServiceCategory[];
+  onReviewTagged?: (reviewId: string, categories: string[], categorySource: 'rule' | 'manual') => void;
 }
 
-const ReviewTable = ({  reviews, isLoading = false, emptyState, error, onReviewDeleted, urlHash }: ReviewTableProps) => {
+type Tagging = { categories: string[]; categorySource: 'rule' | 'manual' };
+
+/** The row's tags as small chips; "General" when it has none. */
+function ServiceChips({ tagging, services }: { tagging: Tagging; services: ServiceCategory[] }) {
+  const labels = tagging.categories
+    .map((key) => services.find((s) => s.key === key)?.label ?? key);
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1">
+      {labels.length === 0 ? (
+        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">General</span>
+      ) : labels.map((label) => (
+        <span key={label} className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">{label}</span>
+      ))}
+      {tagging.categorySource === 'manual' && (
+        <span className="text-[10px] uppercase tracking-wide text-slate-400" title="Set by hand; the rules leave it alone">manual</span>
+      )}
+    </span>
+  );
+}
+
+const ReviewTable = ({  reviews, isLoading = false, emptyState, error, onReviewDeleted, urlHash, services, onReviewTagged }: ReviewTableProps) => {
   const [selectedReview, setSelectedReview] = useState<IReviewItem | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [reviewToDelete, setReviewToDelete] = useState<IReviewItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Hand-set tags, shown at once; dropped when fresh reviews arrive.
+  const [tagOverrides, setTagOverrides] = useState<Record<string, Tagging>>({});
+  const [tagEditorFor, setTagEditorFor] = useState<string | null>(null);
+  const [tagDraft, setTagDraft] = useState<string[]>([]);
+  const [isSavingTags, setIsSavingTags] = useState(false);
+  useEffect(() => { setTagOverrides({}); }, [reviews]);
+
+  const taggingOf = (review: IReviewItem): Tagging =>
+    (review.reviewId && tagOverrides[review.reviewId]) || {
+      categories: review.categories ?? [],
+      categorySource: review.categorySource ?? 'rule',
+    };
 
 
   const openReviewModal = (review: IReviewItem) => {
@@ -122,6 +164,38 @@ const ReviewTable = ({  reviews, isLoading = false, emptyState, error, onReviewD
   const handleDeleteCancel = () => {
     setDeleteDialogOpen(false);
     setReviewToDelete(null);
+  };
+
+  /** Saves a review's tags by hand, or hands it back to the rules with null. */
+  const saveTags = async (review: IReviewItem, categories: string[] | null) => {
+    if (!review.reviewId || !urlHash) return;
+    setIsSavingTags(true);
+    try {
+      const response = await fetch('/api/reviews/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reviewId: review.reviewId,
+          source: review.source || review.businessUrl?.source || 'google',
+          urlHash,
+          categories,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        toast({ title: "Could not save the tags", description: data.message || "Please try again.", variant: "destructive" });
+        return;
+      }
+      const result = data as Tagging;
+      setTagOverrides((prev) => ({ ...prev, [review.reviewId as string]: result }));
+      onReviewTagged?.(review.reviewId, result.categories, result.categorySource);
+      setTagEditorFor(null);
+      toast({ title: categories === null ? "Back to automatic tags" : "Review tagged" });
+    } catch {
+      toast({ title: "Could not save the tags", description: "Check your connection and try again.", variant: "destructive" });
+    } finally {
+      setIsSavingTags(false);
+    }
   };
 
   // Function to truncate text and determine if "Read more" is needed
@@ -220,6 +294,9 @@ const ReviewTable = ({  reviews, isLoading = false, emptyState, error, onReviewD
               <TableHead className="px-4 py-3 text-xs font-medium text-slate-500  uppercase tracking-wider">Reviewer</TableHead>
               <TableHead className="w-[120px] px-4 py-3 text-xs font-medium text-slate-500  uppercase tracking-wider">Rating</TableHead>
               <TableHead className="px-4 py-3 text-xs font-medium text-slate-500  uppercase tracking-wider">Review</TableHead>
+              {services && (
+                <TableHead className="w-[170px] px-4 py-3 text-xs font-medium text-slate-500  uppercase tracking-wider">Service</TableHead>
+              )}
               <TableHead className="w-[150px] px-4 py-3 text-xs font-medium text-slate-500  uppercase tracking-wider text-right">Date</TableHead>
               <TableHead className="w-[100px] px-4 py-3 text-xs font-medium text-slate-500  uppercase tracking-wider text-center">Actions</TableHead>
             </TableRow>
@@ -340,6 +417,61 @@ const ReviewTable = ({  reviews, isLoading = false, emptyState, error, onReviewD
                       );
                     })()}
                   </TableCell>
+                  {services && (
+                    <TableCell className="px-4 py-3">
+                      {review.reviewId && urlHash ? (
+                        <Popover
+                          open={tagEditorFor === review.reviewId}
+                          onOpenChange={(open) => {
+                            if (open) setTagDraft(taggingOf(review).categories);
+                            setTagEditorFor(open ? (review.reviewId as string) : null);
+                          }}
+                        >
+                          <PopoverTrigger asChild>
+                            <button
+                              type="button"
+                              className="rounded-md px-1 py-0.5 text-left hover:bg-slate-100"
+                              title="Change which service this review is about"
+                            >
+                              <ServiceChips tagging={taggingOf(review)} services={services} />
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent align="start" className="w-64 p-3">
+                            <p className="mb-2 text-xs font-medium text-slate-500">This review is about</p>
+                            <div className="space-y-2">
+                              {services.map((s) => {
+                                const id = `tag-${review.reviewId}-${s.key}`;
+                                const checked = tagDraft.includes(s.key);
+                                return (
+                                  <label key={s.key} htmlFor={id} className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+                                    <Checkbox
+                                      id={id}
+                                      checked={checked}
+                                      onCheckedChange={(v) =>
+                                        setTagDraft((prev) => (v === true ? [...prev, s.key] : prev.filter((k) => k !== s.key)))
+                                      }
+                                    />
+                                    {s.label}
+                                  </label>
+                                );
+                              })}
+                            </div>
+                            <p className="mt-2 text-[11px] text-slate-400">Nothing ticked means general feedback.</p>
+                            <div className="mt-3 flex items-center justify-between gap-2">
+                              <Button type="button" variant="ghost" size="sm" disabled={isSavingTags} onClick={() => void saveTags(review, null)}>
+                                Automatic
+                              </Button>
+                              <Button type="button" size="sm" disabled={isSavingTags} onClick={() => void saveTags(review, services.filter((s) => tagDraft.includes(s.key)).map((s) => s.key))}>
+                                {isSavingTags ? "Saving…" : "Save"}
+                              </Button>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      ) : (
+                        <ServiceChips tagging={taggingOf(review)} services={services} />
+                      )}
+                    </TableCell>
+                  )}
                   <TableCell className="px-4 py-3 whitespace-nowrap text-sm text-slate-500 text-right">
                     {getDisplayDate(review)}
                   </TableCell>

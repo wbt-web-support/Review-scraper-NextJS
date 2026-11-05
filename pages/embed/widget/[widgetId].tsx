@@ -7,6 +7,8 @@ interface EmbedPageProps {
   widgetId: string;
   themeColor?: string;
   layout?: string;
+  /** ?category=boiler: that service's reviews plus general feedback. */
+  category?: string | null;
 }
 
 interface WidgetData {
@@ -14,7 +16,7 @@ interface WidgetData {
   reviews: IReviewItemFromAPI[];
 }
 
-export default function EmbedWidget({ widgetId, themeColor, layout }: EmbedPageProps) {
+export default function EmbedWidget({ widgetId, themeColor, layout, category }: EmbedPageProps) {
   const [widgetData, setWidgetData] = useState<WidgetData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -25,6 +27,7 @@ export default function EmbedWidget({ widgetId, themeColor, layout }: EmbedPageP
         const params = new URLSearchParams();
         if (themeColor) params.append('themeColor', themeColor);
         if (layout) params.append('layout', layout);
+        if (category) params.append('category', category);
         
         const queryString = params.toString();
         const url = `/api/public/widget-data/${widgetId}${queryString ? '?' + queryString : ''}`;
@@ -45,7 +48,7 @@ export default function EmbedWidget({ widgetId, themeColor, layout }: EmbedPageP
     };
 
     fetchWidgetData();
-  }, [widgetId, themeColor, layout]);
+  }, [widgetId, themeColor, layout, category]);
 
   if (loading) {
     return (
@@ -136,13 +139,14 @@ export default function EmbedWidget({ widgetId, themeColor, layout }: EmbedPageP
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const { widgetId } = context.params!;
-  const { themeColor, layout } = context.query;
+  const { themeColor, layout, category } = context.query;
 
   return {
     props: {
       widgetId: widgetId as string,
       themeColor: (themeColor as string) || null,
       layout: (layout as string) || null,
+      category: typeof category === 'string' && category ? category : null,
     },
   };
 };

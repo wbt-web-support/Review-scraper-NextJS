@@ -74,7 +74,8 @@ export default async function handler(
       return res.status(200).json({ reviews: [], totalReviewCount: 0 }); 
     }
 
-    const reviewsToReturn = reviewBatchDoc.reviews.slice(0, limit);
+    // The scraper's extra detail stays in the database; categories come through.
+    const reviewsToReturn = reviewBatchDoc.reviews.slice(0, limit).map((r) => storage.stripPrivateReviewFields(r));
     return res.status(200).json({ reviews: reviewsToReturn, totalReviewCount: reviewBatchDoc.reviews.length });
 
   } catch (error: unknown) {

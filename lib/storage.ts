@@ -8,7 +8,8 @@ import FacebookBusinessUrlModel from '../models/FacebookBusinessUrl.model';
 import WidgetModel, { IWidget, IWidgetVideoTenant } from '../models/Widget.model';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
-import { Types, UpdateQuery  } from 'mongoose';
+import { Types, UpdateQuery, type Model } from 'mongoose';
+import { classifyReview, rulesVersion, sameCategories, servicesFor, type ServiceCategory } from './reviewCategories';
 interface IBusinessStats {
   totalBusinessUrls: number;
   totalWidgets: number;
@@ -37,6 +38,8 @@ export interface IBusinessUrlDisplay {
     video?: IBusinessUrlVideo;
     /** Editable contact and branding details. */
     details?: IBusinessUrlDetails;
+    /** Own service categories for reviews; absent means the default list. */
+    services?: ServiceCategory[];
 }
 // Add cache for getLatestReviews at the top of the file after imports
 const latestReviewsCache = new Map<string, { data: any[], timestamp: number }>();
@@ -206,6 +209,7 @@ export const getBusinessUrlsByUserId = async (userId: string): Promise<IBusiness
       userId: doc.userId?.toString(),
       video: doc.video,
       details: doc.details,
+      services: doc.services,
     }));
 
     const facebookUrls: IBusinessUrlDisplay[] = facebookUrlsRaw.map(doc => ({
@@ -217,6 +221,7 @@ export const getBusinessUrlsByUserId = async (userId: string): Promise<IBusiness
       userId: doc.userId?.toString(),
       video: doc.video,
       details: doc.details,
+      services: doc.services,
     }));
 
     const combinedUrls = [...googleUrls, ...facebookUrls];
@@ -261,6 +266,7 @@ export const getAllBusinessUrlsForDisplay = async (): Promise<IBusinessUrlDispla
       userId: doc.userId?.toString(),
       video: doc.video,
       details: doc.details,
+      services: doc.services,
     }));
 
     const facebookUrls: IBusinessUrlDisplay[] = facebookUrlsRaw.map(doc => ({
@@ -272,6 +278,7 @@ export const getAllBusinessUrlsForDisplay = async (): Promise<IBusinessUrlDispla
       userId: doc.userId?.toString(),
       video: doc.video,
       details: doc.details,
+      services: doc.services,
     }));
 
     const combinedUrls = [...googleUrls, ...facebookUrls];
@@ -348,12 +355,13 @@ export const setBusinessUrlVideo = async (
  */
 export const updateBusinessUrlDetails = async (
   businessUrlId: string,
-  patch: { name?: string; details?: IBusinessUrlDetails },
+  patch: { name?: string; details?: IBusinessUrlDetails; services?: ServiceCategory[] },
 ): Promise<void> => {
   await ensureDbConnected();
 
   const set: Record<string, unknown> = {};
   if (typeof patch.name === 'string') set.name = patch.name;
+  if (patch.services) set.services = patch.services;
   if (patch.details) {
     for (const [k, v] of Object.entries(patch.details)) {
       if (v !== undefined) set[`details.${k}`] = v;
@@ -471,6 +479,13 @@ interface GetReviewsOptions {
    */
   requireText?: boolean;
   /**
+   * Only reviews in these service categories (keys, see lib/reviewCategories).
+   * Reviews that name no service are general feedback and come along too, under
+   * every category, unless includeGeneral is false.
+   */
+  categories?: string[];
+  includeGeneral?: boolean;
+  /**
    * Only reviews posted on or after / before these ISO timestamps. A review whose
    * date is still "2 weeks ago" text cannot be placed in a range, so it is left out
    * whenever either bound is set.
@@ -571,6 +586,16 @@ export const getFilteredReviewsFromBatch = (
     
     const afterFilterCount = items.length;
   }
+
+  if (options.categories && options.categories.length > 0) {
+    const wanted = new Set(options.categories);
+    const includeGeneral = options.includeGeneral !== false;
+    items = items.filter((review) => {
+      const cats = review.categories ?? [];
+      return cats.length === 0 ? includeGeneral : cats.some((c) => wanted.has(c));
+    });
+  }
+  items = items.map(stripPrivateReviewFields);
   
   const offset = options.offset || 0;
   const limit = options.limit;
@@ -594,6 +619,10 @@ interface UpsertReviewsArgs {
   urlHash: string;
   source: 'google' | 'facebook';
   reviews: IReviewItem[]; 
+  /** The business's service categories. Absent: reviews are stored untagged. */
+  services?: ServiceCategory[];
+  /** The scraper's business-level block, stored once on the batch. */
+  place?: Record<string, unknown> | null;
 }
 export const upsertReviews = async (data: UpsertReviewsArgs): Promise<IReviewBatch> => {
   await ensureDbConnected();
@@ -678,9 +707,42 @@ const reviewFallbackKey = (r: IReviewItem): string =>
  * its real timestamp replaces the text, which is what makes date filtering work on
  * older data.
  */
+/**
+ * Review fields the scraper returns that copies stored earlier lack (the owner's
+ * reply, Google's service answer, likes...). Whenever a stored review comes back
+ * in a crawl these are filled in or brought up to date, so the scheduled full
+ * crawl completes every review within its cycle at no extra cost.
+ */
+const ENRICH_FIELDS = [
+  'profilePicture', 'ownerReply', 'ownerReplyAt', 'reviewContext', 'reviewDetailedRating',
+  'imageUrls', 'likesCount', 'reviewUrl', 'textTranslated', 'language', 'tags', 'raw',
+] as const;
+
+const sameValue = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
+
+/** At most this many `reviews.N.field` paths per update, so one write stays small. */
+const MAX_PATHS_PER_UPDATE = 2000;
+
+/**
+ * Applies positional $set paths to a batch, in slices. Positions never shift:
+ * the crawler only ever appends to the array.
+ */
+async function applyPositionalSets(ReviewModel: Model<IReviewBatch>, batchId: Types.ObjectId, set: Record<string, unknown>): Promise<void> {
+  const entries = Object.entries(set);
+  for (let i = 0; i < entries.length; i += MAX_PATHS_PER_UPDATE) {
+    await ReviewModel.updateOne({ _id: batchId }, { $set: Object.fromEntries(entries.slice(i, i + MAX_PATHS_PER_UPDATE)) }).exec();
+  }
+}
+
+/** A plain object from a Mongoose subdocument (spreading one copies its internals, not its fields). */
+const plainReview = (r: IReviewItem): IReviewItem => {
+  const doc = r as unknown as { toObject?: () => IReviewItem };
+  return typeof doc.toObject === 'function' ? doc.toObject() : { ...r };
+};
+
 export const mergeNewReviews = async (
   data: UpsertReviewsArgs,
-): Promise<{ added: number; datesFixed: number; checked: number }> => {
+): Promise<{ added: number; datesFixed: number; checked: number; enriched: number }> => {
   await ensureDbConnected();
   if (!Types.ObjectId.isValid(data.businessUrlId)) throw new Error("Invalid businessUrlId for mergeNewReviews");
 
@@ -706,12 +768,47 @@ export const mergeNewReviews = async (
   const toAdd: IReviewItem[] = [];
   // In-place fixes to stored reviews, as positional $set paths per batch.
   const fixes = new Map<(typeof batches)[number], Record<string, unknown>>();
-  const fix = (slot: Slot, field: 'postedAt' | 'reviewId', value: string) => {
+  const fix = (slot: Slot, field: string, value: unknown) => {
     const set = fixes.get(slot.batch) ?? {};
     set[`reviews.${slot.index}.${field}`] = value;
     fixes.set(slot.batch, set);
   };
   let datesFixed = 0;
+  let enriched = 0;
+
+  // Service categories. A new review is tagged as it is stored. A stored review
+  // that comes back is re-tagged with the extra detail now known (owner reply,
+  // Google's service answer), unless someone set its categories by hand.
+  const services = data.services;
+  const version = services ? rulesVersion(services) : null;
+  const tagNew = (review: IReviewItem): IReviewItem => {
+    if (!services || !version) return review;
+    return { ...review, categories: classifyReview(review, services), categorySource: 'rule', categoryRulesVersion: version };
+  };
+  /** Fills in what the stored copy lacks, then re-tags it. True when anything changed. */
+  const refresh = (slot: Slot, incoming: IReviewItem): boolean => {
+    const current = slot.batch.reviews[slot.index];
+    const merged = plainReview(current) as unknown as Record<string, unknown>;
+    let changed = false;
+    for (const field of ENRICH_FIELDS) {
+      const value = incoming[field];
+      if (value === undefined || value === null) continue;
+      if (sameValue(current[field], value)) continue;
+      fix(slot, field, value);
+      merged[field] = value;
+      changed = true;
+    }
+    if (services && version && current.categorySource !== 'manual') {
+      const cats = classifyReview(merged as unknown as IReviewItem, services);
+      if (current.categoryRulesVersion !== version || !sameCategories(current.categories, cats)) {
+        fix(slot, 'categories', cats);
+        fix(slot, 'categorySource', 'rule');
+        fix(slot, 'categoryRulesVersion', version);
+        changed = true;
+      }
+    }
+    return changed;
+  };
 
   // Reviews an operator deleted stay deleted.
   const deleted = await deletedReviewIds(data.source, data.reviews.map((r) => r.reviewId).filter((id): id is string => !!id));
@@ -730,6 +827,7 @@ export const mergeNewReviews = async (
           fix(stored, 'postedAt', review.postedAt);
           datesFixed++;
         }
+        if (refresh(stored, review)) enriched++;
         continue;
       }
       // Stored before ids were kept: the same review, so give the stored copy its id
@@ -742,6 +840,7 @@ export const mergeNewReviews = async (
           fix(twin, 'postedAt', review.postedAt);
           datesFixed++;
         }
+        if (refresh(twin, review)) enriched++;
         idless.delete(key);
         byId.set(review.reviewId, twin);
         continue;
@@ -750,8 +849,11 @@ export const mergeNewReviews = async (
       continue;
     }
     allKeys.add(key);
-    toAdd.push(review);
+    toAdd.push(tagNew(review));
   }
+
+  // The business-level block from this crawl, kept once on the batch.
+  const placeSet = data.place ? { place: data.place, placeUpdatedAt: new Date() } : {};
 
   // Write into the batch owned by this business id, else the urlHash one, else a new one.
   const primary = batches.find((b) => String(b.businessUrlId) === String(businessOid)) || batches[0];
@@ -763,8 +865,9 @@ export const mergeNewReviews = async (
       reviews: toAdd,
       lastScrapedAt: new Date(),
       source: data.source,
+      ...placeSet,
     });
-    return { added: toAdd.length, datesFixed: 0, checked: data.reviews.length };
+    return { added: toAdd.length, datesFixed: 0, checked: data.reviews.length, enriched: 0 };
   }
 
   // Targeted, atomic writes -- never a rewrite of the whole array. Re-saving the
@@ -776,16 +879,16 @@ export const mergeNewReviews = async (
   // Fixes go first, as their own update: MongoDB refuses a positional $set and a
   // $push on the same array in one operation.
   for (const [batch, set] of fixes) {
-    await ReviewModelToUse.updateOne({ _id: batch._id }, { $set: set }).exec();
+    await applyPositionalSets(ReviewModelToUse, batch._id, set);
   }
   await ReviewModelToUse.updateOne(
     { _id: primary._id },
     {
-      $set: { lastScrapedAt: new Date(), url: data.url, urlHash: data.urlHash },
+      $set: { lastScrapedAt: new Date(), url: data.url, urlHash: data.urlHash, ...placeSet },
       ...(toAdd.length > 0 ? { $push: { reviews: { $each: toAdd } } } : {}),
     },
   ).exec();
-  return { added: toAdd.length, datesFixed, checked: data.reviews.length };
+  return { added: toAdd.length, datesFixed, checked: data.reviews.length, enriched };
 };
 
 /**
@@ -871,6 +974,22 @@ export const getLatestReviewDateForBusiness = async (
 };
 
 /**
+ * Review fields that stay in the database: the scraper's extra detail and the
+ * category bookkeeping. The widget feed and the JSON API never send them, so a
+ * client site receives exactly the review it always has, plus `categories`.
+ */
+export const PRIVATE_REVIEW_FIELDS = [
+  'raw', 'reviewContext', 'reviewDetailedRating', 'categorySource', 'categoryRulesVersion',
+  'textTranslated', 'language', 'tags', 'imageUrls', 'ownerReply', 'ownerReplyAt', 'likesCount', 'reviewUrl',
+] as const;
+const PRIVATE_REVIEW_PROJECTION: Record<string, 0> = Object.fromEntries(PRIVATE_REVIEW_FIELDS.map((f) => [f, 0 as const]));
+export function stripPrivateReviewFields<T extends object>(review: T): T {
+  const copy = { ...review } as Record<string, unknown>;
+  for (const f of PRIVATE_REVIEW_FIELDS) delete copy[f];
+  return copy as T;
+}
+
+/**
  * Optimized function to get review stats and a limited batch of reviews using MongoDB Aggregation
  * drastically reduces payload size by calculating stats on DB side
  */
@@ -888,6 +1007,12 @@ export const getReviewStatsAndReviews = async (
   rawAverage?: number | string | null;
   reviews: IReviewItem[];
   source: 'google' | 'facebook';
+  /** Reviews per service category, over every filter except the category one. */
+  categoryCounts: Record<string, number>;
+  /** Reviews that name no service, same filters. */
+  generalCount: number;
+  /** Reviews passing every filter except the category one: the "All" button's number. */
+  baseCount: number;
 } | null> => {
   await ensureDbConnected();
   const ModelToUse = source === 'google' ? GoogleReviewBatchModel : FacebookReviewBatchModel;
@@ -897,7 +1022,7 @@ export const getReviewStatsAndReviews = async (
   const offset = options.offset || 0;
   const minRating = options.minRating;
   const requireText = options.requireText !== false;
-  const { postedFrom, postedBefore } = options;
+  const { postedFrom, postedBefore, categories, includeGeneral = true } = options;
 
 
   try {
@@ -1027,6 +1152,21 @@ export const getReviewStatsAndReviews = async (
     // $and refuses an empty array, so no conditions at all means match everything.
     const filterCriteria = filterConditions.length > 0 ? { $and: filterConditions } : {};
 
+    // The service filter is kept apart from the others: the per-category counts
+    // (the widget's buttons) are over the OTHER filters only, so every button keeps
+    // its number whichever one is pressed. General feedback (no category) comes
+    // along under every category unless the caller says otherwise.
+    const categoryCondition = categories && categories.length > 0
+      ? {
+          $or: [
+            { "reviews.categories": { $in: categories } },
+            ...(includeGeneral ? [{ "reviews.categories": null }, { "reviews.categories": { $size: 0 } }] : []),
+          ],
+        }
+      : null;
+    const fullConditions = categoryCondition ? [...filterConditions, categoryCondition] : filterConditions;
+    const fullCriteria = fullConditions.length > 0 ? { $and: fullConditions } : {};
+
     const finalPipeline = [
       ...basePipeline,
       {
@@ -1063,9 +1203,32 @@ export const getReviewStatsAndReviews = async (
               ]
             : [],
           
+          // A4. Reviews per category and the general count, for the widget's buttons.
+          // Every filter but the category one, so the buttons keep their numbers.
+          "categoryCounts": [
+            { $match: filterCriteria },
+            {
+              $project: {
+                cats: {
+                  $cond: [
+                    { $gt: [{ $size: { $ifNull: ["$reviews.categories", []] } }, 0] },
+                    "$reviews.categories",
+                    ["__general"],
+                  ],
+                },
+              },
+            },
+            { $unwind: "$cats" },
+            { $group: { _id: "$cats", n: { $sum: 1 } } },
+          ],
+          "baseCount": [
+            { $match: filterCriteria },
+            { $count: "n" },
+          ],
+
           // B. Calculate stats for FILTERED reviews
           "filteredStats": [
-            { $match: filterCriteria }, // Apply filters here
+            { $match: fullCriteria }, // Apply filters here
             {
               $group: {
                 _id: null,
@@ -1079,7 +1242,7 @@ export const getReviewStatsAndReviews = async (
           
           // C. Get paginated FILTERED reviews
           "filteredReviews": [
-            { $match: filterCriteria }, // Apply same filters
+            { $match: fullCriteria }, // Apply same filters
             // Newest first, in a FIXED order. Sorting the raw postedAt string put
             // "a year ago" text ahead of real dates (letters sort after digits) and
             // left ties in no particular order, so the same widget showed reviews in
@@ -1095,7 +1258,9 @@ export const getReviewStatsAndReviews = async (
             { $sort: { _sortDate: -1, _sortId: -1 } },
             { $replaceRoot: { newRoot: "$reviews" } },
             { $skip: offset },
-            { $limit: limit }
+            { $limit: limit },
+            // The scraper's extra detail stays in the database.
+            { $project: PRIVATE_REVIEW_PROJECTION },
           ]
         }
       }
@@ -1162,13 +1327,24 @@ export const getReviewStatsAndReviews = async (
       ? (allRecommend?.all ? `${Math.round((allRecommend.recommended / allRecommend.all) * 100)}%` : null)
       : (globalRatingStats?.avgRating != null ? parseFloat(Number(globalRatingStats.avgRating).toFixed(1)) : null);
 
+    const categoryCounts: Record<string, number> = {};
+    let generalCount = 0;
+    for (const row of (result[0].categoryCounts ?? []) as { _id: string; n: number }[]) {
+      if (row._id === '__general') generalCount = row.n;
+      else if (typeof row._id === 'string') categoryCounts[row._id] = row.n;
+    }
+    const baseCount: number = result[0].baseCount?.[0]?.n ?? 0;
+
     return {
       totalCount: absoluteTotalCount, // THIS FIXES THE VISIBLE COUNT
       filteredCount: stats.count,     // THIS IS FOR PAGINATION LIMITS
       averageRating: formattedAvgRating,
       rawAverage,
       reviews: reviewsWithSource,
-      source: source
+      source: source,
+      categoryCounts,
+      generalCount,
+      baseCount,
     };
 
   } catch (error) {
@@ -1183,7 +1359,10 @@ export const getReviewStatsAndReviews = async (
       totalCount: filtered.length, // mismatched matching logic
       averageRating: 0,
       reviews: filtered.slice(0, limit),
-      source
+      source,
+      categoryCounts: {},
+      generalCount: 0,
+      baseCount: filtered.length,
     };
   }
 };
@@ -1250,6 +1429,8 @@ export const getLatestReviews = async (
         {
           $replaceRoot: { newRoot: '$reviews' }
         },
+        // The scraper's extra detail stays in the database.
+        { $project: PRIVATE_REVIEW_PROJECTION },
         {
           $sort: { scrapedAt: -1 }
         },
@@ -1297,6 +1478,8 @@ export const getLatestReviews = async (
         {
           $replaceRoot: { newRoot: '$reviews' }
         },
+        // The scraper's extra detail stays in the database.
+        { $project: PRIVATE_REVIEW_PROJECTION },
         {
           $sort: { scrapedAt: -1 }
         },
@@ -2011,4 +2194,114 @@ export const getPaginatedWidgetsByUserId = async (params: PaginatedWidgetsParams
       hasPrev,
     },
   };
+};
+/* ----------------------------- Service categories ----------------------------- */
+
+/** The business's service categories: its own list, else the defaults. */
+export const getBusinessServices = async (businessUrlId: string): Promise<ServiceCategory[]> => {
+  await ensureDbConnected();
+  if (!Types.ObjectId.isValid(businessUrlId)) return servicesFor(null);
+  const google = await GoogleBusinessUrlModel.findById(businessUrlId).select('services').lean().exec();
+  const doc = google ?? (await FacebookBusinessUrlModel.findById(businessUrlId).select('services').lean().exec());
+  return servicesFor(doc as { services?: ServiceCategory[] } | null);
+};
+
+export interface RecategorizeResult {
+  checked: number;
+  changed: number;
+  manual: number;
+  /** Reviews per category key, one copy of each review. */
+  counts: Record<string, number>;
+  /** Reviews that name no service. */
+  general: number;
+}
+
+/**
+ * Runs the category rules over every stored review of a business: after its
+ * services are edited, and once for reviews stored before categories existed.
+ * Reviews tagged by hand are left alone. Writes only what changed, by position,
+ * the same way the crawler fixes dates. With dryRun it only counts.
+ */
+export const recategorizeBusiness = async (
+  urlHash: string,
+  source: 'google' | 'facebook',
+  services: ServiceCategory[],
+  { dryRun = false }: { dryRun?: boolean } = {},
+): Promise<RecategorizeResult> => {
+  await ensureDbConnected();
+  const ReviewModel = source === 'google' ? GoogleReviewBatchModel : FacebookReviewBatchModel;
+  const version = rulesVersion(services);
+
+  let batches = await ReviewModel.find({ urlHash }).lean().exec();
+  if (batches.length === 0) {
+    // Older batches can be keyed only by the business id.
+    const BusinessModel = source === 'google' ? GoogleBusinessUrlModel : FacebookBusinessUrlModel;
+    const business = await (BusinessModel as unknown as Model<{ _id: Types.ObjectId; urlHash: string }>).findOne({ urlHash }).select('_id').lean().exec();
+    if (business) batches = await ReviewModel.find({ businessUrlId: business._id }).lean().exec();
+  }
+
+  const result: RecategorizeResult = { checked: 0, changed: 0, manual: 0, counts: {}, general: 0 };
+  const tagged: IReviewItem[] = [];
+  for (const batch of batches) {
+    const set: Record<string, unknown> = {};
+    (batch.reviews || []).forEach((review, index) => {
+      result.checked++;
+      if (review.categorySource === 'manual') {
+        result.manual++;
+        tagged.push(review);
+        return;
+      }
+      const cats = classifyReview(review, services);
+      if (review.categoryRulesVersion !== version || !sameCategories(review.categories, cats)) {
+        set[`reviews.${index}.categories`] = cats;
+        set[`reviews.${index}.categorySource`] = 'rule';
+        set[`reviews.${index}.categoryRulesVersion`] = version;
+        result.changed++;
+      }
+      tagged.push({ ...review, categories: cats });
+    });
+    if (!dryRun && Object.keys(set).length > 0) await applyPositionalSets(ReviewModel, batch._id, set);
+  }
+  // Counts over one copy of each review, the way the widgets count them.
+  for (const review of dedupeStoredReviews(tagged)) {
+    const cats = review.categories ?? [];
+    if (cats.length === 0) result.general++;
+    for (const c of cats) result.counts[c] = (result.counts[c] ?? 0) + 1;
+  }
+  return result;
+};
+
+/**
+ * Sets one review's categories by hand (the rules never overwrite it again), or
+ * with `categories` null hands it back to the rules. Written to every batch that
+ * holds the review, as some businesses have two.
+ */
+export const setReviewCategories = async (
+  source: 'google' | 'facebook',
+  urlHash: string,
+  reviewId: string,
+  categories: string[] | null,
+  services: ServiceCategory[],
+): Promise<{ categories: string[]; categorySource: 'rule' | 'manual' } | null> => {
+  await ensureDbConnected();
+  const ReviewModel = source === 'google' ? GoogleReviewBatchModel : FacebookReviewBatchModel;
+  const batch = await ReviewModel.findOne({ urlHash, 'reviews.reviewId': reviewId }).select('reviews').lean().exec();
+  const review = batch?.reviews?.find((r) => r.reviewId === reviewId);
+  if (!review) return null;
+
+  const next = categories === null
+    ? { categories: classifyReview(review, services), categorySource: 'rule' as const }
+    : { categories, categorySource: 'manual' as const };
+  await ReviewModel.updateMany(
+    { urlHash, 'reviews.reviewId': reviewId },
+    {
+      $set: {
+        'reviews.$[r].categories': next.categories,
+        'reviews.$[r].categorySource': next.categorySource,
+        'reviews.$[r].categoryRulesVersion': rulesVersion(services),
+      },
+    },
+    { arrayFilters: [{ 'r.reviewId': reviewId }] },
+  ).exec();
+  return next;
 };

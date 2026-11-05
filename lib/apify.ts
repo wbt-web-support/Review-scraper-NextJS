@@ -15,6 +15,7 @@ if (!FACEBOOK_APIFY_TOKEN) {
 }
 const facebookClient = new ApifyClient({ token: FACEBOOK_APIFY_TOKEN || '' });
 interface ApifyGoogleReviewItem {
+    [key: string]: unknown;
     reviewId?: string;
     id?: string | number;
     name?: string;
@@ -31,6 +32,7 @@ interface ApifyGoogleReviewItem {
   }
   
   interface ApifyFacebookReviewItem {
+    [key: string]: unknown;
     review_id?: string | number;
     id?: string | number;
     author_name?: string;
@@ -52,19 +54,81 @@ interface ApifyGoogleReviewItem {
     isRecommended?: boolean;
   }
 
+/**
+ * Fields that describe the BUSINESS and come back identical on every review.
+ * Kept once per batch (see mergeNewReviews), never repeated on each review.
+ */
+const GOOGLE_PLACE_FIELDS = new Set([
+  'placeId', 'location', 'address', 'neighborhood', 'street', 'city', 'postalCode', 'state',
+  'countryCode', 'categoryName', 'categories', 'title', 'totalScore', 'reviewsCount',
+  'permanentlyClosed', 'temporarilyClosed', 'price', 'url', 'cid', 'fid', 'imageUrl',
+  'searchString', 'language', 'scrapedAt',
+]);
+const FACEBOOK_PAGE_FIELDS = new Set(['facebookUrl', 'facebookId', 'pageName', 'pageAdLibrary', 'inputUrl']);
+
+/** Fields each parser maps onto a name of its own; whatever is left goes into `raw`. */
+const GOOGLE_MAPPED_FIELDS = new Set([
+  'reviewId', 'id', 'name', 'authorName', 'text', 'reviewText', 'stars', 'rating', 'publishedAtDate', 'date',
+  'userUrl', 'reviewerPhotoUrl', 'profilePictureUrl', 'responseFromOwnerText', 'responseFromOwnerDate',
+  'reviewContext', 'reviewDetailedRating', 'reviewImageUrls', 'likesCount', 'reviewUrl', 'textTranslated', 'originalLanguage',
+]);
+const FACEBOOK_MAPPED_FIELDS = new Set([
+  'review_id', 'id', 'author_name', 'name', 'review_text', 'text', 'review_time', 'date', 'author_avatar', 'user_avatar',
+  'recommendation_type', 'scrapedAt', 'user', 'isRecommended', 'tags', 'likesCount', 'url',
+]);
+
+/** The item minus the fields handled elsewhere, with empty values left out. */
+function restOf(item: Record<string, unknown>, mapped: Set<string>, placeLevel: Set<string>): Record<string, unknown> | undefined {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(item)) {
+    if (mapped.has(k) || placeLevel.has(k)) continue;
+    if (v === null || v === undefined || v === '') continue;
+    if (Array.isArray(v) && v.length === 0) continue;
+    if (typeof v === 'object' && !Array.isArray(v) && Object.keys(v as object).length === 0) continue;
+    out[k] = v;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+const nonEmptyObject = (v: unknown): Record<string, unknown> | undefined =>
+  v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v as object).length > 0 ? (v as Record<string, unknown>) : undefined;
+const stringList = (v: unknown): string[] | undefined =>
+  Array.isArray(v) && v.length > 0 ? v.filter((x): x is string => typeof x === 'string') : undefined;
+const nonEmptyString = (v: unknown): string | undefined => (typeof v === 'string' && v.trim() ? v : undefined);
+const numberOr = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
+
+/** Drops undefined values, so a review carries only what the scraper gave. */
+function compact<T extends object>(o: T): T {
+  for (const k of Object.keys(o) as (keyof T)[]) if (o[k] === undefined) delete o[k];
+  return o;
+}
+
 const parseGoogleReviewFromApify = (item: ApifyGoogleReviewItem): IReviewItem => {
-    return {
+    return compact({
         reviewId: item.reviewId || item.id?.toString(),
         author: item.name || item.authorName || "Anonymous Reviewer",
         content: (item.text || item.reviewText || "").toString(), // Always a string
         rating: typeof item.stars === 'number' ? item.stars : (typeof item.rating === 'number' ? item.rating : undefined),
         postedAt: item.publishedAtDate || item.date || "Recently",
         profilePicture: item.userUrl || item.reviewerPhotoUrl || item.profilePictureUrl,
-    }
+        // Everything else the actor knows about the review. The owner's reply and
+        // Google's "Service:" answer feed the category rules; the rest is kept so
+        // nothing ever has to be crawled a second time.
+        ownerReply: nonEmptyString(item.responseFromOwnerText),
+        ownerReplyAt: nonEmptyString(item.responseFromOwnerDate),
+        reviewContext: nonEmptyObject(item.reviewContext),
+        reviewDetailedRating: nonEmptyObject(item.reviewDetailedRating),
+        imageUrls: stringList(item.reviewImageUrls),
+        likesCount: numberOr(item.likesCount),
+        reviewUrl: nonEmptyString(item.reviewUrl),
+        textTranslated: nonEmptyString(item.textTranslated),
+        language: nonEmptyString(item.originalLanguage),
+        raw: restOf(item, GOOGLE_MAPPED_FIELDS, GOOGLE_PLACE_FIELDS),
+    });
 };
 
 const parseFacebookReviewFromApify = (item: ApifyFacebookReviewItem): IReviewItem => {
-    return {
+    return compact({
         reviewId: item.review_id?.toString() || item.id?.toString(),
         author: item.user?.name || item.author_name || item.name || "Anonymous Reviewer",
         content: item.review_text || item.text || "",
@@ -74,7 +138,15 @@ const parseFacebookReviewFromApify = (item: ApifyFacebookReviewItem): IReviewIte
           ? (item.isRecommended ? 'recommended' : 'not_recommended')
           : item.recommendation_type,
         scrapedAt: item.scrapedAt ? new Date(item.scrapedAt) : undefined, 
-    }
+        tags: stringList(item.tags),
+        likesCount: numberOr(item.likesCount),
+        reviewUrl: nonEmptyString(item.url),
+        raw: restOf(
+          { ...item, user: undefined, reviewerId: item.user?.id, reviewerUrl: item.user?.profileUrl },
+          FACEBOOK_MAPPED_FIELDS,
+          FACEBOOK_PAGE_FIELDS,
+        ),
+    });
 };
 
 
@@ -199,7 +271,15 @@ function explainScraperError(source: ReviewSource, code: string, description: st
 
 /** A finished run's reviews, the scraper's own error if it returned one instead, and
  *  (Google) how many reviews the listing itself says it has. */
-export async function fetchCrawlResult(source: ReviewSource, datasetId: string): Promise<{ reviews: IReviewItem[]; problem: string | null; listingCount: number | null }> {
+export interface CrawlResult {
+  reviews: IReviewItem[];
+  problem: string | null;
+  listingCount: number | null;
+  /** What the actor says about the business itself: address, Google's own count and score, and so on. */
+  place: Record<string, unknown> | null;
+}
+
+export async function fetchCrawlResult(source: ReviewSource, datasetId: string): Promise<CrawlResult> {
   const dataset = clientFor(source).dataset(datasetId);
   const items: unknown[] = [];
   const PAGE = 1000;
@@ -217,5 +297,15 @@ export async function fetchCrawlResult(source: ReviewSource, datasetId: string):
     : undefined;
   const problem = failed ? explainScraperError(source, String(failed.error), String(failed.errorDescription ?? '')) : null;
   const counted = (items as { reviewsCount?: unknown }[]).find((i) => i && typeof i.reviewsCount === 'number');
-  return { reviews, problem, listingCount: counted ? (counted.reviewsCount as number) : null };
+
+  // The business-level block, from the first item that carries one.
+  const placeFields = source === 'google' ? GOOGLE_PLACE_FIELDS : FACEBOOK_PAGE_FIELDS;
+  const placeItem = (items as Record<string, unknown>[]).find((i) => i && (typeof i.placeId === 'string' || typeof i.facebookId === 'string' || typeof i.pageName === 'string'));
+  let place: Record<string, unknown> | null = null;
+  if (placeItem) {
+    place = {};
+    for (const k of placeFields) if (placeItem[k] !== undefined && placeItem[k] !== null) place[k] = placeItem[k];
+    if (Object.keys(place).length === 0) place = null;
+  }
+  return { reviews, problem, listingCount: counted ? (counted.reviewsCount as number) : null, place };
 }

@@ -1,0 +1,110 @@
+<!doctype html>
+<!--
+  Test page for the service filter on the review widgets.
+
+  Open it through the app, e.g. http://localhost:3001/category-filter-test.html,
+  pick a layout, paste a widget id, and tick the options. It writes the same
+  snippet the Embed Code tab writes and loads the widget script from this origin,
+  so what you see is what a client site gets. Nothing is saved.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Service filter test</title>
+  <style>
+    :root { --ink: #111827; --muted: #6B7280; --line: #E5E7EB; --bg: #F9FAFB; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    main { max-width: 1100px; margin: 0 auto; padding: 32px 16px 64px; }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    .muted { color: var(--muted); font-size: 13px; }
+    form { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin: 20px 0 16px; }
+    label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+    label.row { grid-auto-flow: column; align-items: center; gap: 6px; }
+    input, select { padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; font: inherit; color: var(--ink); background: #fff; }
+    input[name="widget"] { width: 260px; font-family: ui-monospace, Menlo, monospace; font-size: 13px; }
+    input[name="category"] { width: 120px; }
+    button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--ink); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+    pre { font: 12px/1.5 ui-monospace, Menlo, monospace; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; overflow-x: auto; }
+    #stage { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 20px; min-height: 200px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Service filter test</h1>
+    <p class="muted">The widget below is loaded with the snippet shown, from this origin. Reload the page to start over.</p>
+    <form id="form">
+      <label>Widget id <input name="widget" required placeholder="24-character widget id"></label>
+      <label>Layout
+        <select name="layout">
+          <option value="grid">Grid</option>
+          <option value="list">List</option>
+          <option value="carousel">Carousel</option>
+          <option value="masonry">Masonry</option>
+          <option value="wall">Wall</option>
+        </select>
+      </label>
+      <label>Pinned service <input name="category" placeholder="e.g. boiler"></label>
+      <label class="row"><input type="checkbox" name="filter" checked> Visitor buttons</label>
+      <button type="submit">Load</button>
+    </form>
+    <pre id="snippet">Fill in the form and press Load.</pre>
+    <div id="stage"></div>
+  </main>
+  <script>
+    (function () {
+      var form = document.getElementById('form');
+      var params = new URLSearchParams(location.search);
+      if (params.get('widget')) form.widget.value = params.get('widget');
+      if (params.get('layout')) form.layout.value = params.get('layout');
+      if (params.get('category')) form.category.value = params.get('category');
+      if (params.get('filter') === 'false') form.filter.checked = false;
+
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var id = form.widget.value.trim();
+        var layout = form.layout.value;
+        var category = form.category.value.trim();
+        var filter = form.filter.checked;
+        var file = { grid: 'widget-grid.js', list: 'widget-list.js', carousel: 'widget-carousel.js', masonry: 'widget-masonry.js', wall: 'widget-wall.js' }[layout];
+        var idAttr = layout === 'carousel' ? 'data-reviewhub-widget-id' : 'data-widget-id';
+        var containerId = 'reviewhub-' + id;
+        var attrs = '';
+        if (layout === 'wall') attrs += '\n        data-direction="vertical"\n        data-columns="3"\n        data-height="600"\n        data-speed="normal"\n        data-theme="light"';
+        if (category) attrs += '\n        data-category="' + category + '"';
+        if (filter) attrs += '\n        data-category-filter="true"';
+        var snippet = '<div id="' + containerId + '"></div>\n<script async fetchpriority="high"\n        src="' + location.origin + '/' + file + '?v=test"\n        ' + idAttr + '="' + id + '"\n        data-layout="' + layout + '"' + attrs + '\n        data-container-id="' + containerId + '">\n<\/script>';
+        document.getElementById('snippet').textContent = snippet;
+
+        // The page is reloaded with the choice in the address, so the widget script
+        // starts fresh (each script initialises its tags once per page).
+        var next = new URLSearchParams({ widget: id, layout: layout, category: category, filter: String(filter), go: '1' });
+        if (params.get('go') !== '1' || params.toString() !== next.toString()) {
+          location.search = next.toString();
+          return;
+        }
+      });
+
+      if (params.get('go') === '1' && form.widget.value) {
+        var stage = document.getElementById('stage');
+        var id = form.widget.value.trim(), layout = form.layout.value, category = form.category.value.trim(), filter = form.filter.checked;
+        var file = { grid: 'widget-grid.js', list: 'widget-list.js', carousel: 'widget-carousel.js', masonry: 'widget-masonry.js', wall: 'widget-wall.js' }[layout];
+        var containerId = 'reviewhub-' + id;
+        var box = document.createElement('div'); box.id = containerId; stage.appendChild(box);
+        var s = document.createElement('script');
+        s.async = true; s.src = '/' + file + '?v=test';
+        s.setAttribute(layout === 'carousel' ? 'data-reviewhub-widget-id' : 'data-widget-id', id);
+        s.setAttribute('data-layout', layout);
+        s.setAttribute('data-container-id', containerId);
+        if (layout === 'wall') { s.setAttribute('data-direction', 'vertical'); s.setAttribute('data-columns', '3'); s.setAttribute('data-height', '600'); s.setAttribute('data-speed', 'normal'); s.setAttribute('data-theme', 'light'); }
+        if (category) s.setAttribute('data-category', category);
+        if (filter) s.setAttribute('data-category-filter', 'true');
+        stage.appendChild(s);
+        form.dispatchEvent(new Event('submit'));
+      }
+    })();
+  </script>
+</body>
+</html>

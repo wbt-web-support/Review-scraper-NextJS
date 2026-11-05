@@ -1,5 +1,6 @@
 import mongoose, { Schema, Document, Model, Types } from 'mongoose';
 import { BusinessCrawlStateSchema, type IBusinessCrawlState } from './BusinessCrawlState';
+import type { ServiceCategory } from '../lib/reviewCategories';
 
 /** The link to a Video Review Manager tenant, once video reviews are enabled. */
 export interface IBusinessUrlVideo {
@@ -44,7 +45,15 @@ export interface IGoogleBusinessUrl extends Document {
    */
   apiKey?: string;
   crawl?: IBusinessCrawlState;
+  /** Own service categories for reviews. See BusinessUrl.model for the note. */
+  services?: ServiceCategory[];
 }
+
+const ServiceCategorySchema = new Schema<ServiceCategory>({
+  key: { type: String, required: true },
+  label: { type: String, required: true },
+  keywords: { type: [String], default: [] },
+}, { _id: false });
 
 const BusinessUrlDetailsSchema = new Schema<IBusinessUrlDetails>({
   firstName: { type: String },
@@ -76,6 +85,7 @@ const GoogleBusinessUrlSchema: Schema<IGoogleBusinessUrl> = new Schema({
   details: { type: BusinessUrlDetailsSchema, required: false },
   apiKey: { type: String, select: false, unique: true, sparse: true },
   crawl: { type: BusinessCrawlStateSchema, required: false },
+  services: { type: [ServiceCategorySchema], required: false, default: undefined },
 }, { timestamps: { createdAt: 'addedAt', updatedAt: true } });
 
 const GoogleBusinessUrlModel: Model<IGoogleBusinessUrl> =

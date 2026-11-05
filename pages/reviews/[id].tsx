@@ -4,7 +4,7 @@ import { useRouter } from "next/router";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  RefreshCcw, Download, Loader, Pencil, MapPin, ExternalLink, MessageSquare,
+  RefreshCcw, Download, Loader, Pencil, MapPin, ExternalLink, MessageSquare, Tag,
 } from "lucide-react";
 import Layout from "../../components/Layout";
 import ReviewTable from "../../components/ReviewTable";
@@ -13,6 +13,8 @@ import { EditBusinessDialog } from "../../components/EditBusinessDialog";
 import { titleCaseName } from "@vrm/lib/tenants/display-name";
 import { apiRequest } from "../../lib/queryClient";
 import { useToast } from "../../hooks/use-toast";
+import { servicesFor, type ServiceCategory } from "../../lib/reviewCategories";
+import { describeRetag } from "../../components/EditBusinessDialog";
 
 /**
  * A human-readable address out of a Google/Facebook business URL, best-effort. A raw
@@ -53,6 +55,8 @@ interface IBusinessUrl {
   urlHash: string;
   source: "google" | "facebook";
   details?: IBusinessDetails;
+  /** Own service categories for reviews; absent means the default list. */
+  services?: ServiceCategory[];
 }
 interface IReviewItem {
   _id?: string;
@@ -62,6 +66,15 @@ interface IReviewItem {
   rating?: number | null;
   postedAt?: string;
   source?: "google" | "facebook";
+  categories?: string[];
+  categorySource?: "rule" | "manual";
+}
+interface RetagResult {
+  checked: number;
+  changed: number;
+  manual: number;
+  counts: Record<string, number>;
+  general: number;
 }
 
 /**
@@ -74,6 +87,8 @@ export default function BusinessProfile() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
+  // Which service's reviews the table shows: "all", "general", or a category key.
+  const [serviceFilter, setServiceFilter] = useState<string>("all");
 
   const { data, isLoading, error: businessError, refetch: refetchBusinesses } = useQuery<{ businessUrls: IBusinessUrl[] }>({
     queryKey: ["businessUrls"],
@@ -95,6 +110,35 @@ export default function BusinessProfile() {
     enabled: Boolean(business?.urlHash),
   });
   const reviews = reviewsData?.reviews ?? [];
+
+  const services = useMemo(() => servicesFor(business ?? null), [business]);
+
+  // Counts per service from what is loaded. General = reviews that name no service.
+  const serviceCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    let general = 0;
+    for (const r of reviews) {
+      const cats = r.categories ?? [];
+      if (cats.length === 0) general++;
+      for (const c of cats) counts[c] = (counts[c] ?? 0) + 1;
+    }
+    return { counts, general };
+  }, [reviews]);
+
+  const filteredReviews = useMemo(() => {
+    if (serviceFilter === "all") return reviews;
+    if (serviceFilter === "general") return reviews.filter((r) => (r.categories ?? []).length === 0);
+    return reviews.filter((r) => (r.categories ?? []).includes(serviceFilter));
+  }, [reviews, serviceFilter]);
+
+  const retagMutation = useMutation<RetagResult, Error, void>({
+    mutationFn: () => apiRequest("POST", `/api/business-urls/${id}/categorize`, {}),
+    onSuccess: (r) => {
+      queryClient.invalidateQueries({ queryKey: ["reviews", id] });
+      toast({ title: "Reviews re-tagged", description: describeRetag(r, services) });
+    },
+    onError: (e) => toast({ title: "Could not re-tag the reviews", description: e.message, variant: "destructive" }),
+  });
 
   const scrapeMutation = useMutation<{ message: string }, Error, void>({
     mutationFn: () => apiRequest("POST", `/api/business-urls/${id}/scrape?manual=true`),
@@ -195,10 +239,39 @@ export default function BusinessProfile() {
               Scraped reviews
               <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">{reviews.length}</span>
             </h2>
-            <Button variant="outline" size="sm" onClick={() => scrapeMutation.mutate()} disabled={scrapeMutation.isPending}>
-              <RefreshCcw className="mr-2 h-3.5 w-3.5" /> Recrawl
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => retagMutation.mutate()} disabled={retagMutation.isPending || reviews.length === 0} title="Run the service rules over the stored reviews again">
+                {retagMutation.isPending ? <Loader className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Tag className="mr-2 h-3.5 w-3.5" />} Re-tag reviews
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => scrapeMutation.mutate()} disabled={scrapeMutation.isPending}>
+                <RefreshCcw className="mr-2 h-3.5 w-3.5" /> Recrawl
+              </Button>
+            </div>
           </div>
+          {reviews.length > 0 && (
+            <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label="Filter reviews by service">
+              {[
+                { key: "all", label: "All", count: reviews.length },
+                ...services
+                  .filter((s) => (serviceCounts.counts[s.key] ?? 0) > 0)
+                  .map((s) => ({ key: s.key, label: s.label, count: serviceCounts.counts[s.key] })),
+                { key: "general", label: "General", count: serviceCounts.general },
+              ].map((pill) => {
+                const active = serviceFilter === pill.key;
+                return (
+                  <button
+                    key={pill.key}
+                    type="button"
+                    onClick={() => setServiceFilter(pill.key)}
+                    aria-pressed={active}
+                    className={`rounded-full border px-3 py-1 text-sm transition-colors ${active ? "border-gray-900 bg-gray-900 text-white" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"}`}
+                  >
+                    {pill.label} <span className={active ? "text-gray-300" : "text-gray-400"}>{pill.count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
           {reviewsError ? (
             <LoadError what="the reviews" onRetry={() => refetchReviews()} />
           ) : reviews.length === 0 && !reviewsLoading ? (
@@ -213,11 +286,13 @@ export default function BusinessProfile() {
             </div>
           ) : (
             <ReviewTable
-              reviews={reviews}
+              reviews={filteredReviews}
               isLoading={reviewsLoading}
               urlHash={business.urlHash}
+              services={services}
               onReviewDeleted={() => queryClient.invalidateQueries({ queryKey: ["reviews", id] })}
-              emptyState={<div className="py-8 text-center text-gray-500">No reviews scraped yet.</div>}
+              onReviewTagged={() => queryClient.invalidateQueries({ queryKey: ["reviews", id] })}
+              emptyState={<div className="py-8 text-center text-gray-500">{serviceFilter === "all" ? "No reviews scraped yet." : "No reviews under this service."}</div>}
             />
           )}
         </section>

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import dbConnect from '../../../lib/mongodb';
 import * as storage from '../../../lib/storage';
 import type { IReviewItem } from '../../../models/Review.model';
+import { parseCategoryParam } from '../../../lib/reviewCategories';
 
 /** Older batches stored the review body as `text` rather than `content`. */
 type StoredReview = IReviewItem & { text?: string };
@@ -39,6 +40,8 @@ type StoredReview = IReviewItem & { text?: string };
  *
  *   ?from=2026-01-01&to=2026-03-31     posted in Q1, both days included
  *   ?from=2026-10-01                    posted since 1 October
+ *   ?category=boiler                    about the boiler service (plus general feedback)
+ *   ?category=boiler,ev&general=exclude those two services only, no general feedback
  *
  * A date range is read from what we already store, so it never triggers a crawl
  * and costs no Apify credits -- it just keeps the response to what the caller needs.
@@ -95,6 +98,10 @@ const QuerySchema = z.object({
   // Validated by parseDateParam, which reports bad dates as a 400 instead of throwing.
   from: z.string().optional(),
   to: z.string().optional(),
+  // Service categories (keys from the business's list), comma separated. General
+  // feedback, which names no service, comes along unless general=exclude.
+  category: z.string().optional(),
+  general: z.enum(['include', 'exclude']).default('include'),
 });
 
 export interface PublicReview {
@@ -112,6 +119,8 @@ export interface PublicReview {
   /** Facebook only: "recommended" or "not_recommended". */
   recommendationStatus: string | null;
   source: 'google' | 'facebook';
+  /** Service categories the review is about. Empty for general feedback. */
+  categories: string[];
 }
 
 export interface PublicReviewsResponse {
@@ -124,6 +133,10 @@ export interface PublicReviewsResponse {
   recommendedPercentage: number | null;
   /** The date range applied, echoed back. Null when none was asked for. */
   range: { from: string | null; to: string | null } | null;
+  /** The category filter applied, echoed back. Null when none was asked for. */
+  category: string[] | null;
+  /** The business's service categories that have reviews, with counts. */
+  categories: { key: string; label: string; count: number }[];
   /** Reviews matching this request's filters. Use with limit and offset to page. */
   total: number;
   limit: number;
@@ -176,7 +189,8 @@ export default async function handler(
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Invalid query.' });
   }
-  const { limit, offset, minRating, from, to } = parsed.data;
+  const { limit, offset, minRating, from, to, category, general } = parsed.data;
+  const categoryKeys = parseCategoryParam(category);
   const start = parseDateParam(from, 'from');
   const end = parseDateParam(to, 'to');
   const dateError = start.error ?? end.error;
@@ -199,8 +213,11 @@ export default async function handler(
           requireText: false,
           postedFrom: start.bound,
           postedBefore: end.bound,
+          categories: categoryKeys,
+          includeGeneral: general === 'include',
         })
       : null;
+    const services = await storage.getBusinessServices(business._id.toString());
 
     const rows = (result?.reviews ?? []) as StoredReview[];
     const reviews: PublicReview[] = rows.map((r) => ({
@@ -213,7 +230,12 @@ export default async function handler(
       profileUrl: r.userProfile || null,
       recommendationStatus: r.recommendationStatus || null,
       source,
+      categories: r.categories ?? [],
     }));
+    const generalCount = result?.generalCount ?? 0;
+    const categories = services
+      .filter((s) => (result?.categoryCounts[s.key] ?? 0) > 0)
+      .map((s) => ({ key: s.key, label: s.label, count: (result?.categoryCounts[s.key] ?? 0) + (general === 'include' ? generalCount : 0) }));
 
     const total = result ? (result.filteredCount ?? result.totalCount) : 0;
     const rating = result?.averageRating;
@@ -230,6 +252,8 @@ export default async function handler(
       averageRating: source === 'google' && typeof rating === 'number' && rating > 0 ? rating : null,
       recommendedPercentage: source === 'facebook' && typeof rating === 'string' ? parseInt(rating, 10) : null,
       range: from || to ? { from: from ?? null, to: to ?? null } : null,
+      category: categoryKeys.length > 0 ? categoryKeys : null,
+      categories,
       total,
       limit,
       offset,

@@ -3,6 +3,7 @@ import * as storage from '../../../../lib/storage';
 import dbConnect from '../../../../lib/mongodb';   
 import { Types } from 'mongoose';
 import { IWidgetSettingsFromForm, IReviewItemFromAPI } from '../../../../components/WidgetPreview'; 
+import { parseCategoryParam } from '../../../../lib/reviewCategories';
 
 export interface PublicWidgetDataResponse {
   widgetSettings: IWidgetSettingsFromForm;
@@ -14,6 +15,18 @@ export interface PublicWidgetDataResponse {
   averageRating?: number | string;
   /** Every review, no widget filter: for the Text layout. Added, never replacing. */
   allReviews?: { count: number; rating: number | string | null };
+  /**
+   * Service categories that have reviews, for the widget's filter buttons. A
+   * count is that category plus the general feedback shown alongside it. Added
+   * fields: a widget that does not read them is unaffected.
+   */
+  categories?: { key: string; label: string; count: number }[];
+  /** Reviews that name no service. They show under every category. */
+  generalCount?: number;
+  /** What the "All" button shows: the widget's reviews with no category filter. */
+  allCount?: number;
+  /** The category keys this response is filtered to, or null. */
+  category?: string[] | null;
 }
 
 // CORS headers for widget embedding
@@ -53,6 +66,8 @@ export default async function handler(
   const limitQuery = req.query.limit;
   const offsetQuery = req.query.offset; // Add offset parameter for pagination
   const layoutQuery = req.query.layout;
+  // ?category=boiler or ?category=boiler,ev: only those services, plus general feedback.
+  const categoryKeys = parseCategoryParam(req.query.category);
 
   if (req.method !== 'GET') {
     res.setHeader('Allow', ['GET', 'OPTIONS']);
@@ -94,7 +109,7 @@ export default async function handler(
     const reviewSource: 'google' | 'facebook' = widgetDoc.businessUrlSource === 'FacebookBusinessUrl' ? 'facebook' : 'google';
     const offset = offsetQuery ? parseInt(offsetQuery as string) : 0;
     const requestedLimit = limitQuery ? parseInt(limitQuery as string) : (widgetDoc.initialReviewCount || 12);
-    const reviewOptions = { minRating: widgetDoc.minRating, limit: requestedLimit, offset };
+    const reviewOptions = { minRating: widgetDoc.minRating, limit: requestedLimit, offset, categories: categoryKeys };
 
     // The name shown is the widget's own, exactly as before. (The old code looked
     // the business up with a populated object as its id, which always failed, so
@@ -102,11 +117,14 @@ export default async function handler(
     const fetchedBusinessName = widgetDoc.businessUrl?.name || widgetDoc.name || "Review Widget";
     let fetchedBusinessUrlLink: string | undefined = widgetDoc.businessUrl?.url;
 
-    const [statsAndReviews, batchUrl] = await Promise.all([
+    const [statsAndReviews, batchUrl, services] = await Promise.all([
       widgetDoc.urlHash ? storage.getReviewStatsAndReviews(widgetDoc.urlHash, reviewSource, reviewOptions) : Promise.resolve(null),
       // The link, as before, comes from the review batch -- but only its url, not
       // every stored review, which is what the old fallback fetched.
       !fetchedBusinessUrlLink && widgetDoc.urlHash ? storage.getReviewBatchUrl(widgetDoc.urlHash, reviewSource) : Promise.resolve(null),
+      // The business's service categories, for the buttons' labels. In the same
+      // round trip as the rest, so a visitor waits no longer than before.
+      storage.getBusinessServices(String(widgetDoc.businessUrlId ?? '')),
     ]);
     if (!fetchedBusinessUrlLink && batchUrl) fetchedBusinessUrlLink = batchUrl;
 
@@ -125,6 +143,15 @@ export default async function handler(
       if (stats.averageRating !== undefined && stats.averageRating !== null) averageRating = stats.averageRating;
       rawAverage = stats.rawAverage ?? null;
     }
+
+    // The filter buttons: every category of the business that has a review,
+    // counted with the general feedback that is shown alongside it.
+    const categoryCounts = stats?.categoryCounts ?? {};
+    const generalCount = stats?.generalCount ?? 0;
+    const categoryList = services
+      .filter((s) => (categoryCounts[s.key] ?? 0) > 0)
+      .map((s) => ({ key: s.key, label: s.label, count: (categoryCounts[s.key] ?? 0) + generalCount }));
+    const allCount = stats?.baseCount ?? totalFilteredReviewCount;
 
     // Determine the source for the widget settings
     const widgetSource = widgetDoc.businessUrlSource === 'GoogleBusinessUrl' ? 'google' : 'facebook';
@@ -196,6 +223,10 @@ export default async function handler(
       // The raw figures, no widget filter, for the Text layout. A new field, so no
       // existing widget reads anything different.
       allReviews: { count: totalReviewCount, rating: rawAverage },
+      categories: categoryList,
+      generalCount,
+      allCount,
+      category: categoryKeys.length > 0 ? categoryKeys : null,
     });
 
   } catch (error) {

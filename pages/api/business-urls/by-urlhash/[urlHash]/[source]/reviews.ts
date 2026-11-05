@@ -87,7 +87,9 @@ export default async function handler(
       }
     }
     reviews = uniqueReviews;
-    
+
+    // The scraper's extra detail stays in the database; categories come through.
+    reviews = reviews.map((r) => storage.stripPrivateReviewFields(r));
     return res.status(200).json({ reviews });
   } catch (error) {
     console.error('Error fetching reviews:', error);
